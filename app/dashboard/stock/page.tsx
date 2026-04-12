@@ -1,7 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface StockItem {
@@ -142,8 +141,8 @@ const btn   = (c = '#2563eb') => ({ background:c, color:'#fff', border:'none', b
 const btnGh = { background:'transparent', color:'#64748b', border:'1px solid #e2e8f0', borderRadius:8, padding:'8px 14px', fontSize:13, fontWeight:500, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }
 
 // ─── PDF Report Generator ─────────────────────────────────────────────────────
-function generateStockPDF(items: StockItem[], valuation: StockValuation) {
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+async function generateStockPDF(items: StockItem[], valuation: StockValuation) {
+  const { default: autoTable } = await import('jspdf-autotable')
   const W = 297
   const now = new Date().toLocaleDateString('fr-BE')
 
@@ -209,8 +208,8 @@ function generateStockPDF(items: StockItem[], valuation: StockValuation) {
 }
 
 // ─── Movement PDF ─────────────────────────────────────────────────────────────
-function generateMovementPDF(movements: StockMovement[]) {
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+async function generateMovementPDF(movements: StockMovement[]) {
+  const { default: autoTable } = await import('jspdf-autotable')
   const W = 210
   const now = new Date().toLocaleDateString('fr-BE')
 

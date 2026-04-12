@@ -8,15 +8,38 @@ function getSupabase() {
   );
 }
 
+// ── GET /api/employees/[id] ───────────────────────────────────────────────────
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }  // ✅ Promise
+) {
+  try {
+    const { id } = await params;  // ✅ await
+    const supabase = getSupabase();
+
+    const { data, error } = await supabase
+      .from('employees')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Erreur inconnue';
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
+
 // ── PATCH /api/employees/[id] ─────────────────────────────────────────────────
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }  // ✅ Promise
 ) {
   try {
+    const { id } = await params;  // ✅ await
     const supabase = getSupabase();
     const body = await req.json();
-    const { id } = params;
 
     if (!id) return NextResponse.json({ error: 'ID manquant' }, { status: 400 });
 
@@ -53,11 +76,11 @@ export async function PATCH(
 // ── DELETE /api/employees/[id] ────────────────────────────────────────────────
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }  // ✅ Promise
 ) {
   try {
+    const { id } = await params;  // ✅ await
     const supabase = getSupabase();
-    const { id } = params;
 
     if (!id) return NextResponse.json({ error: 'ID manquant' }, { status: 400 });
 
@@ -68,29 +91,6 @@ export async function DELETE(
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Erreur inconnue';
-    return NextResponse.json({ error: msg }, { status: 500 });
-  }
-}
-
-// ── GET /api/employees/[id] ───────────────────────────────────────────────────
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const supabase = getSupabase();
-    const { id } = params;
-
-    const { data, error } = await supabase
-      .from('employees')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json(data);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Erreur inconnue';
     return NextResponse.json({ error: msg }, { status: 500 });

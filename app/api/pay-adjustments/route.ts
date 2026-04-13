@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
         type:        body.type   || 'bonus',
         amount:      body.amount,
         reason:      body.reason,
+        date:        body.date   || new Date().toISOString().split('T')[0],
         month:       body.month  || null,
       }])
       .select()

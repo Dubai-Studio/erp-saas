@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
 import jsPDF from 'jspdf'
 
@@ -641,7 +641,7 @@ function StockDrawer({ item, movements, onEdit, onClose }: {
   const marginP       = sell > 0 ? (margin / sell) * 100 : 0
   const pct           = stockPct(item.quantity, item.min_quantity)
   const st            = STATUS[item.status] ?? STATUS.in_stock
-  const itemMovements = movements.filter(m => m.stock_item_id === item.id).slice(0, 10)
+  const itemMovements = movements.filter(m => m.product_id === item.id).slice(0, 10)
   const vatAmt        = cost * ((item.vat_rate ?? 21) / 100)
 
   return (
@@ -800,8 +800,9 @@ export default function StockPage() {
   }
 
   const saveMovement = async (data: Omit<StockMovement, 'id' | 'created_at'>) => {
-    const res = await fetch('/api/stock-movements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
-    if (!res.ok) throw new Error('Erreur mouvement')
+    const res = await fetch('/api/stock-movements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+    $args[0].Value
+
     setShowMovModal(false); load()
   }
 
@@ -1095,3 +1096,6 @@ export default function StockPage() {
     </div>
   )
 }
+
+
+

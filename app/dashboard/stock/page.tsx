@@ -325,7 +325,7 @@ function StockModal({ item, onSave, onClose }: {
   const validate = () => {
     const e: Record<string, string> = {}
     if (!form.name?.trim())      e.name      = 'Nom requis'
-    if (!form.reference?.trim()) e.reference = 'Référence requise'
+    // reference optionnelle
     if ((form.quantity  ?? -1) < 0) e.quantity  = 'Quantité invalide'
     if ((form.unit_price ?? -1) < 0) e.unit_price = 'Prix invalide'
     setErrors(e)
@@ -1096,6 +1096,7 @@ export default function StockPage() {
     </div>
   )
 }
+
 
 
 

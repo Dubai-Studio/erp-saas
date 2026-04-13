@@ -9,7 +9,7 @@ type Context = { params: Promise<{ id: string }> };
 export async function GET(_req: NextRequest, { params }: Context) {
   try {
     const { id } = await params;
-    const { data, error } = await getSupabase().from('clients').select('*').eq('id', id).single();
+    const { data, error } = await getSupabase().from('projects').select('*').eq('id', id).single();
     if (error) return NextResponse.json({ error: error.message }, { status: 404 });
     return NextResponse.json(data);
   } catch (err) {
@@ -21,7 +21,7 @@ export async function PATCH(req: NextRequest, { params }: Context) {
   try {
     const { id } = await params;
     const body = await req.json();
-    const { data, error } = await getSupabase().from('clients').update(body).eq('id', id).select().single();
+    const { data, error } = await getSupabase().from('projects').update(body).eq('id', id).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json(data);
   } catch (err) {
@@ -32,7 +32,7 @@ export async function PATCH(req: NextRequest, { params }: Context) {
 export async function DELETE(_req: NextRequest, { params }: Context) {
   try {
     const { id } = await params;
-    const { error } = await getSupabase().from('clients').delete().eq('id', id);
+    const { error } = await getSupabase().from('projects').delete().eq('id', id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   } catch (err) {

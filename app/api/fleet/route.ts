@@ -1,62 +1,59 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
 function getSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_KEY!
-  )
+  );
 }
 
 export async function GET(req: NextRequest) {
   try {
-    const supabase = getSupabase()
-    const { searchParams } = new URL(req.url)
-    const status = searchParams.get('status')
-
-    let query = supabase
-      .from('fleet_vehicles')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    if (status) query = query.eq('status', status)
-
-    const { data, error } = await query
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json({ data, total: data?.length || 0 })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    const { searchParams } = new URL(req.url);
+    const status = searchParams.get('status');
+    let query = getSupabase().from('vehicles').select('*').order('created_at', { ascending: false });
+    if (status) query = query.eq('status', status);
+    const { data, error } = await query;
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data ?? []);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Erreur serveur';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = getSupabase()
-    const body = await req.json()
-
-    if (!body.name) {
-      return NextResponse.json({ error: 'Le nom est obligatoire' }, { status: 400 })
+    const body = await req.json();
+    if (!body.brand || !body.model) {
+      return NextResponse.json({ error: 'brand et model sont requis' }, { status: 400 });
     }
-
-    const { data, error } = await supabase
-      .from('fleet_vehicles')
+    const { data, error } = await getSupabase()
+      .from('vehicles')
       .insert([{
-        name: body.name,
-        license_plate: body.license_plate || null,
-        brand: body.brand || null,
-        model: body.model || null,
-        year: body.year || null,
-        fuel_type: body.fuel_type || null,
-        mileage: body.mileage || 0,
-        status: body.status || 'active',
-        user_id: body.user_id || '00000000-0000-0000-0000-000000000000'
+        brand: body.brand, model: body.model,
+        year: body.year ?? new Date().getFullYear(),
+        plate: body.plate ?? '',
+        type: body.type ?? 'Voiture',
+        status: body.status ?? 'available',
+        mileage: body.mileage ?? 0,
+        fuel_type: body.fuel_type ?? 'Essence',
+        last_maintenance: body.last_maintenance ?? null,
+        next_maintenance: body.next_maintenance ?? null,
+        insurance_expiry: body.insurance_expiry ?? null,
+        technical_visit_expiry: body.technical_visit_expiry ?? null,
+        driver_name: body.driver_name ?? null,
+        driver_phone: body.driver_phone ?? null,
+        notes: body.notes ?? null,
+        purchase_price: body.purchase_price ?? null,
+        monthly_cost: body.monthly_cost ?? null,
       }])
-      .select()
-      .single()
-
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json({ data }, { status: 201 })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+      .select().single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data, { status: 201 });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Erreur serveur';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

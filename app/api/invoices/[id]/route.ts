@@ -1,54 +1,41 @@
-import { createClient } from '@supabase/supabase-js'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
-function sb() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+function getSupabase() {
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
 }
+type Context = { params: Promise<{ id: string }> };
 
-export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = sb()
-  const { data, error } = await supabase
-    .from('invoices')
-    .select('*')
-    .eq('id', params.id)
-    .single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ data })
-}
-
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = sb()
-  const body = await req.json()
-
-  const update: Record<string, unknown> = {
-    ...body,
-    updated_at: new Date().toISOString(),
+export async function GET(_req: NextRequest, { params }: Context) {
+  try {
+    const { id } = await params;
+    const { data, error } = await getSupabase().from('invoices').select('*').eq('id', id).single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 404 });
+    return NextResponse.json(data);
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Erreur' }, { status: 500 });
   }
-
-  if (update.lines && typeof update.lines !== 'string') {
-    update.lines = JSON.stringify(update.lines)
-  }
-
-  const { data, error } = await supabase
-    .from('invoices')
-    .update(update)
-    .eq('id', params.id)
-    .select()
-    .single()
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ data })
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = sb()
-  const { error } = await supabase
-    .from('invoices')
-    .delete()
-    .eq('id', params.id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ success: true })
+export async function PATCH(req: NextRequest, { params }: Context) {
+  try {
+    const { id } = await params;
+    const body = await req.json();
+    const { data, error } = await getSupabase().from('invoices').update(body).eq('id', id).select().single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data);
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Erreur' }, { status: 500 });
+  }
+}
+
+export async function DELETE(_req: NextRequest, { params }: Context) {
+  try {
+    const { id } = await params;
+    const { error } = await getSupabase().from('invoices').delete().eq('id', id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Erreur' }, { status: 500 });
+  }
 }

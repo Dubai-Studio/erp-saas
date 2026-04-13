@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 function getSupabase() {
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
       .from('expenses')
       .select('*')
       .order('created_at', { ascending: false });
-    if (vehicleId) query = query.eq('vehicle_id', vehicleId);
+    
     const { data, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json(data ?? []);
@@ -46,3 +46,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Erreur serveur' }, { status: 500 });
   }
 }
+

@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
         unit:           body.unit          ?? 'pcs',
         quantity:       body.quantity      ?? 0,
         min_quantity:   body.min_quantity  ?? 0,
-        purchase_price: body.unit_price    ?? 0,
+        unit_price: body.unit_price    ?? 0,
         selling_price:  body.selling_price ?? 0,
         supplier:       body.supplier      ?? null,
         location:       body.location      ?? null,

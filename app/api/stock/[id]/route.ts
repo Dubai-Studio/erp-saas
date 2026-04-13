@@ -40,7 +40,7 @@ export async function PUT(req: NextRequest, { params }: Context) {
         unit:           body.unit,
         quantity:       body.quantity,
         min_quantity:   body.min_quantity,
-        purchase_price: body.unit_price,
+        unit_price: body.unit_price,
         selling_price:  body.selling_price,
         supplier:       body.supplier      ?? null,
         location:       body.location      ?? null,

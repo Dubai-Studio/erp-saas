@@ -39,15 +39,15 @@ export async function POST(req: NextRequest) {
         status: body.status ?? 'available',
         mileage: body.mileage ?? 0,
         fuel_type: body.fuel_type ?? 'Essence',
-        last_maintenance: body.last_maintenance ?? null,
-        next_maintenance: body.next_maintenance ?? null,
+        last_service: body.last_maintenance ?? null,
+        next_service: body.next_maintenance ?? null,
         insurance_expiry: body.insurance_expiry ?? null,
         technical_visit_expiry: body.technical_visit_expiry ?? null,
-        driver_name: body.driver_name ?? null,
+        driver: body.driver_name ?? null,
         driver_phone: body.driver_phone ?? null,
         notes: body.notes ?? null,
         purchase_price: body.purchase_price ?? null,
-        monthly_cost: body.monthly_cost ?? null,
+        daily_cost: body.monthly_cost ?? null,
       }])
       .select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

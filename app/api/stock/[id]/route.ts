@@ -14,7 +14,7 @@ export async function GET(_req: NextRequest, { params }: Context) {
   try {
     const { id } = await params;
     const { data, error } = await getSupabase()
-      .from('stock_products')
+      .from('stock_items')
       .select('*')
       .eq('id', id)
       .single();
@@ -32,7 +32,7 @@ export async function PUT(req: NextRequest, { params }: Context) {
     const body   = await req.json();
 
     const { data, error } = await getSupabase()
-      .from('stock_products')
+      .from('stock_items')
       .update({
         name:           body.name,
         sku:            body.reference     ?? null,
@@ -66,7 +66,7 @@ export async function DELETE(_req: NextRequest, { params }: Context) {
   try {
     const { id } = await params;
     const { error } = await getSupabase()
-      .from('stock_products')
+      .from('stock_items')
       .delete()
       .eq('id', id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     const status   = searchParams.get('status');
 
     let query = getSupabase()
-      .from('stock_products')
+      .from('stock_items')
       .select('*')
       .order('created_at', { ascending: false });
 
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { data, error } = await getSupabase()
-      .from('stock_products')
+      .from('stock_items')
       .insert([{
         name:           body.name,
         sku:            body.reference     ?? null,

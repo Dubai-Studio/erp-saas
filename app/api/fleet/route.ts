@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status');
-    let query = getSupabase().from('vehicles').select('*').order('created_at', { ascending: false });
+    let query = getSupabase().from('fleet_vehicles').select('*').order('created_at', { ascending: false });
     if (status) query = query.eq('status', status);
     const { data, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'brand et model sont requis' }, { status: 400 });
     }
     const { data, error } = await getSupabase()
-      .from('vehicles')
+      .from('fleet_vehicles')
       .insert([{
         brand: body.brand, model: body.model,
         year: body.year ?? new Date().getFullYear(),

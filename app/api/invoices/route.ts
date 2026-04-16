@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { data, error } = await getSupabase().from('invoices').insert([{
-      invoice_number: body.invoice_number ?? '',
+      invoice_number: body.invoice_number || "FAC-" + Date.now(),
       client_id:      body.client_id      ?? null,
       status:         body.status         ?? 'draft',
       issue_date:     body.issue_date     ?? new Date().toISOString().split('T')[0],
@@ -40,3 +40,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Erreur' }, { status: 500 });
   }
 }
+

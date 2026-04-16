@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import React from 'react'
@@ -551,12 +551,12 @@ export default function ProjectsPage() {
         } catch { return {} }
       }
       const [pd, cd] = await Promise.all([fetchSafe('/api/projects'), fetchSafe('/api/clients')])
-      const list = (pd.data||[]).map((p:Project)=>({
+      const list = (Array.isArray(pd) ? pd : pd.data ?? []).map((p:Project)=>({
         ...p,
-        client_name: (cd.data||[]).find((c:Client)=>c.id===p.client_id)?.name||'—',
+        client_name: (Array.isArray(cd) ? cd : cd.data ?? []).find((c:Client)=>c.id===p.client_id)?.name||'—',
       }))
       setProjects(list)
-      setClients(cd.data||[])
+      setClients(Array.isArray(cd) ? cd : cd.data ?? [])
     } catch(e) {
       console.error('ProjectsPage load error:', e)
     } finally {
@@ -1018,3 +1018,4 @@ export default function ProjectsPage() {
     </div>
   )
 }
+

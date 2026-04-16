@@ -649,7 +649,7 @@ export default function ProjectsPage() {
         .rh td        { transition:background 0.1s; }
         .pc           { transition:all 0.18s; }
         .pc:hover     { transform:translateY(-3px); box-shadow:0 8px 28px rgba(0,0,0,0.10) !important; }
-        .ab           { opacity:0; transition:opacity 0.15s; }
+        .ab           { opacity:1; transition:opacity 0.15s; }
         tr:hover .ab  { opacity:1; }
         select,input  { font-family:inherit; }
         input:focus,select:focus,textarea:focus { outline:none; border-color:#7c3aed !important; box-shadow:0 0 0 3px rgba(124,58,237,0.1); }
@@ -1018,4 +1018,5 @@ export default function ProjectsPage() {
     </div>
   )
 }
+
 

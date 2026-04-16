@@ -799,12 +799,24 @@ export default function StockPage() {
     setShowModal(false); setEditItem(null); load()
   }
 
-  const saveMovement = async (data: Omit<StockMovement, 'id' | 'created_at'>) => {
-    const res = await fetch('/api/stock-movements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-    $args[0].Value
-
+const saveMovement = async (data: Omit<StockMovement, 'id' | 'created_at'>) => {
+    const payload = {
+      product_id: data.stock_item_id,
+      type:       data.type,
+      quantity:   data.quantity,
+      unit_price: data.unit_price,
+      reason:     data.reason,
+      date:       data.date || new Date().toISOString().split('T')[0],
+    }
+    const res = await fetch('/api/stock-movements', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    if (!res.ok) throw new Error('Erreur mouvement')
     setShowMovModal(false); load()
   }
+
 
   const del = async (id: string) => {
     await fetch(`/api/stock/${id}`, { method: 'DELETE' })
@@ -1096,6 +1108,7 @@ export default function StockPage() {
     </div>
   )
 }
+
 
 
 

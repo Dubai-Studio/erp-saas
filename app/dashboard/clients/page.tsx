@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 
@@ -463,7 +463,7 @@ export default function ClientsPage() {
     try {
       const r = await fetch('/api/clients')
       const d = await r.json()
-      setClients(d.data || [])
+      setClients(Array.isArray(d) ? d : d.data ?? [])
     } catch { setClients([]) }
     setLoading(false)
   }, [])
@@ -896,3 +896,5 @@ export default function ClientsPage() {
     </div>
   )
 }
+
+

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import React from 'react'
@@ -974,13 +974,13 @@ export default function InvoicesPage() {
         fetchSafe('/api/clients'),
         fetchSafe('/api/projects'),
       ])
-      setInvoices((invD.data || []).map((inv: any) => ({
+      setInvoices((Array.isArray(invD) ? invD : invD.data ?? []).map((inv: any) => ({
         ...inv,
         lines: typeof inv.lines === 'string' ? JSON.parse(inv.lines) : (Array.isArray(inv.lines) ? inv.lines : []),
       })))
-      setExtInvs(extD.data || [])
-      setClients(cliD.data || [])
-      setProjects(prjD.data || [])
+      setExtInvs((Array.isArray(extD) ? extD : extD.data ?? []))
+      setClients((Array.isArray(cliD) ? cliD : cliD.data ?? []))
+      setProjects((Array.isArray(prjD) ? prjD : prjD.data ?? []))
     } catch (e) {
       console.error('InvoicesPage load error:', e)
     } finally {
@@ -1471,3 +1471,4 @@ export default function InvoicesPage() {
     </div>
   )
 }
+

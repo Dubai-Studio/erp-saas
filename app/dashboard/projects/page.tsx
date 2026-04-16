@@ -544,11 +544,11 @@ export default function ProjectsPage() {
       const fetchSafe = async (url:string) => {
         try {
           const r = await fetch(url)
-          if(!r.ok) return {}
+          if(!r.ok) return []
           const t = await r.text()
-          if(!t||t.trim()==='') return {}
+          if(!t||t.trim()==='') return []
           return JSON.parse(t)
-        } catch { return {} }
+        } catch { return [] }
       }
       const [pd, cd] = await Promise.all([fetchSafe('/api/projects'), fetchSafe('/api/clients')])
       const list = (Array.isArray(pd) ? pd : pd.data ?? []).map((p:Project)=>({
@@ -1018,5 +1018,7 @@ export default function ProjectsPage() {
     </div>
   )
 }
+
+
 
 

@@ -87,7 +87,7 @@ const lbl: React.CSSProperties = {
 ───────────────────────────────────────────── */
 const fmt  = (n: number) => new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(n || 0);
 const fmtP = (n: number): string => { const abs = Math.abs(n || 0); const int = Math.floor(abs).toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."); const dec = abs.toFixed(2).split(".")[1]; return (n < 0 ? "-" : "") + int + "," + dec + " EUR"; };
-const fmtD = (d: string) => d ? new Date(d).toLocaleDateString('fr-BE', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+const fmtD = (d: string) => d ? new Date(d).toLocaleDateString("fr-BE", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 const currentMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
 
 function seniority(hire_date: string): string {

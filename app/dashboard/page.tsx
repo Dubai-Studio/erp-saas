@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
@@ -622,3 +622,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

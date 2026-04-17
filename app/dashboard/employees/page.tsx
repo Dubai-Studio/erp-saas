@@ -1006,7 +1006,7 @@ export default function EmployeesPage() {
                           <button key={bi} title={b.title} onClick={b.fn}
                             style={{ height: 30, width: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: 'none', cursor: 'pointer', background: b.hBg, color: b.hCol, transition: 'all 0.15s' }}
                             onMouseEnter={ev => { (ev.currentTarget as HTMLElement).style.background = b.hBg; (ev.currentTarget as HTMLElement).style.color = b.hCol; }}
-                             onMouseLeave={ev => { (ev.currentTarget as HTMLElement).style.background = b.hBg; (ev.currentTarget as HTMLElement).style.color = b.hCol; }}>
+                            onMouseLeave={ev => { (ev.currentTarget as HTMLElement).style.background = b.hBg; (ev.currentTarget as HTMLElement).style.color = b.hCol; }}>
                             {b.icon}
                           </button>
                         ))}

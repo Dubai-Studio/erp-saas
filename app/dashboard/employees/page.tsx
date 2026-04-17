@@ -86,7 +86,7 @@ const lbl: React.CSSProperties = {
    HELPERS
 ───────────────────────────────────────────── */
 const fmt  = (n: number) => new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(n || 0);
-const fmtP = (n: number) => new Intl.NumberFormat('fr-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0) + ' EUR';
+const fmtP = (n: number): string => { const abs = Math.abs(n || 0); const int = Math.floor(abs).toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."); const dec = abs.toFixed(2).split(".")[1]; return (n < 0 ? "-" : "") + int + "," + dec + " EUR"; };
 const fmtD = (d: string) => d ? new Date(d).toLocaleDateString('fr-BE', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 const currentMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
 
@@ -216,7 +216,7 @@ function generatePaySlip(data: PaySlipData) {
     headStyles: { fillColor: [245, 158, 11], textColor: 255, fontSize: 9, fontStyle: 'bold', cellPadding: 5 },
     bodyStyles: { fontSize: 9, cellPadding: 4, textColor: [30, 41, 59] },
     alternateRowStyles: { fillColor: [255, 251, 235] },
-    columnStyles: { 0: { cellWidth: 95 }, 1: { halign: 'center', cellWidth: 15 }, 2: { halign: 'right', cellWidth: 40 }, 3: { halign: 'right', cellWidth: 35 } },
+    columnStyles: { 0: { cellWidth: 85 }, 1: { halign: 'center', cellWidth: 15 }, 2: { halign: 'right', cellWidth: 45 }, 3: { halign: 'right', cellWidth: 40 } },
     margin: { left: M, right: M },
     tableLineColor: [226, 232, 240], tableLineWidth: 0.2,
   });

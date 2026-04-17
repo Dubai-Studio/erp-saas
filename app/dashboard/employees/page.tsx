@@ -11,7 +11,7 @@ import autoTable from 'jspdf-autotable';
 interface Employee {
   id: string; first_name: string; last_name: string; email: string; phone: string;
   position: string; department: string; salary: number; hire_date: string;
-  status: 'active' | 'inactive' | 'on_leave'; contract_type: string; created_at: string;
+  status: 'active' | 'inactive' | 'on_leave'; contract_type: string; created_at: string; payment_method?: string; payment_day?: number; payment_frequency?: string;
   iban?: string; national_id?: string; address?: string; emergency_contact?: string;
 }
 
@@ -56,7 +56,7 @@ const COMPANY = {
 
 const EMPTY_EMP = {
   first_name: '', last_name: '', email: '', phone: '', position: '', department: '',
-  salary: 0, hire_date: '', status: 'active' as Employee['status'], contract_type: 'CDI',
+  salary: 0, hire_date: '', status: 'active' as Employee['status'], contract_type: 'CDI', payment_method: 'Virement', payment_day: 28, payment_frequency: 'Mensuel',
   iban: '', national_id: '', address: '', emergency_contact: '',
 };
 
@@ -196,12 +196,12 @@ function generatePaySlip(data: PaySlipData) {
   doc.text('DÉTAILS DE PAIEMENT', W / 2 + 7, 64);
   doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(71, 85, 105);
   doc.text([
-    `Salaire brut : ${fmt(gross)}`,
+    `Salaire brut : ${fmt(Number(gross))}`,
     e.iban ? `IBAN : ${e.iban}` : `IBAN : ${COMPANY.iban}`,
     `Période : ${MONTHS[parseInt(month.split('-')[1]) - 1]} ${year}`,
   ], W / 2 + 7, 73, { lineHeightFactor: 1.8 });
 
-  const tableBody: (string | number)[][] = [['Salaire brut mensuel', '1', fmt(gross), fmt(gross)]];
+  const tableBody: (string | number)[][] = [['Salaire brut mensuel', '1', fmt(Number(gross)), fmt(Number(gross))]];
   adjustments.forEach(adj => {
     const t = ADJ_TYPES[adj.type];
     const sign = t.sign > 0 ? '+' : '-';
@@ -226,7 +226,7 @@ function generatePaySlip(data: PaySlipData) {
   doc.setFillColor(248, 250, 252); doc.setDrawColor(226, 232, 240);
   doc.roundedRect(txX, fY, txW, 44, 3, 3, 'FD');
   [
-    { l: 'Salaire brut', v: fmt(gross), col: [71, 85, 105] as [number, number, number] },
+    { l: 'Salaire brut', v: fmt(Number(gross)), col: [71, 85, 105] as [number, number, number] },
     { l: 'Ajustements', v: (totalAdj >= 0 ? '+' : '') + fmt(totalAdj), col: (totalAdj >= 0 ? [21, 128, 61] : [220, 38, 38]) as [number, number, number] },
   ].forEach((r, i) => {
     const y = fY + 10 + i * 10;
@@ -241,7 +241,7 @@ function generatePaySlip(data: PaySlipData) {
   doc.text('NET À PAYER', txX + 6, fY + 38);
   doc.text(fmt(net), txX + txW - 6, fY + 38, { align: 'right' });
 
-  const bY = fY + 58;
+  const bY = Math.min(fY + 58, 220);
   doc.setFillColor(255, 251, 235); doc.setDrawColor(253, 230, 138);
   doc.roundedRect(M, bY, W - M * 2, 18, 3, 3, 'FD');
   doc.setTextColor(146, 64, 14); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
@@ -249,7 +249,7 @@ function generatePaySlip(data: PaySlipData) {
   doc.setFont('helvetica', 'normal'); doc.setTextColor(120, 53, 15);
   doc.text(`IBAN : ${e.iban || COMPANY.iban}  •  Communication : SALAIRE ${MONTHS[parseInt(month.split('-')[1]) - 1].toUpperCase()} ${year}`, M + 5, bY + 13);
 
-  const sY = bY + 26;
+  const sY = Math.min(bY + 26, 238);
   doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.3);
   doc.line(M, sY + 20, M + 70, sY + 20);
   doc.line(W - M - 70, sY + 20, W - M, sY + 20);
@@ -419,6 +419,24 @@ function EmployeeModal({ open, onClose, onSave, initial }: {
                     ))}
                   </div>
                 )}
+              </div>
+              <div style={{ gridColumn: "1/-1", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginTop: 4 }}>
+                <div>
+                  <label style={lbl}>Mode de paiement</label>
+                  <select style={{ ...inp, width: "100%" }} value={form.payment_method || "Virement"} onChange={e => f("payment_method", e.target.value)}>
+                    {["Virement","Cheque","Especes","Neopay"].map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={lbl}>Jour de versement (1-31)</label>
+                  <input style={inp} type="number" min="1" max="31" value={form.payment_day || 28} onChange={e => f("payment_day", +e.target.value)} placeholder="28" />
+                </div>
+                <div>
+                  <label style={lbl}>Frequence</label>
+                  <select style={{ ...inp, width: "100%" }} value={form.payment_frequency || "Mensuel"} onChange={e => f("payment_frequency", e.target.value)}>
+                    {["Mensuel","Hebdomadaire","Bimensuel"].map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
               </div>
               <div style={{ gridColumn: '1/-1' }}>
                 <label style={lbl}>IBAN (virement salaire)</label>
@@ -788,7 +806,7 @@ export default function EmployeesPage() {
     const myAdj    = (Array.isArray(adjustments) ? adjustments : []).filter(a => a.employee_id === employee.id && a.month === month);
     const totalAdj = myAdj.reduce((s, a) => s + ADJ_TYPES[a.type].sign * a.amount, 0);
     const [yr]     = month.split('-');
-    generatePaySlip({ employee, month, year: parseInt(yr), gross: employee.salary || 0, adjustments: myAdj, totalAdj, net: (employee.salary || 0) + totalAdj });
+    generatePaySlip({ employee, month, year: parseInt(yr), gross: Number(employee.salary) || 0, adjustments: myAdj, totalAdj, net: (Number(employee.salary) || 0) + totalAdj });
   }
 
   function exportCSV() {
@@ -1121,5 +1139,8 @@ export default function EmployeesPage() {
     </div>
   );
 }
+
+
+
 
 

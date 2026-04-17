@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -70,14 +70,14 @@ const FUEL_TYPES = ['Diesel', 'Essence', 'Hybride', 'Électrique', 'GPL', 'Hydro
 const VAT_RATES  = [0, 6, 12, 21]
 
 const EXPENSE_TYPES: Record<string, { label: string; color: string; bg: string }> = {
-  fuel:        { label: 'Carburant',    color: '#2563eb', bg: '#eff6ff' },
-  maintenance: { label: 'Entretien',    color: '#d97706', bg: '#fffbeb' },
-  insurance:   { label: 'Assurance',    color: '#7c3aed', bg: '#f5f3ff' },
+  fuel:        { label: 'Carburant',       color: '#2563eb', bg: '#eff6ff' },
+  maintenance: { label: 'Entretien',       color: '#d97706', bg: '#fffbeb' },
+  insurance:   { label: 'Assurance',       color: '#7c3aed', bg: '#f5f3ff' },
   tax:         { label: 'Taxe / Vignette', color: '#0891b2', bg: '#ecfeff' },
-  repair:      { label: 'Réparation',   color: '#dc2626', bg: '#fef2f2' },
-  parking:     { label: 'Parking',      color: '#16a34a', bg: '#f0fdf4' },
-  fine:        { label: 'Amende',       color: '#9f1239', bg: '#fff1f2' },
-  other:       { label: 'Autre',        color: '#64748b', bg: '#f8fafc' },
+  repair:      { label: 'Réparation',      color: '#dc2626', bg: '#fef2f2' },
+  parking:     { label: 'Parking',         color: '#16a34a', bg: '#f0fdf4' },
+  fine:        { label: 'Amende',          color: '#9f1239', bg: '#fff1f2' },
+  other:       { label: 'Autre',           color: '#64748b', bg: '#f8fafc' },
 }
 
 const COMPANY = { name: 'Wasalak SPRL', address: 'Bruxelles, Belgique', vat: 'BE 0000.000.000' }
@@ -96,7 +96,7 @@ const EMPTY_EXP: Omit<VehicleExpense, 'id' | 'created_at' | 'vehicle_name' | 'pl
   description: '', date: '', km: 0, invoice_ref: '',
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt  = (v: number) =>
   new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR' }).format(v || 0)
 const fmtD = (d?: string) => d ? new Date(d).toLocaleDateString('fr-BE') : '—'
@@ -125,13 +125,12 @@ async function fetchSafe<T>(url: string): Promise<T[]> {
   } catch { return [] }
 }
 
-// ─── Alert helper ─────────────────────────────────────────────────────────────
 function getVehicleAlerts(v: Vehicle): { label: string; days: number; type: string }[] {
   const alerts = []
   const checks = [
-    { label: 'Assurance',          date: v.insurance_expiry,           type: 'insurance' },
-    { label: 'Contrôle technique', date: v.technical_control_expiry,   type: 'ct' },
-    { label: 'Vignette',           date: v.vignette_expiry,            type: 'vignette' },
+    { label: 'Assurance',          date: v.insurance_expiry,         type: 'insurance' },
+    { label: 'Contrôle technique', date: v.technical_control_expiry, type: 'ct' },
+    { label: 'Vignette',           date: v.vignette_expiry,          type: 'vignette' },
   ]
   for (const c of checks) {
     const d = daysUntil(c.date)
@@ -163,12 +162,8 @@ const I: Record<string, JSX.Element> = {
   driver:   <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
   fuel:     <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 22V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v7h1a2 2 0 0 1 2 2v3a1 1 0 0 0 1 1 1 1 0 0 0 1-1V9l-3-3"/><path d="M9 11V5"/><line x1="3" y1="11" x2="15" y2="11"/></svg>,
   tool:     <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>,
-  shield:   <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
-  tag:      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>,
   gauge:    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 1 7.38 16.75"/><path d="M12 2a10 10 0 0 0-7.38 16.75"/><path d="M12 12l4-4"/><circle cx="12" cy="12" r="2"/></svg>,
-  location: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>,
   check:    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>,
-  clock:    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
 }
 
 // ─── Shared Styles ─────────────────────────────────────────────────────────────
@@ -177,6 +172,7 @@ const inp   = { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1p
 const lbl   = { fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' as const }
 const btn   = (c = '#2563eb') => ({ background: c, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 })
 const btnGh = { background: 'transparent', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }
+const btnDanger = { background: 'transparent', color: '#ef4444', border: '1px solid #fecaca', borderRadius: 8, padding: '5px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center' }
 
 // ─── PDF Fleet Report ─────────────────────────────────────────────────────────
 function generateFleetPDF(vehicles: Vehicle[], expenses: VehicleExpense[], kpi: FleetKPI) {
@@ -192,12 +188,12 @@ function generateFleetPDF(vehicles: Vehicle[], expenses: VehicleExpense[], kpi: 
   doc.text(`Généré le ${now}`, W - 14, 20, { align: 'right' })
 
   const kpis = [
-    { l: 'Véhicules', v: String(kpi.totalVehicles) },
-    { l: 'Actifs',    v: String(kpi.activeVehicles) },
-    { l: 'Maintenance', v: String(kpi.maintenanceVehicles) },
-    { l: 'Valeur parc', v: fmt(kpi.totalValue) },
-    { l: 'Dépenses totales', v: fmt(kpi.totalExpenses) },
-    { l: 'Alertes docs', v: String(kpi.expiringDocuments) },
+    { l: 'Véhicules',       v: String(kpi.totalVehicles) },
+    { l: 'Actifs',          v: String(kpi.activeVehicles) },
+    { l: 'Maintenance',     v: String(kpi.maintenanceVehicles) },
+    { l: 'Valeur parc',     v: fmt(kpi.totalValue) },
+    { l: 'Dépenses totales',v: fmt(kpi.totalExpenses) },
+    { l: 'Alertes docs',    v: String(kpi.expiringDocuments) },
   ]
   kpis.forEach((k, i) => {
     const x = 14 + i * 44; const y = 34
@@ -211,19 +207,13 @@ function generateFleetPDF(vehicles: Vehicle[], expenses: VehicleExpense[], kpi: 
 
   autoTable(doc, {
     startY: 58,
-    head: [['Immatriculation', 'Véhicule', 'Catégorie', 'Conducteur', 'Km', 'Statut', 'Assurance', 'CT', 'Vignette', 'Val. achat', 'Val. actuelle', 'Dépréciation']],
+    head: [['Immatriculation','Véhicule','Catégorie','Conducteur','Km','Statut','Assurance','CT','Vignette','Val. achat','Val. actuelle','Dépréciation']],
     body: vehicles.map(v => {
       const dep = depreciation(v.purchase_price, v.current_value)
-      return [
-        v.plate, `${v.brand} ${v.model} (${v.year})`, v.category,
-        v.driver || '—', v.mileage.toLocaleString('fr-BE') + ' km',
-        STATUS[v.status]?.label ?? v.status,
-        fmtD(v.insurance_expiry),
-        fmtD(v.technical_control_expiry),
-        fmtD(v.vignette_expiry),
-        fmt(v.purchase_price), fmt(v.current_value),
-        `${dep.toFixed(1)}%`,
-      ]
+      return [v.plate, `${v.brand} ${v.model} (${v.year})`, v.category, v.driver || '—',
+        v.mileage.toLocaleString('fr-BE') + ' km', STATUS[v.status]?.label ?? v.status,
+        fmtD(v.insurance_expiry), fmtD(v.technical_control_expiry), fmtD(v.vignette_expiry),
+        fmt(v.purchase_price), fmt(v.current_value), `${dep.toFixed(1)}%`]
     }),
     styles: { fontSize: 7, cellPadding: 2.5 },
     headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
@@ -231,7 +221,6 @@ function generateFleetPDF(vehicles: Vehicle[], expenses: VehicleExpense[], kpi: 
     columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 36 } },
   })
 
-  // Expenses page
   doc.addPage()
   doc.setFillColor(37, 99, 235); doc.rect(0, 0, 210, 28, 'F')
   doc.setTextColor(255, 255, 255); doc.setFontSize(14); doc.setFont('helvetica', 'bold')
@@ -241,14 +230,12 @@ function generateFleetPDF(vehicles: Vehicle[], expenses: VehicleExpense[], kpi: 
 
   autoTable(doc, {
     startY: 34,
-    head: [['Date', 'Véhicule', 'Plaque', 'Type', 'Description', 'Montant HT', 'TVA %', 'Montant TTC', 'Réf. facture']],
+    head: [['Date','Véhicule','Plaque','Type','Description','Montant HT','TVA %','Montant TTC','Réf. facture']],
     body: expenses.map(e => {
       const ttc = e.amount * (1 + (e.vat_rate || 21) / 100)
-      return [
-        fmtD(e.date || e.created_at), e.vehicle_name, e.plate,
+      return [fmtD(e.date || e.created_at), e.vehicle_name, e.plate,
         EXPENSE_TYPES[e.type]?.label ?? e.type, e.description || '—',
-        fmt(e.amount), `${e.vat_rate ?? 21}%`, fmt(ttc), e.invoice_ref || '—',
-      ]
+        fmt(e.amount), `${e.vat_rate ?? 21}%`, fmt(ttc), e.invoice_ref || '—']
     }),
     styles: { fontSize: 7.5, cellPadding: 2.5 },
     headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
@@ -270,10 +257,9 @@ function exportCSV(vehicles: Vehicle[]) {
   const headers = ['Immatriculation','Nom','Marque','Modèle','Année','Catégorie','Carburant','Statut','Conducteur','Kilométrage','Date achat','Prix achat','Valeur actuelle','Dépréciation %','Assurance expiry','CT expiry','Vignette expiry']
   const rows = vehicles.map(v => {
     const dep = depreciation(v.purchase_price, v.current_value)
-    return [
-      v.plate, v.name, v.brand, v.model, v.year, v.category, v.fuel_type,
-      STATUS[v.status]?.label ?? v.status, v.driver, v.mileage,
-      v.purchase_date, v.purchase_price, v.current_value, dep.toFixed(2),
+    return [v.plate, v.name, v.brand, v.model, v.year, v.category, v.fuel_type,
+      STATUS[v.status]?.label ?? v.status, v.driver, v.mileage, v.purchase_date,
+      v.purchase_price, v.current_value, dep.toFixed(2),
       v.insurance_expiry, v.technical_control_expiry, v.vignette_expiry,
     ].map(x => `"${String(x ?? '').replace(/"/g, '""')}"`).join(',')
   })
@@ -300,14 +286,59 @@ function calcKPI(vehicles: Vehicle[], expenses: VehicleExpense[]): FleetKPI {
 // ─── Expiry Badge ─────────────────────────────────────────────────────────────
 function ExpiryBadge({ date, label }: { date?: string; label: string }) {
   if (!date) return <span style={{ fontSize: 11, color: '#94a3b8' }}>—</span>
-  const d = daysUntil(date)
+  const d     = daysUntil(date)
   const color = expiryColor(d)
   const bg    = expiryBg(d)
-  const text  = d < 0 ? `${label} EXPIRÉ` : d === 0 ? `${label} aujourd'hui` : `${label}: ${d}j`
+  const text  = d < 0 ? `${label} EXPIRÉ` : d === 0 ? `${label} auj.` : `${label}: ${d}j`
   return (
     <span style={{ background: bg, color, border: `1px solid ${color}30`, borderRadius: 6, padding: '2px 7px', fontSize: 10, fontWeight: 700, whiteSpace: 'nowrap' }}>
       {text}
     </span>
+  )
+}
+
+// ─── Expense Detail Modal (view) ──────────────────────────────────────────────
+function ExpenseDetailModal({ expense, onClose, onDelete }: {
+  expense: VehicleExpense
+  onClose: () => void
+  onDelete: (id: string) => void
+}) {
+  const et  = EXPENSE_TYPES[expense.type] ?? EXPENSE_TYPES.other
+  const ttc = (expense.amount || 0) * (1 + (expense.vat_rate || 21) / 100)
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 1300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 460, boxShadow: '0 25px 60px rgba(0,0,0,.22)' }}>
+        <div style={{ padding: '18px 22px', background: `linear-gradient(135deg,${et.color}22,${et.bg})`, borderRadius: '16px 16px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0' }}>
+          <div>
+            <span style={{ background: et.bg, color: et.color, borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 700, border: `1px solid ${et.color}30` }}>{et.label}</span>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', marginTop: 6 }}>{expense.vehicle_name} — {expense.plate}</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'rgba(0,0,0,.06)', border: 'none', borderRadius: 8, padding: 7, cursor: 'pointer', display: 'flex', color: '#64748b' }}>{I.x}</button>
+        </div>
+        <div style={{ padding: 22 }}>
+          {[
+            { l: 'Date',         v: fmtD(expense.date || expense.created_at) },
+            { l: 'Description',  v: expense.description || '—' },
+            { l: 'Montant HT',   v: fmt(expense.amount) },
+            { l: `TVA ${expense.vat_rate ?? 21}%`, v: fmt((expense.amount || 0) * ((expense.vat_rate || 21) / 100)) },
+            { l: 'Montant TTC',  v: fmt(ttc) },
+            { l: 'Kilométrage',  v: expense.km ? `${expense.km.toLocaleString('fr-BE')} km` : '—' },
+            { l: 'Réf. facture', v: expense.invoice_ref || '—' },
+          ].map(r => (
+            <div key={r.l} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9', fontSize: 13 }}>
+              <span style={{ color: '#6b7280' }}>{r.l}</span>
+              <span style={{ fontWeight: 600, color: '#1e293b' }}>{r.v}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: '14px 22px', display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #e2e8f0' }}>
+          <button onClick={onClose} style={btnGh}>Fermer</button>
+          <button onClick={() => { onDelete(expense.id); onClose() }} style={{ ...btn('#ef4444') }}>
+            {I.trash} Supprimer
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -330,9 +361,9 @@ function VehicleModal({ vehicle, onSave, onClose }: {
 
   const validate = () => {
     const e: Record<string, string> = {}
-    if (!form.plate?.trim())  e.plate = 'Immatriculation requise'
-    if (!form.brand?.trim())  e.brand = 'Marque requise'
-    if (!form.model?.trim())  e.model = 'Modèle requis'
+    if (!form.plate?.trim()) e.plate = 'Immatriculation requise'
+    if (!form.brand?.trim()) e.brand = 'Marque requise'
+    if (!form.model?.trim()) e.model = 'Modèle requis'
     setErrors(e); return Object.keys(e).length === 0
   }
 
@@ -343,15 +374,12 @@ function VehicleModal({ vehicle, onSave, onClose }: {
   }
 
   const is = (k: string) => ({ ...inp, borderColor: errors[k] ? '#ef4444' : '#e2e8f0' })
-
   const tabs = [
     { key: 'info' as const,    label: 'Véhicule' },
     { key: 'docs' as const,    label: 'Documents' },
     { key: 'finance' as const, label: 'Finance' },
     { key: 'notes' as const,   label: 'Notes' },
   ]
-
-  // Alert previews in docs tab
   const insuranceDays = daysUntil(form.insurance_expiry)
   const ctDays        = daysUntil(form.technical_control_expiry)
   const vignetteDays  = daysUntil(form.vignette_expiry)
@@ -359,8 +387,6 @@ function VehicleModal({ vehicle, onSave, onClose }: {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 680, maxHeight: '93vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 60px rgba(0,0,0,.22)' }}>
-
-        {/* Header */}
         <div style={{ padding: '20px 24px', background: 'linear-gradient(135deg,#2563eb,#1d4ed8)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ color: '#fff' }}>{I.car}</span>
@@ -371,8 +397,6 @@ function VehicleModal({ vehicle, onSave, onClose }: {
           </div>
           <button onClick={onClose} style={{ background: 'rgba(255,255,255,.15)', border: 'none', borderRadius: 8, padding: 8, cursor: 'pointer', color: '#fff', display: 'flex' }}>{I.x}</button>
         </div>
-
-        {/* Tabs */}
         <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', padding: '0 24px' }}>
           {tabs.map(t => (
             <button key={t.key} onClick={() => setTab(t.key)} style={{ padding: '12px 16px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: tab === t.key ? '#2563eb' : '#64748b', borderBottom: tab === t.key ? '2px solid #2563eb' : '2px solid transparent' }}>
@@ -380,11 +404,7 @@ function VehicleModal({ vehicle, onSave, onClose }: {
             </button>
           ))}
         </div>
-
-        {/* Body */}
         <div style={{ padding: 24, overflowY: 'auto', flex: 1 }}>
-
-          {/* ── Tab Véhicule ── */}
           {tab === 'info' && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <div>
@@ -446,59 +466,44 @@ function VehicleModal({ vehicle, onSave, onClose }: {
               </div>
             </div>
           )}
-
-          {/* ── Tab Documents ── */}
           {tab === 'docs' && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              {/* Insurance */}
               <div>
                 <label style={lbl}>Expiration assurance</label>
                 <input style={{ ...inp, borderColor: insuranceDays <= 30 ? '#ef4444' : '#e2e8f0' }} type="date" value={form.insurance_expiry ?? ''} onChange={e => set('insurance_expiry', e.target.value)} />
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 2 }}>
-                {form.insurance_expiry ? (
-                  <div style={{ background: expiryBg(insuranceDays), border: `1px solid ${expiryColor(insuranceDays)}30`, borderRadius: 8, padding: '8px 12px', width: '100%' }}>
-                    <div style={{ fontSize: 11, color: '#6b7280' }}>Assurance</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: expiryColor(insuranceDays) }}>
-                      {insuranceDays < 0 ? '🚨 EXPIRÉE' : insuranceDays === 0 ? '⚠️ Expire aujourd\'hui' : `${insuranceDays} jours restants`}
+                {form.insurance_expiry
+                  ? <div style={{ background: expiryBg(insuranceDays), border: `1px solid ${expiryColor(insuranceDays)}30`, borderRadius: 8, padding: '8px 12px', width: '100%' }}>
+                      <div style={{ fontSize: 11, color: '#6b7280' }}>Assurance</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: expiryColor(insuranceDays) }}>{insuranceDays < 0 ? 'EXPIRÉE' : insuranceDays === 0 ? "Expire aujourd'hui" : `${insuranceDays} jours restants`}</div>
                     </div>
-                  </div>
-                ) : <div style={{ ...inp, color: '#94a3b8', fontSize: 13 }}>Aucune date</div>}
+                  : <div style={{ ...inp, color: '#94a3b8', fontSize: 13 }}>Aucune date</div>}
               </div>
-
-              {/* CT */}
               <div>
                 <label style={lbl}>Expiration contrôle technique</label>
                 <input style={{ ...inp, borderColor: ctDays <= 30 ? '#ef4444' : '#e2e8f0' }} type="date" value={form.technical_control_expiry ?? ''} onChange={e => set('technical_control_expiry', e.target.value)} />
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 2 }}>
-                {form.technical_control_expiry ? (
-                  <div style={{ background: expiryBg(ctDays), border: `1px solid ${expiryColor(ctDays)}30`, borderRadius: 8, padding: '8px 12px', width: '100%' }}>
-                    <div style={{ fontSize: 11, color: '#6b7280' }}>Contrôle technique</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: expiryColor(ctDays) }}>
-                      {ctDays < 0 ? '🚨 EXPIRÉ' : ctDays === 0 ? '⚠️ Expire aujourd\'hui' : `${ctDays} jours restants`}
+                {form.technical_control_expiry
+                  ? <div style={{ background: expiryBg(ctDays), border: `1px solid ${expiryColor(ctDays)}30`, borderRadius: 8, padding: '8px 12px', width: '100%' }}>
+                      <div style={{ fontSize: 11, color: '#6b7280' }}>Contrôle technique</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: expiryColor(ctDays) }}>{ctDays < 0 ? 'EXPIRÉ' : ctDays === 0 ? "Expire aujourd'hui" : `${ctDays} jours restants`}</div>
                     </div>
-                  </div>
-                ) : <div style={{ ...inp, color: '#94a3b8', fontSize: 13 }}>Aucune date</div>}
+                  : <div style={{ ...inp, color: '#94a3b8', fontSize: 13 }}>Aucune date</div>}
               </div>
-
-              {/* Vignette */}
               <div>
                 <label style={lbl}>Expiration vignette</label>
                 <input style={{ ...inp, borderColor: vignetteDays <= 30 ? '#ef4444' : '#e2e8f0' }} type="date" value={form.vignette_expiry ?? ''} onChange={e => set('vignette_expiry', e.target.value)} />
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 2 }}>
-                {form.vignette_expiry ? (
-                  <div style={{ background: expiryBg(vignetteDays), border: `1px solid ${expiryColor(vignetteDays)}30`, borderRadius: 8, padding: '8px 12px', width: '100%' }}>
-                    <div style={{ fontSize: 11, color: '#6b7280' }}>Vignette</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: expiryColor(vignetteDays) }}>
-                      {vignetteDays < 0 ? '🚨 EXPIRÉE' : vignetteDays === 0 ? '⚠️ Expire aujourd\'hui' : `${vignetteDays} jours restants`}
+                {form.vignette_expiry
+                  ? <div style={{ background: expiryBg(vignetteDays), border: `1px solid ${expiryColor(vignetteDays)}30`, borderRadius: 8, padding: '8px 12px', width: '100%' }}>
+                      <div style={{ fontSize: 11, color: '#6b7280' }}>Vignette</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: expiryColor(vignetteDays) }}>{vignetteDays < 0 ? 'EXPIRÉE' : vignetteDays === 0 ? "Expire aujourd'hui" : `${vignetteDays} jours restants`}</div>
                     </div>
-                  </div>
-                ) : <div style={{ ...inp, color: '#94a3b8', fontSize: 13 }}>Aucune date</div>}
+                  : <div style={{ ...inp, color: '#94a3b8', fontSize: 13 }}>Aucune date</div>}
               </div>
-
-              {/* Service */}
               <div>
                 <label style={lbl}>Km prochain service</label>
                 <input style={inp} type="number" min="0" value={form.next_service_km ?? 0} onChange={e => set('next_service_km', Number(e.target.value))} />
@@ -509,8 +514,6 @@ function VehicleModal({ vehicle, onSave, onClose }: {
               </div>
             </div>
           )}
-
-          {/* ── Tab Finance ── */}
           {tab === 'finance' && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <div>
@@ -536,8 +539,8 @@ function VehicleModal({ vehicle, onSave, onClose }: {
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 12 }}>Analyse financière</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
                     {[
-                      { l: 'Prix achat',    v: fmt(form.purchase_price ?? 0), c: '#2563eb' },
-                      { l: 'Valeur actuelle', v: fmt(form.current_value ?? 0), c: '#16a34a' },
+                      { l: 'Prix achat',      v: fmt(form.purchase_price ?? 0), c: '#2563eb' },
+                      { l: 'Valeur actuelle', v: fmt(form.current_value ?? 0),  c: '#16a34a' },
                       { l: 'Perte de valeur', v: fmt((form.purchase_price ?? 0) - (form.current_value ?? 0)), c: '#dc2626' },
                     ].map(k => (
                       <div key={k.l} style={{ textAlign: 'center', padding: '8px 0' }}>
@@ -550,8 +553,6 @@ function VehicleModal({ vehicle, onSave, onClose }: {
               )}
             </div>
           )}
-
-          {/* ── Tab Notes ── */}
           {tab === 'notes' && (
             <div>
               <label style={lbl}>Notes internes</label>
@@ -559,8 +560,6 @@ function VehicleModal({ vehicle, onSave, onClose }: {
             </div>
           )}
         </div>
-
-        {/* Footer */}
         <div style={{ padding: '16px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', background: '#f8fafc' }}>
           <button onClick={onClose} style={btnGh}>Annuler</button>
           <button onClick={submit} disabled={saving} style={btn(saving ? '#93c5fd' : '#2563eb')}>
@@ -580,7 +579,6 @@ function ExpenseModal({ vehicles, onSave, onClose }: {
 }) {
   const [form, setForm]     = useState({ ...EMPTY_EXP, date: todayStr() })
   const [saving, setSaving] = useState(false)
-
   const set = (k: string, v: unknown) => setForm(f => ({ ...f, [k]: v }))
   const sel = vehicles.find(v => v.id === form.vehicle_id)
   const et  = EXPENSE_TYPES[form.type]
@@ -596,11 +594,10 @@ function ExpenseModal({ vehicles, onSave, onClose }: {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 520, boxShadow: '0 25px 60px rgba(0,0,0,.22)' }}>
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(135deg,#7c3aed,#6d28d9)' }}>
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', borderRadius: '16px 16px 0 0' }}>
           <div style={{ fontWeight: 700, fontSize: 15, color: '#fff', display: 'flex', alignItems: 'center', gap: 8 }}>{I.euro} Enregistrer une dépense</div>
           <button onClick={onClose} style={{ background: 'rgba(255,255,255,.15)', border: 'none', borderRadius: 8, padding: 6, cursor: 'pointer', color: '#fff', display: 'flex' }}>{I.x}</button>
         </div>
-
         <div style={{ padding: 24, display: 'grid', gap: 16 }}>
           <div>
             <label style={lbl}>Véhicule *</label>
@@ -609,7 +606,6 @@ function ExpenseModal({ vehicles, onSave, onClose }: {
               {vehicles.map(v => <option key={v.id} value={v.id}>{v.plate} — {v.brand} {v.model} ({v.driver || 'Sans conducteur'})</option>)}
             </select>
           </div>
-
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
               <label style={lbl}>Type de dépense</label>
@@ -622,7 +618,6 @@ function ExpenseModal({ vehicles, onSave, onClose }: {
               <input style={inp} type="date" value={form.date} onChange={e => set('date', e.target.value)} />
             </div>
           </div>
-
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
               <label style={lbl}>Montant HT (€) *</label>
@@ -635,7 +630,6 @@ function ExpenseModal({ vehicles, onSave, onClose }: {
               </select>
             </div>
           </div>
-
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
               <label style={lbl}>Kilométrage</label>
@@ -646,21 +640,18 @@ function ExpenseModal({ vehicles, onSave, onClose }: {
               <input style={inp} value={form.invoice_ref || ''} onChange={e => set('invoice_ref', e.target.value)} placeholder="FAC-2026-0001" />
             </div>
           </div>
-
           <div>
             <label style={lbl}>Description</label>
-            <input style={inp} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Ex: Vidange + filtres, plein carburant..." />
+            <input style={inp} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Ex: Vidange + filtres, plein carburant…" />
           </div>
-
-          {/* Preview */}
           {form.vehicle_id && Number(form.amount) > 0 && (
             <div style={{ background: et.bg, border: `1px solid ${et.color}30`, borderRadius: 10, padding: 14 }}>
               <div style={{ fontSize: 12, color: et.color, fontWeight: 700, marginBottom: 8 }}>Aperçu de la dépense</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                 {[
-                  { l: 'Montant HT', v: fmt(Number(form.amount) || 0) },
-                  { l: `TVA ${form.vat_rate}%`, v: fmt((Number(form.amount) || 0) * (Number(form.vat_rate) / 100)) },
-                  { l: 'Montant TTC', v: fmt(ttc) },
+                  { l: 'Montant HT',      v: fmt(Number(form.amount) || 0) },
+                  { l: `TVA ${form.vat_rate}%`, v: fmt((Number(form.amount) || 0) * ((Number(form.vat_rate)) / 100)) },
+                  { l: 'Montant TTC',     v: fmt(ttc) },
                 ].map(k => (
                   <div key={k.l} style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: 10, color: '#6b7280' }}>{k.l}</div>
@@ -672,7 +663,6 @@ function ExpenseModal({ vehicles, onSave, onClose }: {
             </div>
           )}
         </div>
-
         <div style={{ padding: '16px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between' }}>
           <button onClick={onClose} style={btnGh}>Annuler</button>
           <button onClick={submit} disabled={saving || !form.vehicle_id || !Number(form.amount)} style={btn(saving || !form.vehicle_id || !Number(form.amount) ? '#93c5fd' : '#7c3aed')}>
@@ -691,30 +681,23 @@ function VehicleDrawer({ vehicle, expenses, onEdit, onClose }: {
   onEdit: () => void
   onClose: () => void
 }) {
-  const st           = STATUS[vehicle.status] ?? STATUS.active
-  const alerts       = getVehicleAlerts(vehicle)
-  const vExpenses    = expenses.filter(e => e.vehicle_id === vehicle.id)
-  const totalExp     = vExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
-  const dep          = depreciation(vehicle.purchase_price, vehicle.current_value)
-  const insD         = daysUntil(vehicle.insurance_expiry)
-  const ctD          = daysUntil(vehicle.technical_control_expiry)
-  const vigD         = daysUntil(vehicle.vignette_expiry)
-  const kmToService  = (vehicle.next_service_km || 0) - (vehicle.mileage || 0)
-
-  // Expenses by type
-  const expByType = Object.keys(EXPENSE_TYPES).map(k => ({
-    key: k,
-    label: EXPENSE_TYPES[k].label,
-    color: EXPENSE_TYPES[k].color,
-    bg:    EXPENSE_TYPES[k].bg,
+  const st          = STATUS[vehicle.status] ?? STATUS.active
+  const alerts      = getVehicleAlerts(vehicle)
+  const vExpenses   = expenses.filter(e => e.vehicle_id === vehicle.id)
+  const totalExp    = vExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
+  const dep         = depreciation(vehicle.purchase_price, vehicle.current_value)
+  const insD        = daysUntil(vehicle.insurance_expiry)
+  const ctD         = daysUntil(vehicle.technical_control_expiry)
+  const vigD        = daysUntil(vehicle.vignette_expiry)
+  const kmToService = (vehicle.next_service_km || 0) - (vehicle.mileage || 0)
+  const expByType   = Object.keys(EXPENSE_TYPES).map(k => ({
+    key: k, label: EXPENSE_TYPES[k].label, color: EXPENSE_TYPES[k].color, bg: EXPENSE_TYPES[k].bg,
     total: vExpenses.filter(e => e.type === k).reduce((s, e) => s + (Number(e.amount) || 0), 0),
   })).filter(e => e.total > 0)
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 900, display: 'flex', justifyContent: 'flex-end' }}>
       <div style={{ width: 'min(560px,100vw)', background: '#fff', height: '100%', overflowY: 'auto', boxShadow: '-8px 0 40px rgba(0,0,0,.15)' }}>
-
-        {/* Header */}
         <div style={{ padding: '20px 24px', background: 'linear-gradient(135deg,#2563eb,#1d4ed8)', position: 'sticky', top: 0, zIndex: 10 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
@@ -733,30 +716,25 @@ function VehicleDrawer({ vehicle, expenses, onEdit, onClose }: {
             {vehicle.driver && <span style={{ background: 'rgba(255,255,255,.15)', color: '#fff', borderRadius: 20, padding: '3px 10px', fontSize: 12 }}>{I.driver} {vehicle.driver}</span>}
           </div>
         </div>
-
         <div style={{ padding: 24 }}>
-
-          {/* Alerts */}
           {alerts.length > 0 && (
             <div style={{ marginBottom: 16 }}>
               {alerts.map((a, i) => (
                 <div key={i} style={{ background: a.days < 0 ? '#fef2f2' : '#fffbeb', border: `1px solid ${a.days < 0 ? '#fecaca' : '#fde68a'}`, borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                   <span style={{ color: a.days < 0 ? '#dc2626' : '#d97706' }}>{I.alert}</span>
                   <span style={{ fontSize: 13, fontWeight: 600, color: a.days < 0 ? '#7f1d1d' : '#78350f' }}>
-                    {a.label} — {a.days < 0 ? `Expiré depuis ${Math.abs(a.days)} jours` : a.days === 0 ? 'Expire aujourd\'hui' : `Expire dans ${a.days} jours`}
+                    {a.label} — {a.days < 0 ? `Expiré depuis ${Math.abs(a.days)} jours` : a.days === 0 ? "Expire aujourd'hui" : `Expire dans ${a.days} jours`}
                   </span>
                 </div>
               ))}
             </div>
           )}
-
-          {/* KPIs */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
             {[
-              { l: 'Kilométrage',     v: `${(vehicle.mileage || 0).toLocaleString('fr-BE')} km`, c: '#2563eb' },
-              { l: 'Dépenses totales', v: fmt(totalExp),              c: '#dc2626' },
-              { l: 'Valeur actuelle', v: fmt(vehicle.current_value),  c: '#16a34a' },
-              { l: 'Dépréciation',    v: `${dep.toFixed(1)}%`,        c: dep > 50 ? '#dc2626' : '#d97706' },
+              { l: 'Kilométrage',      v: `${(vehicle.mileage || 0).toLocaleString('fr-BE')} km`, c: '#2563eb' },
+              { l: 'Dépenses totales', v: fmt(totalExp),             c: '#dc2626' },
+              { l: 'Valeur actuelle',  v: fmt(vehicle.current_value), c: '#16a34a' },
+              { l: 'Dépréciation',     v: `${dep.toFixed(1)}%`,       c: dep > 50 ? '#dc2626' : '#d97706' },
             ].map(k => (
               <div key={k.l} style={{ background: '#f8fafc', borderRadius: 8, padding: '10px 14px', border: '1px solid #e2e8f0' }}>
                 <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 2 }}>{k.l}</div>
@@ -764,8 +742,6 @@ function VehicleDrawer({ vehicle, expenses, onEdit, onClose }: {
               </div>
             ))}
           </div>
-
-          {/* Documents */}
           <div style={{ ...card, marginBottom: 16 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 12 }}>Documents & Échéances</div>
             {[
@@ -777,17 +753,12 @@ function VehicleDrawer({ vehicle, expenses, onEdit, onClose }: {
                 <span style={{ fontSize: 13, color: '#374151' }}>{r.l}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 12, color: '#64748b' }}>{fmtD(r.date)}</span>
-                  {r.date && (
-                    <span style={{ fontSize: 11, fontWeight: 700, color: expiryColor(r.days), background: expiryBg(r.days), borderRadius: 6, padding: '2px 6px' }}>
-                      {r.days < 0 ? `−${Math.abs(r.days)}j` : `+${r.days}j`}
-                    </span>
-                  )}
+                  {r.date && <span style={{ fontSize: 11, fontWeight: 700, color: expiryColor(r.days), background: expiryBg(r.days), borderRadius: 6, padding: '2px 6px' }}>{r.days < 0 ? `−${Math.abs(r.days)}j` : `+${r.days}j`}</span>}
                 </div>
               </div>
             ))}
-            {/* Service km */}
             {vehicle.next_service_km > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
                 <span style={{ fontSize: 13, color: '#374151' }}>Prochain service</span>
                 <span style={{ fontSize: 12, fontWeight: 700, color: kmToService <= 1000 ? '#dc2626' : '#16a34a' }}>
                   {vehicle.next_service_km.toLocaleString('fr-BE')} km ({kmToService <= 0 ? 'DÉPASSÉ' : `${kmToService.toLocaleString('fr-BE')} km restants`})
@@ -795,16 +766,14 @@ function VehicleDrawer({ vehicle, expenses, onEdit, onClose }: {
               </div>
             )}
           </div>
-
-          {/* Finance */}
           <div style={{ ...card, marginBottom: 16 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 12 }}>Informations financières</div>
             {[
-              { l: 'Prix d\'achat',   v: fmt(vehicle.purchase_price) },
-              { l: 'Date d\'achat',   v: fmtD(vehicle.purchase_date) },
-              { l: 'Valeur actuelle', v: fmt(vehicle.current_value) },
-              { l: 'Perte de valeur', v: fmt((vehicle.purchase_price || 0) - (vehicle.current_value || 0)) },
-              { l: 'Dépenses totales', v: fmt(totalExp) },
+              { l: "Prix d'achat",        v: fmt(vehicle.purchase_price) },
+              { l: "Date d'achat",        v: fmtD(vehicle.purchase_date) },
+              { l: 'Valeur actuelle',     v: fmt(vehicle.current_value) },
+              { l: 'Perte de valeur',     v: fmt((vehicle.purchase_price || 0) - (vehicle.current_value || 0)) },
+              { l: 'Dépenses totales',    v: fmt(totalExp) },
               { l: 'Coût total possession', v: fmt((vehicle.purchase_price || 0) - (vehicle.current_value || 0) + totalExp) },
             ].map(r => (
               <div key={r.l} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f1f5f9', fontSize: 13 }}>
@@ -813,8 +782,6 @@ function VehicleDrawer({ vehicle, expenses, onEdit, onClose }: {
               </div>
             ))}
           </div>
-
-          {/* Expenses by type */}
           {expByType.length > 0 && (
             <div style={{ ...card, marginBottom: 16 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 12 }}>Dépenses par type</div>
@@ -831,8 +798,6 @@ function VehicleDrawer({ vehicle, expenses, onEdit, onClose }: {
               ))}
             </div>
           )}
-
-          {/* Recent expenses */}
           {vExpenses.length > 0 && (
             <div style={{ ...card }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 12 }}>Dernières dépenses</div>
@@ -864,9 +829,7 @@ function AlertBanner({ vehicles }: { vehicles: Vehicle[] }) {
   const urgent = vehicles.flatMap(v =>
     getVehicleAlerts(v).map(a => ({ ...a, plate: v.plate, vehicleName: `${v.brand} ${v.model}` }))
   ).sort((a, b) => a.days - b.days).slice(0, 5)
-
   if (urgent.length === 0) return null
-
   return (
     <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: '12px 16px', marginBottom: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -886,48 +849,41 @@ function AlertBanner({ vehicles }: { vehicles: Vehicle[] }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function FleetPage() {
-  const [vehicles,  setVehicles]  = useState<Vehicle[]>([])
-  const [expenses,  setExpenses]  = useState<VehicleExpense[]>([])
-  const [loading,   setLoading]   = useState(true)
-  const [view,      setView]      = useState<'list' | 'grid'>('list')
-  const [tab,       setTab]       = useState<'vehicles' | 'expenses'>('vehicles')
+  const [vehicles,     setVehicles]     = useState<Vehicle[]>([])
+  const [expenses,     setExpenses]     = useState<VehicleExpense[]>([])
+  const [loading,      setLoading]      = useState(true)
+  const [view,         setView]         = useState<'list' | 'grid'>('list')
+  const [tab,          setTab]          = useState<'vehicles' | 'expenses'>('vehicles')
+  const [search,       setSearch]       = useState('')
+  const [statusF,      setStatusF]      = useState('')
+  const [catF,         setCatF]         = useState('')
+  const [fuelF,        setFuelF]        = useState('')
+  const [alertF,       setAlertF]       = useState(false)
+  const [sortBy,       setSortBy]       = useState<'plate' | 'mileage' | 'value' | 'expenses'>('plate')
+  const [expTypeF,     setExpTypeF]     = useState('')
+  const [expVehF,      setExpVehF]      = useState('')
+  const [showVModal,   setShowVModal]   = useState(false)
+  const [showExpModal, setShowExpModal] = useState(false)
+  const [editVehicle,  setEditVehicle]  = useState<Vehicle | null>(null)
+  const [drawerV,      setDrawerV]      = useState<Vehicle | null>(null)
+  const [delTarget,    setDelTarget]    = useState<Vehicle | null>(null)
+  // ── NEW: état pour supprimer/voir une dépense ──
+  const [viewExpense,  setViewExpense]  = useState<VehicleExpense | null>(null)
+  const [delExpTarget, setDelExpTarget] = useState<string | null>(null)
 
-  // Filters
-  const [search,    setSearch]    = useState('')
-  const [statusF,   setStatusF]   = useState('')
-  const [catF,      setCatF]      = useState('')
-  const [fuelF,     setFuelF]     = useState('')
-  const [alertF,    setAlertF]    = useState(false)
-  const [sortBy,    setSortBy]    = useState<'plate' | 'mileage' | 'value' | 'expenses'>('plate')
-
-  // Expense filters
-  const [expTypeF,  setExpTypeF]  = useState('')
-  const [expVehF,   setExpVehF]   = useState('')
-
-  // Modals
-  const [showVModal,  setShowVModal]  = useState(false)
-  const [showExpModal,setShowExpModal]= useState(false)
-  const [editVehicle, setEditVehicle] = useState<Vehicle | null>(null)
-  const [drawerV,     setDrawerV]     = useState<Vehicle | null>(null)
-  const [delTarget,   setDelTarget]   = useState<Vehicle | null>(null)
-
-  // ── Load ──
   const load = useCallback(async () => {
     setLoading(true)
     const [vs, es] = await Promise.all([
       fetchSafe<Vehicle>('/api/fleet'),
       fetchSafe<VehicleExpense>('/api/fleet-expenses'),
     ])
-    setVehicles(vs)
-    setExpenses(es)
-    setLoading(false)
+    setVehicles(vs); setExpenses(es); setLoading(false)
   }, [])
 
   useEffect(() => { load() }, [load])
 
-  // ── CRUD ──
   const saveVehicle = async (data: Partial<Vehicle>) => {
-    const method = data.id ? 'PUT' : 'POST'
+    const method = data.id ? 'PATCH' : 'POST'
     const url    = data.id ? `/api/fleet/${data.id}` : '/api/fleet'
     const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
     if (!res.ok) throw new Error('Erreur sauvegarde')
@@ -944,12 +900,17 @@ export default function FleetPage() {
     setShowExpModal(false); load()
   }
 
+  // ── NEW: suppression d'une dépense ──
+  const delExpense = async (id: string) => {
+    await fetch(`/api/fleet-expenses/${id}`, { method: 'DELETE' })
+    setDelExpTarget(null); setViewExpense(null); load()
+  }
+
   const del = async (id: string) => {
     await fetch(`/api/fleet/${id}`, { method: 'DELETE' })
     setDelTarget(null); load()
   }
 
-  // ── Filters ──
   const filteredV = vehicles
     .filter(v =>
       (!search  || [v.plate, v.brand, v.model, v.driver, v.name].some(f => f?.toLowerCase().includes(search.toLowerCase()))) &&
@@ -978,12 +939,10 @@ export default function FleetPage() {
     )
     .sort((a, b) => (b.date || b.created_at).localeCompare(a.date || a.created_at))
 
-  const kpi = calcKPI(vehicles, expenses)
-
+  const kpi      = calcKPI(vehicles, expenses)
   const openCreate = () => { setEditVehicle(null); setShowVModal(true) }
   const openEdit   = (v: Vehicle) => { setEditVehicle(v); setShowVModal(true) }
 
-  // ── Render ──
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'Inter,system-ui,sans-serif' }}>
       <div style={{ maxWidth: 1440, margin: '0 auto', padding: '24px 20px' }}>
@@ -997,25 +956,25 @@ export default function FleetPage() {
             <p style={{ margin: '4px 0 0', fontSize: 14, color: '#64748b' }}>Véhicules, documents, dépenses et alertes</p>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button onClick={load}                              style={btnGh}>{I.refresh} Actualiser</button>
-            <button onClick={() => exportCSV(filteredV)}       style={btnGh}>{I.export}  CSV</button>
+            <button onClick={load}                                          style={btnGh}>{I.refresh} Actualiser</button>
+            <button onClick={() => exportCSV(filteredV)}                   style={btnGh}>{I.export} CSV</button>
             <button onClick={() => generateFleetPDF(filteredV, filteredE, kpi)} style={btnGh}>{I.pdf} Rapport PDF</button>
-            <button onClick={() => setShowExpModal(true)}      style={btn('#7c3aed')}>{I.euro} Dépense</button>
-            <button onClick={openCreate}                       style={btn()}>{I.plus} Nouveau véhicule</button>
+            <button onClick={() => setShowExpModal(true)}                  style={btn('#7c3aed')}>{I.euro} Dépense</button>
+            <button onClick={openCreate}                                   style={btn()}>{I.plus} Nouveau véhicule</button>
           </div>
         </div>
 
         {/* KPI Strip */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(155px,1fr))', gap: 14, marginBottom: 24 }}>
           {[
-            { l: 'Véhicules',       v: kpi.totalVehicles,                        c: '#2563eb', icon: I.car },
-            { l: 'Actifs',          v: kpi.activeVehicles,                       c: '#16a34a', icon: I.check },
-            { l: 'Maintenance',     v: kpi.maintenanceVehicles,                  c: '#d97706', icon: I.tool },
-            { l: 'Valeur du parc',  v: fmt(kpi.totalValue),                      c: '#7c3aed', icon: I.euro },
-            { l: 'Dépenses totales',v: fmt(kpi.totalExpenses),                   c: '#dc2626', icon: I.chart },
-            { l: 'Dépenses / mois', v: fmt(kpi.monthlyExpenses),                 c: '#0891b2', icon: I.calendar },
-            { l: 'Km moyen',        v: `${kpi.avgMileage.toLocaleString('fr-BE')} km`, c: '#64748b', icon: I.gauge },
-            { l: 'Alertes docs',    v: kpi.expiringDocuments,                    c: '#dc2626', icon: I.alert },
+            { l: 'Véhicules',        v: kpi.totalVehicles,                             c: '#2563eb', icon: I.car },
+            { l: 'Actifs',           v: kpi.activeVehicles,                            c: '#16a34a', icon: I.check },
+            { l: 'Maintenance',      v: kpi.maintenanceVehicles,                       c: '#d97706', icon: I.tool },
+            { l: 'Valeur du parc',   v: fmt(kpi.totalValue),                           c: '#7c3aed', icon: I.euro },
+            { l: 'Dépenses totales', v: fmt(kpi.totalExpenses),                        c: '#dc2626', icon: I.chart },
+            { l: 'Dépenses / mois',  v: fmt(kpi.monthlyExpenses),                      c: '#0891b2', icon: I.calendar },
+            { l: 'Km moyen',         v: `${kpi.avgMileage.toLocaleString('fr-BE')} km`, c: '#64748b', icon: I.gauge },
+            { l: 'Alertes docs',     v: kpi.expiringDocuments,                         c: '#dc2626', icon: I.alert },
           ].map(k => (
             <div key={k.l} style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: '16px 18px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -1027,7 +986,6 @@ export default function FleetPage() {
           ))}
         </div>
 
-        {/* Alert Banner */}
         <AlertBanner vehicles={vehicles} />
 
         {/* Tabs */}
@@ -1044,9 +1002,8 @@ export default function FleetPage() {
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
             <div style={{ position: 'relative', flex: '1 1 220px' }}>
               <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }}>{I.search}</span>
-              <input style={{ ...inp, paddingLeft: 34 }} value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher plaque, marque, conducteur..." />
+              <input style={{ ...inp, paddingLeft: 34 }} value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher plaque, marque, conducteur…" />
             </div>
-
             {tab === 'vehicles' && (<>
               <select style={{ ...inp, flex: '0 0 150px' }} value={statusF} onChange={e => setStatusF(e.target.value)}>
                 <option value="">Tous statuts</option>
@@ -1077,7 +1034,6 @@ export default function FleetPage() {
                 ))}
               </div>
             </>)}
-
             {tab === 'expenses' && (<>
               <select style={{ ...inp, flex: '0 0 180px' }} value={expTypeF} onChange={e => setExpTypeF(e.target.value)}>
                 <option value="">Tous types</option>
@@ -1091,7 +1047,6 @@ export default function FleetPage() {
           </div>
         </div>
 
-        {/* Loading */}
         {loading && (
           <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>
             <div style={{ width: 40, height: 40, border: '3px solid #e2e8f0', borderTopColor: '#2563eb', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 12px' }} />
@@ -1099,191 +1054,188 @@ export default function FleetPage() {
           </div>
         )}
 
-        {/* ── Vehicles List ── */}
+        {/* Vehicles List */}
         {!loading && tab === 'vehicles' && view === 'list' && (
           <div style={{ ...card, overflow: 'hidden', padding: 0 }}>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: '#f8fafc' }}>
-                    {['Plaque', 'Véhicule', 'Catégorie', 'Conducteur', 'Kilométrage', 'Statut', 'Assurance', 'CT', 'Vignette', 'Valeur', 'Dépenses', 'Actions'].map(h => (
+                    {['Plaque','Véhicule','Catégorie','Conducteur','Kilométrage','Statut','Assurance','CT','Vignette','Valeur','Dépenses','Actions'].map(h => (
                       <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#475569', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredV.length === 0 ? (
-                    <tr><td colSpan={12} style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Aucun véhicule trouvé</td></tr>
-                  ) : filteredV.map(v => {
-                    const st    = STATUS[v.status] ?? STATUS.active
-                    const al    = getVehicleAlerts(v)
-                    const vExp  = expenses.filter(e => e.vehicle_id === v.id).reduce((s, e) => s + (e.amount || 0), 0)
-                    return (
-                      <tr key={v.id} style={{ borderBottom: '1px solid #f1f5f9' }}
-                          onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
-                          onMouseLeave={e => (e.currentTarget.style.background = '')}>
-                        <td style={{ padding: '10px 14px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ fontSize: 13, fontWeight: 800, color: '#2563eb', fontFamily: 'monospace' }}>{v.plate}</span>
-                            {al.length > 0 && <span style={{ color: '#d97706' }} title={`${al.length} alerte(s)`}>{I.alert}</span>}
-                          </div>
-                        </td>
-                        <td style={{ padding: '10px 14px' }}>
-                          <div style={{ fontWeight: 600, fontSize: 13, color: '#1e293b' }}>{v.brand} {v.model}</div>
-                          <div style={{ fontSize: 11, color: '#94a3b8' }}>{v.year} — {v.fuel_type}</div>
-                        </td>
-                        <td style={{ padding: '10px 14px', fontSize: 12, color: '#64748b' }}>{v.category}</td>
-                        <td style={{ padding: '10px 14px', fontSize: 12, color: '#374151' }}>{v.driver || '—'}</td>
-                        <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{(v.mileage || 0).toLocaleString('fr-BE')} km</td>
-                        <td style={{ padding: '10px 14px' }}>
-                          <span style={{ background: st.bg, color: st.color, border: `1px solid ${st.border}`, borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>
-                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: st.dot, display: 'inline-block', marginRight: 5 }} />
-                            {st.label}
-                          </span>
-                        </td>
-                        <td style={{ padding: '10px 14px' }}><ExpiryBadge date={v.insurance_expiry} label="Ass." /></td>
-                        <td style={{ padding: '10px 14px' }}><ExpiryBadge date={v.technical_control_expiry} label="CT" /></td>
-                        <td style={{ padding: '10px 14px' }}><ExpiryBadge date={v.vignette_expiry} label="Vig." /></td>
-                        <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, color: '#16a34a' }}>{fmt(v.current_value)}</td>
-                        <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, color: '#dc2626' }}>{fmt(vExp)}</td>
-                        <td style={{ padding: '10px 14px' }}>
-                          <div style={{ display: 'flex', gap: 4 }}>
-                            <button onClick={() => setDrawerV(v)}  style={{ ...btnGh, padding: '5px 8px' }} title="Voir">{I.eye}</button>
-                            <button onClick={() => openEdit(v)}    style={{ ...btnGh, padding: '5px 8px' }} title="Modifier">{I.edit}</button>
-                            <button onClick={() => setDelTarget(v)} style={{ background: 'transparent', color: '#ef4444', border: '1px solid #fecaca', borderRadius: 8, padding: '5px 8px', cursor: 'pointer', display: 'flex' }} title="Supprimer">{I.trash}</button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
+                  {filteredV.length === 0
+                    ? <tr><td colSpan={12} style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Aucun véhicule trouvé</td></tr>
+                    : filteredV.map(v => {
+                      const st   = STATUS[v.status] ?? STATUS.active
+                      const al   = getVehicleAlerts(v)
+                      const vExp = expenses.filter(e => e.vehicle_id === v.id).reduce((s, e) => s + (e.amount || 0), 0)
+                      return (
+                        <tr key={v.id} style={{ borderBottom: '1px solid #f1f5f9' }}
+                            onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
+                            onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                          <td style={{ padding: '10px 14px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ fontSize: 13, fontWeight: 800, color: '#2563eb', fontFamily: 'monospace' }}>{v.plate}</span>
+                              {al.length > 0 && <span style={{ color: '#d97706' }} title={`${al.length} alerte(s)`}>{I.alert}</span>}
+                            </div>
+                          </td>
+                          <td style={{ padding: '10px 14px' }}>
+                            <div style={{ fontWeight: 600, fontSize: 13, color: '#1e293b' }}>{v.brand} {v.model}</div>
+                            <div style={{ fontSize: 11, color: '#94a3b8' }}>{v.year} — {v.fuel_type}</div>
+                          </td>
+                          <td style={{ padding: '10px 14px', fontSize: 12, color: '#64748b' }}>{v.category}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 12, color: '#374151' }}>{v.driver || '—'}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{(v.mileage || 0).toLocaleString('fr-BE')} km</td>
+                          <td style={{ padding: '10px 14px' }}>
+                            <span style={{ background: st.bg, color: st.color, border: `1px solid ${st.border}`, borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: st.dot, display: 'inline-block', marginRight: 5 }} />
+                              {st.label}
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px 14px' }}><ExpiryBadge date={v.insurance_expiry} label="Ass." /></td>
+                          <td style={{ padding: '10px 14px' }}><ExpiryBadge date={v.technical_control_expiry} label="CT" /></td>
+                          <td style={{ padding: '10px 14px' }}><ExpiryBadge date={v.vignette_expiry} label="Vig." /></td>
+                          <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, color: '#16a34a' }}>{fmt(v.current_value)}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, color: '#dc2626' }}>{fmt(vExp)}</td>
+                          <td style={{ padding: '10px 14px' }}>
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              <button onClick={() => setDrawerV(v)}   style={{ ...btnGh, padding: '5px 8px' }} title="Voir">{I.eye}</button>
+                              <button onClick={() => openEdit(v)}     style={{ ...btnGh, padding: '5px 8px' }} title="Modifier">{I.edit}</button>
+                              <button onClick={() => setDelTarget(v)} style={btnDanger} title="Supprimer">{I.trash}</button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
                 </tbody>
               </table>
             </div>
           </div>
         )}
 
-        {/* ── Vehicles Grid ── */}
+        {/* Vehicles Grid */}
         {!loading && tab === 'vehicles' && view === 'grid' && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 16 }}>
-            {filteredV.length === 0 ? (
-              <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: 60, color: '#94a3b8' }}>Aucun véhicule trouvé</div>
-            ) : filteredV.map(v => {
-              const st   = STATUS[v.status] ?? STATUS.active
-              const al   = getVehicleAlerts(v)
-              const vExp = expenses.filter(e => e.vehicle_id === v.id).reduce((s, e) => s + (e.amount || 0), 0)
-              const dep  = depreciation(v.purchase_price, v.current_value)
-              return (
-                <div key={v.id}
-                     style={{ background: '#fff', borderRadius: 14, border: `1px solid ${al.length > 0 ? '#fde68a' : st.border}`, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,.06)', transition: 'box-shadow .2s' }}
-                     onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,.12)')}
-                     onMouseLeave={e => (e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,.06)')}>
-                  <div style={{ height: 4, background: al.length > 0 ? '#f59e0b' : st.dot }} />
-                  <div style={{ padding: 16 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-                      <div>
-                        <div style={{ fontWeight: 800, fontSize: 16, color: '#2563eb', fontFamily: 'monospace' }}>{v.plate}</div>
-                        <div style={{ fontWeight: 600, fontSize: 13, color: '#1e293b' }}>{v.brand} {v.model}</div>
-                        <div style={{ fontSize: 11, color: '#94a3b8' }}>{v.year} — {v.category}</div>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                        <span style={{ background: st.bg, color: st.color, borderRadius: 20, padding: '2px 8px', fontSize: 11, fontWeight: 600 }}>{st.label}</span>
-                        {al.length > 0 && <span style={{ background: '#fffbeb', color: '#d97706', borderRadius: 20, padding: '2px 8px', fontSize: 11, fontWeight: 600 }}>{I.alert} {al.length} alerte{al.length > 1 ? 's' : ''}</span>}
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
-                      {[
-                        { l: 'Kilométrage', v: `${(v.mileage || 0).toLocaleString('fr-BE')} km` },
-                        { l: 'Conducteur',  v: v.driver || '—' },
-                        { l: 'Valeur',      v: fmt(v.current_value) },
-                        { l: 'Dépenses',    v: fmt(vExp) },
-                      ].map(k => (
-                        <div key={k.l} style={{ background: '#f8fafc', borderRadius: 8, padding: '6px 10px' }}>
-                          <div style={{ fontSize: 10, color: '#94a3b8' }}>{k.l}</div>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>{k.v}</div>
+            {filteredV.length === 0
+              ? <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: 60, color: '#94a3b8' }}>Aucun véhicule trouvé</div>
+              : filteredV.map(v => {
+                const st   = STATUS[v.status] ?? STATUS.active
+                const al   = getVehicleAlerts(v)
+                const vExp = expenses.filter(e => e.vehicle_id === v.id).reduce((s, e) => s + (e.amount || 0), 0)
+                const dep  = depreciation(v.purchase_price, v.current_value)
+                return (
+                  <div key={v.id}
+                       style={{ background: '#fff', borderRadius: 14, border: `1px solid ${al.length > 0 ? '#fde68a' : st.border}`, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,.06)', transition: 'box-shadow .2s' }}
+                       onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,.12)')}
+                       onMouseLeave={e => (e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,.06)')}>
+                    <div style={{ height: 4, background: al.length > 0 ? '#f59e0b' : st.dot }} />
+                    <div style={{ padding: 16 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                        <div>
+                          <div style={{ fontWeight: 800, fontSize: 16, color: '#2563eb', fontFamily: 'monospace' }}>{v.plate}</div>
+                          <div style={{ fontWeight: 600, fontSize: 13, color: '#1e293b' }}>{v.brand} {v.model}</div>
+                          <div style={{ fontSize: 11, color: '#94a3b8' }}>{v.year} — {v.category}</div>
                         </div>
-                      ))}
-                    </div>
-
-                    {/* Expiry badges */}
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-                      <ExpiryBadge date={v.insurance_expiry}          label="Ass." />
-                      <ExpiryBadge date={v.technical_control_expiry}  label="CT"   />
-                      <ExpiryBadge date={v.vignette_expiry}           label="Vig." />
-                    </div>
-
-                    {/* Depreciation bar */}
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', marginBottom: 3 }}>
-                        <span>Dépréciation</span><span>{dep.toFixed(1)}%</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                          <span style={{ background: st.bg, color: st.color, borderRadius: 20, padding: '2px 8px', fontSize: 11, fontWeight: 600 }}>{st.label}</span>
+                          {al.length > 0 && <span style={{ background: '#fffbeb', color: '#d97706', borderRadius: 20, padding: '2px 8px', fontSize: 11, fontWeight: 600 }}>{I.alert} {al.length} alerte{al.length > 1 ? 's' : ''}</span>}
+                        </div>
                       </div>
-                      <div style={{ height: 5, background: '#f1f5f9', borderRadius: 3 }}>
-                        <div style={{ height: '100%', width: `${Math.min(100, dep)}%`, background: dep > 50 ? '#ef4444' : dep > 25 ? '#f59e0b' : '#22c55e', borderRadius: 3 }} />
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+                        {[
+                          { l: 'Kilométrage', v: `${(v.mileage || 0).toLocaleString('fr-BE')} km` },
+                          { l: 'Conducteur',  v: v.driver || '—' },
+                          { l: 'Valeur',      v: fmt(v.current_value) },
+                          { l: 'Dépenses',    v: fmt(vExp) },
+                        ].map(k => (
+                          <div key={k.l} style={{ background: '#f8fafc', borderRadius: 8, padding: '6px 10px' }}>
+                            <div style={{ fontSize: 10, color: '#94a3b8' }}>{k.l}</div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>{k.v}</div>
+                          </div>
+                        ))}
                       </div>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={() => setDrawerV(v)} style={{ ...btnGh, flex: 1, justifyContent: 'center', padding: '7px 0', fontSize: 12 }}>{I.eye} Voir</button>
-                      <button onClick={() => openEdit(v)}   style={{ ...btn(), flex: 1, justifyContent: 'center', padding: '7px 0', fontSize: 12 }}>{I.edit} Modifier</button>
-                      <button onClick={() => setDelTarget(v)} style={{ background: 'transparent', color: '#ef4444', border: '1px solid #fecaca', borderRadius: 8, padding: '7px 10px', cursor: 'pointer', display: 'flex' }}>{I.trash}</button>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+                        <ExpiryBadge date={v.insurance_expiry} label="Ass." />
+                        <ExpiryBadge date={v.technical_control_expiry} label="CT" />
+                        <ExpiryBadge date={v.vignette_expiry} label="Vig." />
+                      </div>
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', marginBottom: 3 }}>
+                          <span>Dépréciation</span><span>{dep.toFixed(1)}%</span>
+                        </div>
+                        <div style={{ height: 5, background: '#f1f5f9', borderRadius: 3 }}>
+                          <div style={{ height: '100%', width: `${Math.min(100, dep)}%`, background: dep > 50 ? '#ef4444' : dep > 25 ? '#f59e0b' : '#22c55e', borderRadius: 3 }} />
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button onClick={() => setDrawerV(v)}   style={{ ...btnGh, flex: 1, justifyContent: 'center', padding: '7px 0', fontSize: 12 }}>{I.eye} Voir</button>
+                        <button onClick={() => openEdit(v)}     style={{ ...btn(), flex: 1, justifyContent: 'center', padding: '7px 0', fontSize: 12 }}>{I.edit} Modifier</button>
+                        <button onClick={() => setDelTarget(v)} style={btnDanger}>{I.trash}</button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )
-            })}
+                )
+              })}
           </div>
         )}
 
-        {/* ── Expenses Tab ── */}
+        {/* ── Expenses Tab — avec boutons Voir + Supprimer ── */}
         {!loading && tab === 'expenses' && (
           <div style={{ ...card, overflow: 'hidden', padding: 0 }}>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: '#f8fafc' }}>
-                    {['Date', 'Véhicule', 'Plaque', 'Type', 'Description', 'Montant HT', 'TVA', 'Montant TTC', 'Km', 'Réf. facture'].map(h => (
+                    {['Date','Véhicule','Plaque','Type','Description','Montant HT','TVA','Montant TTC','Km','Réf. facture','Actions'].map(h => (
                       <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#475569', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredE.length === 0 ? (
-                    <tr><td colSpan={10} style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Aucune dépense enregistrée</td></tr>
-                  ) : filteredE.map(e => {
-                    const et  = EXPENSE_TYPES[e.type] ?? EXPENSE_TYPES.other
-                    const ttc = (e.amount || 0) * (1 + (e.vat_rate || 21) / 100)
-                    return (
-                      <tr key={e.id} style={{ borderBottom: '1px solid #f1f5f9' }}
-                          onMouseEnter={x => (x.currentTarget.style.background = '#f8fafc')}
-                          onMouseLeave={x => (x.currentTarget.style.background = '')}>
-                        <td style={{ padding: '10px 14px', fontSize: 12, color: '#64748b' }}>{fmtD(e.date || e.created_at)}</td>
-                        <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{e.vehicle_name}</td>
-                        <td style={{ padding: '10px 14px', fontSize: 12, color: '#2563eb', fontWeight: 700, fontFamily: 'monospace' }}>{e.plate}</td>
-                        <td style={{ padding: '10px 14px' }}>
-                          <span style={{ background: et.bg, color: et.color, borderRadius: 20, padding: '2px 8px', fontSize: 11, fontWeight: 600 }}>{et.label}</span>
-                        </td>
-                        <td style={{ padding: '10px 14px', fontSize: 12, color: '#374151' }}>{e.description || '—'}</td>
-                        <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 600, color: '#374151' }}>{fmt(e.amount)}</td>
-                        <td style={{ padding: '10px 14px', fontSize: 12, color: '#64748b' }}>{e.vat_rate ?? 21}%</td>
-                        <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, color: '#dc2626' }}>{fmt(ttc)}</td>
-                        <td style={{ padding: '10px 14px', fontSize: 12, color: '#64748b' }}>{e.km ? `${e.km.toLocaleString('fr-BE')} km` : '—'}</td>
-                        <td style={{ padding: '10px 14px', fontSize: 11, color: '#7c3aed' }}>{e.invoice_ref || '—'}</td>
-                      </tr>
-                    )
-                  })}
+                  {filteredE.length === 0
+                    ? <tr><td colSpan={11} style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Aucune dépense enregistrée</td></tr>
+                    : filteredE.map(e => {
+                      const et  = EXPENSE_TYPES[e.type] ?? EXPENSE_TYPES.other
+                      const ttc = (e.amount || 0) * (1 + (e.vat_rate || 21) / 100)
+                      return (
+                        <tr key={e.id} style={{ borderBottom: '1px solid #f1f5f9' }}
+                            onMouseEnter={x => (x.currentTarget.style.background = '#f8fafc')}
+                            onMouseLeave={x => (x.currentTarget.style.background = '')}>
+                          <td style={{ padding: '10px 14px', fontSize: 12, color: '#64748b' }}>{fmtD(e.date || e.created_at)}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{e.vehicle_name}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 12, color: '#2563eb', fontWeight: 700, fontFamily: 'monospace' }}>{e.plate}</td>
+                          <td style={{ padding: '10px 14px' }}>
+                            <span style={{ background: et.bg, color: et.color, borderRadius: 20, padding: '2px 8px', fontSize: 11, fontWeight: 600 }}>{et.label}</span>
+                          </td>
+                          <td style={{ padding: '10px 14px', fontSize: 12, color: '#374151' }}>{e.description || '—'}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 600, color: '#374151' }}>{fmt(e.amount)}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 12, color: '#64748b' }}>{e.vat_rate ?? 21}%</td>
+                          <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, color: '#dc2626' }}>{fmt(ttc)}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 12, color: '#64748b' }}>{e.km ? `${e.km.toLocaleString('fr-BE')} km` : '—'}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 11, color: '#7c3aed' }}>{e.invoice_ref || '—'}</td>
+                          {/* ── NOUVELLE colonne Actions ── */}
+                          <td style={{ padding: '10px 14px' }}>
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              <button onClick={() => setViewExpense(e)}    style={{ ...btnGh, padding: '5px 8px' }} title="Voir le détail">{I.eye}</button>
+                              <button onClick={() => setDelExpTarget(e.id)} style={btnDanger} title="Supprimer">{I.trash}</button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
                 </tbody>
                 {filteredE.length > 0 && (
                   <tfoot>
                     <tr style={{ background: '#f8fafc', borderTop: '2px solid #e2e8f0' }}>
                       <td colSpan={5} style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, color: '#374151' }}>TOTAL ({filteredE.length} dépenses)</td>
-                      <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 800, color: '#374151' }}>
-                        {fmt(filteredE.reduce((s, e) => s + (e.amount || 0), 0))}
-                      </td>
+                      <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 800, color: '#374151' }}>{fmt(filteredE.reduce((s, e) => s + (e.amount || 0), 0))}</td>
                       <td />
-                      <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 800, color: '#dc2626' }}>
-                        {fmt(filteredE.reduce((s, e) => s + (e.amount || 0) * (1 + (e.vat_rate || 21) / 100), 0))}
-                      </td>
-                      <td colSpan={2} />
+                      <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 800, color: '#dc2626' }}>{fmt(filteredE.reduce((s, e) => s + (e.amount || 0) * (1 + (e.vat_rate || 21) / 100), 0))}</td>
+                      <td colSpan={3} />
                     </tr>
                   </tfoot>
                 )}
@@ -1293,31 +1245,38 @@ export default function FleetPage() {
         )}
       </div>
 
-      {/* Modals */}
+      {/* ── Modals ── */}
       {showVModal && (
-        <VehicleModal
-          vehicle={editVehicle ?? { ...EMPTY_V }}
-          onSave={saveVehicle}
-          onClose={() => { setShowVModal(false); setEditVehicle(null) }}
-        />
+        <VehicleModal vehicle={editVehicle ?? { ...EMPTY_V }} onSave={saveVehicle} onClose={() => { setShowVModal(false); setEditVehicle(null) }} />
       )}
       {showExpModal && (
-        <ExpenseModal
-          vehicles={vehicles}
-          onSave={saveExpense}
-          onClose={() => setShowExpModal(false)}
-        />
+        <ExpenseModal vehicles={vehicles} onSave={saveExpense} onClose={() => setShowExpModal(false)} />
       )}
       {drawerV && (
-        <VehicleDrawer
-          vehicle={drawerV}
-          expenses={expenses}
-          onEdit={() => { openEdit(drawerV); setDrawerV(null) }}
-          onClose={() => setDrawerV(null)}
-        />
+        <VehicleDrawer vehicle={drawerV} expenses={expenses} onEdit={() => { openEdit(drawerV); setDrawerV(null) }} onClose={() => setDrawerV(null)} />
       )}
 
-      {/* Delete Confirm */}
+      {/* Expense Detail Modal */}
+      {viewExpense && (
+        <ExpenseDetailModal expense={viewExpense} onClose={() => setViewExpense(null)} onDelete={delExpense} />
+      )}
+
+      {/* Delete Expense Confirm */}
+      {delExpTarget && !viewExpense && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 32, maxWidth: 380, width: '100%', textAlign: 'center', boxShadow: '0 25px 60px rgba(0,0,0,.2)' }}>
+            <div style={{ width: 52, height: 52, background: '#fef2f2', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#ef4444' }}>{I.trash}</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>Supprimer cette dépense ?</div>
+            <div style={{ fontSize: 13, color: '#64748b', marginBottom: 24 }}>Cette action est irréversible.</div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              <button onClick={() => setDelExpTarget(null)} style={btnGh}>Annuler</button>
+              <button onClick={() => delExpense(delExpTarget)} style={btn('#ef4444')}>{I.trash} Supprimer</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Vehicle Confirm */}
       {delTarget && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: '#fff', borderRadius: 16, padding: 32, maxWidth: 400, width: '100%', textAlign: 'center', boxShadow: '0 25px 60px rgba(0,0,0,.2)' }}>
@@ -1327,8 +1286,8 @@ export default function FleetPage() {
               <strong>{delTarget.plate} — {delTarget.brand} {delTarget.model}</strong> sera définitivement supprimé.
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-              <button onClick={() => setDelTarget(null)}  style={btnGh}>Annuler</button>
-              <button onClick={() => del(delTarget.id)}   style={btn('#dc2626')}>Supprimer</button>
+              <button onClick={() => setDelTarget(null)} style={btnGh}>Annuler</button>
+              <button onClick={() => del(delTarget.id)}  style={btn('#dc2626')}>{I.trash} Supprimer</button>
             </div>
           </div>
         </div>

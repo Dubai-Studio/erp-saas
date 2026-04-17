@@ -1005,9 +1005,9 @@ export default function EmployeesPage() {
                           { title: 'Supprimer',   icon: I.trash,   hBg: '#fef2f2', hCol: '#ef4444', fn: () => openDelete(e) },
                         ].map((b, bi) => (
                           <button key={bi} title={b.title} onClick={b.fn}
-                            style={{ height: 30, width: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: 'none', cursor: 'pointer', background: b.hBg, color: b.hCol, transition: 'all 0.15s' }}
-                            onMouseEnter={ev => { (ev.currentTarget as HTMLElement).style.background = b.hBg; (ev.currentTarget as HTMLElement).style.color = b.hCol; }}
-                            onMouseLeave={ev => { (ev.currentTarget as HTMLElement).style.background = b.hBg; (ev.currentTarget as HTMLElement).style.color = b.hCol; }}>
+                            style={{ height: 30, width: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: 'none', cursor: 'pointer', background: b.hBg, color: b.hCol, fill: b.hCol, stroke: b.hCol, transition: 'all 0.15s', flexShrink: 0 }}
+                            onMouseEnter={ev => { const el = ev.currentTarget as HTMLElement; el.style.opacity = '0.8'; el.style.transform = 'scale(1.15)'; }}
+                            onMouseLeave={ev => { const el = ev.currentTarget as HTMLElement; el.style.opacity = '1'; el.style.transform = 'scale(1)'; }}>
                             {b.icon}
                           </button>
                         ))}

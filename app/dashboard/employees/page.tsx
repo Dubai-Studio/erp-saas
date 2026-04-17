@@ -86,7 +86,7 @@ const lbl: React.CSSProperties = {
    HELPERS
 ───────────────────────────────────────────── */
 const fmt  = (n: number) => new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(n || 0);
-const fmtD = (d: string) => d ? new Date(d).toLocaleDateString('fr-BE', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+const fmtP = (n: number) => new Intl.NumberFormat('fr-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0) + ' EUR';
 const currentMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
 
 function seniority(hire_date: string): string {
@@ -196,16 +196,16 @@ function generatePaySlip(data: PaySlipData) {
   doc.text('DÉTAILS DE PAIEMENT', W / 2 + 7, 64);
   doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(71, 85, 105);
   doc.text([
-    `Salaire brut : ${fmt(Number(gross))}`,
+    `Salaire brut : ${fmtP(Number(gross))}`,
     e.iban ? `IBAN : ${e.iban}` : `IBAN : ${COMPANY.iban}`,
     `Période : ${MONTHS[parseInt(month.split('-')[1]) - 1]} ${year}`,
   ], W / 2 + 7, 73, { lineHeightFactor: 1.8 });
 
-  const tableBody: (string | number)[][] = [['Salaire brut mensuel', '1', fmt(Number(gross)), fmt(Number(gross))]];
+  const tableBody: (string | number)[][] = [['Salaire brut mensuel', '1', fmtP(Number(gross)), fmtP(Number(gross))]];
   adjustments.forEach(adj => {
     const t = ADJ_TYPES[adj.type];
     const sign = t.sign > 0 ? '+' : '-';
-    tableBody.push([`${t.label} — ${adj.reason}`, '1', `${sign} ${fmt(Math.abs(adj.amount))}`, `${sign} ${fmt(Math.abs(adj.amount))}`]);
+    tableBody.push([`${t.label} — ${adj.reason}`, '1', `${sign} ${fmtP(Math.abs(adj.amount))}`, `${sign} ${fmtP(Math.abs(adj.amount))}`]);
   });
 
   autoTable(doc, {
@@ -226,8 +226,8 @@ function generatePaySlip(data: PaySlipData) {
   doc.setFillColor(248, 250, 252); doc.setDrawColor(226, 232, 240);
   doc.roundedRect(txX, fY, txW, 44, 3, 3, 'FD');
   [
-    { l: 'Salaire brut', v: fmt(Number(gross)), col: [71, 85, 105] as [number, number, number] },
-    { l: 'Ajustements', v: (totalAdj >= 0 ? '+' : '') + fmt(totalAdj), col: (totalAdj >= 0 ? [21, 128, 61] : [220, 38, 38]) as [number, number, number] },
+    { l: 'Salaire brut', v: fmtP(Number(gross)), col: [71, 85, 105] as [number, number, number] },
+    { l: 'Ajustements', v: (totalAdj >= 0 ? '+' : '') + fmtP(totalAdj), col: (totalAdj >= 0 ? [21, 128, 61] : [220, 38, 38]) as [number, number, number] },
   ].forEach((r, i) => {
     const y = fY + 10 + i * 10;
     doc.setFontSize(9); doc.setTextColor(100, 116, 139); doc.setFont('helvetica', 'normal');
@@ -239,7 +239,7 @@ function generatePaySlip(data: PaySlipData) {
   doc.setFillColor(245, 158, 11); doc.roundedRect(txX, fY + 28, txW, 16, 2, 2, 'F');
   doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
   doc.text('NET À PAYER', txX + 6, fY + 38);
-  doc.text(fmt(net), txX + txW - 6, fY + 38, { align: 'right' });
+  doc.text(fmtP(net), txX + txW - 6, fY + 38, { align: 'right' });
 
   const bY = Math.min(fY + 58, 220);
   doc.setFillColor(255, 251, 235); doc.setDrawColor(253, 230, 138);
@@ -1004,9 +1004,9 @@ export default function EmployeesPage() {
                           { title: 'Supprimer',   icon: I.trash,   hBg: '#fef2f2', hCol: '#ef4444', fn: () => openDelete(e) },
                         ].map((b, bi) => (
                           <button key={bi} title={b.title} onClick={b.fn}
-                            style={{ height: 30, width: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: 'none', cursor: 'pointer', background: '#f8fafc', color: '#94a3b8', transition: 'all 0.15s' }}
+                            style={{ height: 30, width: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: 'none', cursor: 'pointer', background: b.hBg, color: b.hCol, transition: 'all 0.15s' }}
                             onMouseEnter={ev => { (ev.currentTarget as HTMLElement).style.background = b.hBg; (ev.currentTarget as HTMLElement).style.color = b.hCol; }}
-                            onMouseLeave={ev => { (ev.currentTarget as HTMLElement).style.background = '#f8fafc'; (ev.currentTarget as HTMLElement).style.color = '#94a3b8'; }}>
+                             onMouseLeave={ev => { (ev.currentTarget as HTMLElement).style.background = b.hBg; (ev.currentTarget as HTMLElement).style.color = b.hCol; }}>
                             {b.icon}
                           </button>
                         ))}

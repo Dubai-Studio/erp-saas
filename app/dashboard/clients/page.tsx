@@ -37,7 +37,7 @@ const EMPTY = {
   country:'Belgique', vat_number:'', status:'active' as Client['status'],
   notes:''
 }
-const AVATAR_COLORS = ['#6366f1','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ef4444','#ec4899','#0ea5e9']
+const AVATAR_COLORS = ['#2563eb','#10b981','#f59e0b','#1e3a5f','#06b6d4','#ef4444','#ec4899','#0ea5e9']
 
 function avatarColor(name: string) {
   let h = 0
@@ -175,13 +175,13 @@ function Modal({ open, onClose, onSave, initial }: {
       }}>
         {/* Header */}
         <div style={{
-          padding:'22px 24px 0', background: 'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)',
+          padding:'22px 24px 0', background: 'linear-gradient(135deg,#2563eb 0%,#1e3a5f 100%)',
           borderRadius:'16px 16px 0 0',
         }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
             <div>
               <h2 style={{ fontSize:17, fontWeight:700, color:'#fff' }}>
-                {initial ? '✏️ Modifier le client' : '➕ Nouveau client'}
+                {initial ? 'Modifier le client' : 'Nouveau client'}
               </h2>
               <p style={{ fontSize:12, color:'rgba(255,255,255,0.7)', marginTop:3 }}>
                 {initial ? `Modification de ${initial.name}` : 'Remplissez les informations du client'}
@@ -216,20 +216,20 @@ function Modal({ open, onClose, onSave, initial }: {
               <div>
                 <label style={lbl}>Nom / Entreprise <span style={{ color:'#ef4444' }}>*</span></label>
                 <input style={inp} value={form.name} onChange={e=>f('name',e.target.value)} placeholder="Acme SPRL"
-                  onFocus={e=>{e.target.style.borderColor='#6366f1';e.target.style.boxShadow='0 0 0 3px rgba(99,102,241,0.12)'}}
+                  onFocus={e=>{e.target.style.borderColor='#2563eb';e.target.style.boxShadow='0 0 0 3px rgba(37,99,235,0.12)'}}
                   onBlur={e=>{e.target.style.borderColor='#e2e8f0';e.target.style.boxShadow='none'}}/>
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
                 <div>
                   <label style={lbl}>Email</label>
                   <input style={inp} type="email" value={form.email} onChange={e=>f('email',e.target.value)} placeholder="contact@acme.be"
-                    onFocus={e=>{e.target.style.borderColor='#6366f1';e.target.style.boxShadow='0 0 0 3px rgba(99,102,241,0.12)'}}
+                    onFocus={e=>{e.target.style.borderColor='#2563eb';e.target.style.boxShadow='0 0 0 3px rgba(37,99,235,0.12)'}}
                     onBlur={e=>{e.target.style.borderColor='#e2e8f0';e.target.style.boxShadow='none'}}/>
                 </div>
                 <div>
                   <label style={lbl}>Téléphone</label>
                   <input style={inp} value={form.phone} onChange={e=>f('phone',e.target.value)} placeholder="+32 2 000 00 00"
-                    onFocus={e=>{e.target.style.borderColor='#6366f1';e.target.style.boxShadow='0 0 0 3px rgba(99,102,241,0.12)'}}
+                    onFocus={e=>{e.target.style.borderColor='#2563eb';e.target.style.boxShadow='0 0 0 3px rgba(37,99,235,0.12)'}}
                     onBlur={e=>{e.target.style.borderColor='#e2e8f0';e.target.style.boxShadow='none'}}/>
                 </div>
               </div>
@@ -237,16 +237,16 @@ function Modal({ open, onClose, onSave, initial }: {
                 <div>
                   <label style={lbl}>Numéro TVA</label>
                   <input style={inp} value={form.vat_number} onChange={e=>f('vat_number',e.target.value)} placeholder="BE 0123.456.789"
-                    onFocus={e=>{e.target.style.borderColor='#6366f1';e.target.style.boxShadow='0 0 0 3px rgba(99,102,241,0.12)'}}
+                    onFocus={e=>{e.target.style.borderColor='#2563eb';e.target.style.boxShadow='0 0 0 3px rgba(37,99,235,0.12)'}}
                     onBlur={e=>{e.target.style.borderColor='#e2e8f0';e.target.style.boxShadow='none'}}/>
                 </div>
                 <div>
                   <label style={lbl}>Statut</label>
                   <select style={{ ...inp, width:'100%' }} value={form.status} onChange={e=>f('status',e.target.value as Client['status'])}
-                    onFocus={e=>{e.target.style.borderColor='#6366f1'}} onBlur={e=>{e.target.style.borderColor='#e2e8f0'}}>
-                    <option value="active">✅ Actif</option>
-                    <option value="prospect">🔵 Prospect</option>
-                    <option value="inactive">⚫ Inactif</option>
+                    onFocus={e=>{e.target.style.borderColor='#2563eb'}} onBlur={e=>{e.target.style.borderColor='#e2e8f0'}}>
+                    <option value="active">Actif</option>
+                    <option value="prospect">Prospect</option>
+                    <option value="inactive">Inactif</option>
                   </select>
                 </div>
               </div>
@@ -259,20 +259,20 @@ function Modal({ open, onClose, onSave, initial }: {
               <div>
                 <label style={lbl}>Adresse</label>
                 <input style={inp} value={form.address} onChange={e=>f('address',e.target.value)} placeholder="Rue de la Loi 1"
-                  onFocus={e=>{e.target.style.borderColor='#6366f1';e.target.style.boxShadow='0 0 0 3px rgba(99,102,241,0.12)'}}
+                  onFocus={e=>{e.target.style.borderColor='#2563eb';e.target.style.boxShadow='0 0 0 3px rgba(37,99,235,0.12)'}}
                   onBlur={e=>{e.target.style.borderColor='#e2e8f0';e.target.style.boxShadow='none'}}/>
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
                 <div>
                   <label style={lbl}>Ville</label>
                   <input style={inp} value={form.city} onChange={e=>f('city',e.target.value)} placeholder="Bruxelles"
-                    onFocus={e=>{e.target.style.borderColor='#6366f1';e.target.style.boxShadow='0 0 0 3px rgba(99,102,241,0.12)'}}
+                    onFocus={e=>{e.target.style.borderColor='#2563eb';e.target.style.boxShadow='0 0 0 3px rgba(37,99,235,0.12)'}}
                     onBlur={e=>{e.target.style.borderColor='#e2e8f0';e.target.style.boxShadow='none'}}/>
                 </div>
                 <div>
                   <label style={lbl}>Pays</label>
                   <select style={{ ...inp, width:'100%' }} value={form.country} onChange={e=>f('country',e.target.value)}
-                    onFocus={e=>{e.target.style.borderColor='#6366f1'}} onBlur={e=>{e.target.style.borderColor='#e2e8f0'}}>
+                    onFocus={e=>{e.target.style.borderColor='#2563eb'}} onBlur={e=>{e.target.style.borderColor='#e2e8f0'}}>
                     {COUNTRIES.map(c => <option key={c}>{c}</option>)}
                   </select>
                 </div>
@@ -290,7 +290,7 @@ function Modal({ open, onClose, onSave, initial }: {
                 placeholder="Informations complémentaires, remarques…"
                 rows={6}
                 style={{ ...inp, resize:'vertical', fontFamily:'inherit', lineHeight:1.6 }}
-                onFocus={e=>{e.target.style.borderColor='#6366f1';e.target.style.boxShadow='0 0 0 3px rgba(99,102,241,0.12)'}}
+                onFocus={e=>{e.target.style.borderColor='#2563eb';e.target.style.boxShadow='0 0 0 3px rgba(37,99,235,0.12)'}}
                 onBlur={e=>{e.target.style.borderColor='#e2e8f0';e.target.style.boxShadow='none'}}
               />
             </div>
@@ -304,7 +304,7 @@ function Modal({ open, onClose, onSave, initial }: {
             }}>Annuler</button>
             <button type="submit" disabled={saving} style={{
               flex:2, padding:'10px 0', borderRadius:10, border:'none',
-              background: saving ? '#a5b4fc' : 'linear-gradient(135deg,#6366f1,#8b5cf6)',
+              background: saving ? '#93c5fd' : 'linear-gradient(135deg,#2563eb,#1e3a5f)',
               fontSize:13, fontWeight:700, color:'#fff', cursor: saving ? 'not-allowed' : 'pointer',
               display:'flex', alignItems:'center', justifyContent:'center', gap:8,
             }}>
@@ -351,7 +351,7 @@ function Drawer({ client, onClose, onEdit, onDelete }: {
       }}>
         {/* Header */}
         <div style={{
-          background:'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)',
+          background:'linear-gradient(135deg,#2563eb 0%,#1e3a5f 100%)',
           padding:'20px 20px 24px', borderRadius:'20px 0 0 0',
         }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
@@ -406,7 +406,7 @@ function Drawer({ client, onClose, onEdit, onDelete }: {
           }}>{I.trash} Supprimer</button>
           <button onClick={onEdit} style={{
             flex:2, padding:'9px 0', borderRadius:10, cursor:'pointer',
-            border:'none', background:'linear-gradient(135deg,#6366f1,#8b5cf6)',
+            border:'none', background:'linear-gradient(135deg,#2563eb,#1e3a5f)',
             color:'#fff', fontSize:13, fontWeight:700,
             display:'flex', alignItems:'center', justifyContent:'center', gap:6,
           }}>{I.edit} Modifier</button>
@@ -428,7 +428,7 @@ function SortTh({ label, field, sort, dir, onSort }: {
       onClick={() => onSort(field)}
       style={{
         padding:'12px 16px', textAlign:'left', fontSize:11, fontWeight:700,
-        color: active ? '#6366f1' : '#94a3b8', textTransform:'uppercase',
+        color: active ? '#2563eb' : '#94a3b8', textTransform:'uppercase',
         letterSpacing:'0.05em', whiteSpace:'nowrap', cursor:'pointer',
         userSelect:'none',
       }}
@@ -549,7 +549,7 @@ export default function ClientsPage() {
         .tr-row:hover td    { background:#fafbff !important; }
         .tr-row td          { transition:background 0.12s; }
         .card-grid          { transition:all 0.18s; }
-        .card-grid:hover    { transform:translateY(-3px); box-shadow:0 8px 28px rgba(99,102,241,0.14) !important; }
+        .card-grid:hover    { transform:translateY(-3px); box-shadow:0 8px 28px rgba(37,99,235,0.14) !important; }
         select, input       { font-family:inherit; }
       `}</style>
 
@@ -557,7 +557,7 @@ export default function ClientsPage() {
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:22, flexWrap:'wrap', gap:12 }}>
         <div>
           <h1 style={{ fontSize:22, fontWeight:800, color:'#0f172a', display:'flex', alignItems:'center', gap:9 }}>
-            <span style={{ color:'#6366f1' }}>{I.user}</span> Clients
+            <span style={{ color:'#2563eb' }}>{I.user}</span> Clients
           </h1>
           <p style={{ fontSize:12, color:'#94a3b8', marginTop:3 }}>
             {stats.total} client(s) · CA total {fmt(stats.revenue)}
@@ -572,9 +572,9 @@ export default function ClientsPage() {
           <button onClick={() => { setEditC(null); setModal(true) }} style={{
             display:'flex', alignItems:'center', gap:7, padding:'9px 18px',
             borderRadius:10, border:'none',
-            background:'linear-gradient(135deg,#6366f1,#8b5cf6)',
+            background:'linear-gradient(135deg,#2563eb,#1e3a5f)',
             fontSize:13, fontWeight:700, color:'#fff', cursor:'pointer',
-            boxShadow:'0 4px 14px rgba(99,102,241,0.4)',
+            boxShadow:'0 4px 14px rgba(37,99,235,0.4)',
           }}>{I.plus} Nouveau client</button>
         </div>
       </div>
@@ -582,7 +582,7 @@ export default function ClientsPage() {
       {/* ── KPI strip ──────────────────────────────────────────────────────── */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:12, marginBottom:18 }}>
         {[
-          { label:'Total clients', value:stats.total,           display:String(stats.total),    color:'#6366f1', border:'#c7d2fe', bg:'#eef2ff' },
+          { label:'Total clients', value:stats.total,           display:String(stats.total),    color:'#2563eb', border:'#c7d2fe', bg:'#eef2ff' },
           { label:'Actifs',        value:stats.active,          display:String(stats.active),   color:'#10b981', border:'#a7f3d0', bg:'#ecfdf5' },
           { label:'Prospects',     value:stats.prospect,        display:String(stats.prospect), color:'#3b82f6', border:'#bfdbfe', bg:'#eff6ff' },
           { label:'Inactifs',      value:stats.inactive,        display:String(stats.inactive), color:'#94a3b8', border:'#e2e8f0', bg:'#f8fafc' },
@@ -610,7 +610,7 @@ export default function ClientsPage() {
             value={search} onChange={e=>setSearch(e.target.value)}
             placeholder="Nom, email, téléphone, TVA, ville…"
             style={{ ...inp, paddingLeft:34 }}
-            onFocus={e=>{e.target.style.borderColor='#6366f1';e.target.style.boxShadow='0 0 0 3px rgba(99,102,241,0.1)'}}
+            onFocus={e=>{e.target.style.borderColor='#2563eb';e.target.style.boxShadow='0 0 0 3px rgba(37,99,235,0.1)'}}
             onBlur={e=>{e.target.style.borderColor='#e2e8f0';e.target.style.boxShadow='none'}}
           />
         </div>
@@ -618,14 +618,14 @@ export default function ClientsPage() {
         {/* Statut */}
         <select value={statusF} onChange={e=>setStatusF(e.target.value)} style={{ ...inp, width:'auto', minWidth:150 }}>
           <option value="all">Tous les statuts</option>
-          <option value="active">✅ Actifs</option>
-          <option value="prospect">🔵 Prospects</option>
-          <option value="inactive">⚫ Inactifs</option>
+          <option value="active">Actifs</option>
+          <option value="prospect">Prospects</option>
+          <option value="inactive">Inactifs</option>
         </select>
 
         {/* Pays */}
         <select value={countryF} onChange={e=>setCountryF(e.target.value)} style={{ ...inp, width:'auto', minWidth:140 }}>
-          <option value="all">🌍 Tous les pays</option>
+          <option value="all">Tous les pays</option>
           {availableCountries.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
 
@@ -637,13 +637,13 @@ export default function ClientsPage() {
           }}
           style={{ ...inp, width:'auto', minWidth:160 }}
         >
-          <option value="created_at:desc">📅 Plus récents</option>
-          <option value="created_at:asc">📅 Plus anciens</option>
-          <option value="name:asc">🔤 Nom A→Z</option>
-          <option value="name:desc">🔤 Nom Z→A</option>
-          <option value="total_revenue:desc">💶 CA ↓</option>
-          <option value="total_revenue:asc">💶 CA ↑</option>
-          <option value="invoices_count:desc">📄 Factures ↓</option>
+          <option value="created_at:desc">Plus récents</option>
+          <option value="created_at:asc">Plus anciens</option>
+          <option value="name:asc">Nom A→Z</option>
+          <option value="name:desc">Nom Z→A</option>
+          <option value="total_revenue:desc">CA décroissant</option>
+          <option value="total_revenue:asc">CA croissant</option>
+          <option value="invoices_count:desc">Factures ↓</option>
         </select>
 
         {/* Vue toggle */}
@@ -652,7 +652,7 @@ export default function ClientsPage() {
             <button key={v} onClick={() => setView(v)} style={{
               padding:7, border:'none', borderRadius:7, cursor:'pointer',
               background: view===v ? '#fff' : 'transparent',
-              color: view===v ? '#6366f1' : '#94a3b8',
+              color: view===v ? '#2563eb' : '#94a3b8',
               boxShadow: view===v ? '0 1px 4px rgba(0,0,0,0.10)' : 'none',
               display:'flex', alignItems:'center', transition:'all 0.15s',
             }}>
@@ -666,7 +666,7 @@ export default function ClientsPage() {
       {loading ? (
         <div style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:'80px 0' }}>
           <div style={{ textAlign:'center' }}>
-            <div style={{ width:36, height:36, border:'3px solid #6366f1', borderTopColor:'transparent', borderRadius:'50%', animation:'spin 0.8s linear infinite', margin:'0 auto 12px' }}/>
+            <div style={{ width:36, height:36, border:'3px solid #2563eb', borderTopColor:'transparent', borderRadius:'50%', animation:'spin 0.8s linear infinite', margin:'0 auto 12px' }}/>
             <p style={{ fontSize:13, color:'#94a3b8' }}>Chargement des clients…</p>
           </div>
         </div>
@@ -681,7 +681,7 @@ export default function ClientsPage() {
           {!search && statusF === 'all' && (
             <button onClick={() => setModal(true)} style={{
               marginTop:20, padding:'10px 24px', borderRadius:10, border:'none',
-              background:'linear-gradient(135deg,#6366f1,#8b5cf6)',
+              background:'linear-gradient(135deg,#2563eb,#1e3a5f)',
               color:'#fff', fontSize:13, fontWeight:700, cursor:'pointer',
               display:'inline-flex', alignItems:'center', gap:7,
             }}>{I.plus} Créer un client</button>
@@ -757,7 +757,7 @@ export default function ClientsPage() {
 
                     {/* Factures */}
                     <td style={{ padding:'13px 16px', textAlign:'center' }}>
-                      <span style={{ fontSize:13, fontWeight:700, color:'#6366f1' }}>
+                      <span style={{ fontSize:13, fontWeight:700, color:'#2563eb' }}>
                         {c.invoices_count || 0}
                       </span>
                     </td>
@@ -785,7 +785,7 @@ export default function ClientsPage() {
                     {/* Actions — toujours visibles */}
                     <td style={{ padding:'13px 16px' }}>
                       <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:5 }}>
-                        <ActionBtn onClick={() => setViewC(c)}       title="Voir le détail"   icon={I.eye}   hoverBg='#eef2ff' hoverColor='#6366f1'/>
+                        <ActionBtn onClick={() => setViewC(c)}       title="Voir le détail"   icon={I.eye}   hoverBg='#eef2ff' hoverColor='#2563eb'/>
                         <ActionBtn onClick={() => openEdit(c)}       title="Modifier"         icon={I.edit}  hoverBg='#fef9c3' hoverColor='#d97706'/>
                         <ActionBtn onClick={() => setDeleteId(c.id)} title="Supprimer"        icon={I.trash} hoverBg='#fef2f2' hoverColor='#ef4444'/>
                       </div>
@@ -846,7 +846,7 @@ export default function ClientsPage() {
                   {/* Mini stats */}
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:14 }}>
                     <div style={{ background:'#f8fafc', borderRadius:10, padding:'9px 12px', border:'1px solid #f1f5f9' }}>
-                      <p style={{ fontSize:15, fontWeight:800, color:'#6366f1' }}>{c.invoices_count||0}</p>
+                      <p style={{ fontSize:15, fontWeight:800, color:'#2563eb' }}>{c.invoices_count||0}</p>
                       <p style={{ fontSize:10, color:'#94a3b8', marginTop:2 }}>Factures</p>
                     </div>
                     <div style={{ background:'#f0fdf4', borderRadius:10, padding:'9px 12px', border:'1px solid #bbf7d0' }}>
@@ -857,7 +857,7 @@ export default function ClientsPage() {
 
                   {/* Actions */}
                   <div style={{ display:'flex', gap:6, paddingTop:12, borderTop:'1px solid #f1f5f9' }}>
-                    <ActionBtn onClick={() => setViewC(c)}       title="Voir"     icon={I.eye}   hoverBg='#eef2ff' hoverColor='#6366f1'/>
+                    <ActionBtn onClick={() => setViewC(c)}       title="Voir"     icon={I.eye}   hoverBg='#eef2ff' hoverColor='#2563eb'/>
                     <ActionBtn onClick={() => openEdit(c)}       title="Modifier" icon={I.edit}  hoverBg='#fef9c3' hoverColor='#d97706'/>
                     <ActionBtn onClick={() => setDeleteId(c.id)} title="Supprimer"icon={I.trash} hoverBg='#fef2f2' hoverColor='#ef4444'/>
                     <div style={{ flex:1 }}/>

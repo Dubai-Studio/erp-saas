@@ -210,7 +210,7 @@ function ProjectModal({ open, onClose, onSave, initial, clients }:{
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
             <div>
               <h2 style={{fontSize:18,fontWeight:800,color:'#fff'}}>
-                {initial ? `✏️ Modifier — ${initial.name}` : '🚀 Nouveau projet'}
+                {initial ? ` Modifier — ${initial.name}` : ' Nouveau projet'}
               </h2>
               <p style={{fontSize:12,color:'rgba(255,255,255,0.65)',marginTop:3}}>Gestion de projet · Next-ERP</p>
             </div>

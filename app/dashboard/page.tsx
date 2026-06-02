@@ -1,365 +1,315 @@
-﻿'use client';
+'use client'
 
-import { useState, useEffect, useCallback } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { useState, useEffect, useCallback } from 'react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-} from 'recharts';
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer, ReferenceLine,
+} from 'recharts'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-const MONTHS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
-
-const fmt = (n: number) =>
-  new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
-
-/* ─────────────────────────────────────────────
-   HELPERS PÉRIODE
-───────────────────────────────────────────── */
-function getPeriodRange(period: 'week' | 'month' | 'quarter' | 'year'): {
-  start: Date; end: Date; months: number;
-} {
-  const now = new Date();
-  const end = new Date(now);
-  let start = new Date(now);
-  let months = 1;
-
-  if (period === 'week') {
-    start.setDate(now.getDate() - 7);
-    months = 1;
-  } else if (period === 'month') {
-    start = new Date(now.getFullYear(), now.getMonth(), 1);
-    months = 1;
-  } else if (period === 'quarter') {
-    start = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-    months = 3;
-  } else {
-    start = new Date(now.getFullYear(), 0, 1);
-    months = 12;
-  }
-  return { start, end, months };
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface ChartPoint {
+  month: string
+  year: number
+  revenus: number
+  depenses: number
+  resultat: number
 }
 
-/* ─────────────────────────────────────────────
-   COMPOSANTS UI
-───────────────────────────────────────────── */
+interface DashboardData {
+  clients:   { total: number; active: number }
+  invoices:  { total: number; paid: number; pending: number; overdue: number }
+  revenue:   { total: number; pending: number }
+  depenses:  {
+    fournisseurs_total: number
+    fournisseurs_paid: number
+    fournisseurs_pending: number
+    flotte: number
+    total: number
+    by_category: Record<string, number>
+  }
+  projects:  { total: number; active: number }
+  employees: { total: number; active: number }
+  stock:     { total: number; low_stock: number; total_value: number }
+  rh: {
+    masse_salariale: number
+    masse_annuelle: number
+    adj_this_month: number
+    total_personnel: number
+  }
+  resultat_net:      number
+  chart_data:        ChartPoint[]
+  external_invoices: { total: number; paid: number }
+}
+
+// ─── Design system ───────────────────────────────────────────────────────────
+const C = {
+  primary: '#1e3a5f',
+  blue:    '#2563eb',
+  green:   '#10b981',
+  amber:   '#f59e0b',
+  red:     '#ef4444',
+  purple:  '#8b5cf6',
+  cyan:    '#06b6d4',
+  slate:   '#64748b',
+  border:  '#e2e8f0',
+  bg:      '#f8fafc',
+  text:    '#0f172a',
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const fmt = (n: number) =>
+  new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n || 0)
+
+const fmtK = (v: number) => {
+  if (Math.abs(v) >= 1000) return `${(v / 1000).toFixed(0)}k`
+  return String(Math.round(v))
+}
+
+// ─── Composants UI ───────────────────────────────────────────────────────────
 function Card({ children, style = {} }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
     <div style={{
       background: '#fff', borderRadius: 14,
-      boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04)',
-      border: '1px solid #f1f5f9', ...style,
+      boxShadow: '0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)',
+      border: `1px solid ${C.border}`, ...style,
     }}>
       {children}
     </div>
-  );
+  )
 }
 
-function KPI({ label, value, sub, color, icon, trend }: {
-  label: string; value: string; sub?: string; color: string;
-  icon: React.ReactNode; trend?: number;
+function KpiCard({
+  label, value, sub, color, icon, trend, alert,
+}: {
+  label: string; value: string; sub?: string; color: string
+  icon: React.ReactNode; trend?: number; alert?: boolean
 }) {
   return (
     <div style={{
       background: '#fff', borderRadius: 14,
-      border: `1.5px solid ${color}40`,
-      boxShadow: `0 2px 8px ${color}12`,
+      border: `1.5px solid ${alert ? '#fecaca' : color + '30'}`,
+      boxShadow: alert ? '0 2px 8px rgba(239,68,68,0.10)' : `0 2px 8px ${color}10`,
       padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <p style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+        <p style={{ fontSize: 10, fontWeight: 700, color: C.slate, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
           {label}
         </p>
         <div style={{
-          width: 34, height: 34, borderRadius: 10,
-          background: color + '18',
+          width: 36, height: 36, borderRadius: 10,
+          background: (alert ? '#fef2f2' : color + '15'),
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color, flexShrink: 0,
+          color: alert ? '#ef4444' : color, flexShrink: 0,
         }}>
           {icon}
         </div>
       </div>
       <div>
-        <p style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>{value}</p>
-        {sub && <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{sub}</p>}
+        <p style={{ fontSize: 22, fontWeight: 800, color: alert ? '#ef4444' : C.text, lineHeight: 1 }}>{value}</p>
+        {sub && <p style={{ fontSize: 11, color: C.slate, marginTop: 4 }}>{sub}</p>}
       </div>
       {trend !== undefined && (
         <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 3,
+          display: 'inline-flex', alignItems: 'center', gap: 4,
           padding: '3px 8px', borderRadius: 20,
           background: trend >= 0 ? '#dcfce7' : '#fee2e2',
           color: trend >= 0 ? '#16a34a' : '#dc2626',
           fontSize: 11, fontWeight: 700, width: 'fit-content',
         }}>
-          {trend >= 0 ? '▲' : '▼'} {Math.abs(trend).toFixed(1)}% vs période préc.
+          <svg width="9" height="9" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+            {trend >= 0
+              ? <polyline points="18 15 12 9 6 15"/>
+              : <polyline points="6 9 12 15 18 9"/>
+            }
+          </svg>
+          {Math.abs(trend).toFixed(1)} %
         </div>
       )}
     </div>
-  );
+  )
 }
 
-function MiniKPI({ label, value, sub, color, icon }: {
-  label: string; value: number; sub: string; color: string; icon: React.ReactNode;
+function MiniKpi({ label, value, sub, color, icon }: {
+  label: string; value: number | string; sub: string; color: string; icon: React.ReactNode
 }) {
   return (
     <div style={{
       background: '#fff', borderRadius: 12,
-      border: `1.5px solid ${color}35`,
-      boxShadow: `0 1px 4px ${color}10`,
+      border: `1.5px solid ${color}25`,
       padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12,
     }}>
       <div style={{
-        width: 38, height: 38, borderRadius: 10,
-        background: color + '18',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color, flexShrink: 0,
+        width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+        background: color + '14',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', color,
       }}>
         {icon}
       </div>
       <div style={{ minWidth: 0 }}>
-        <p style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>{value}</p>
-        <p style={{ fontSize: 11, fontWeight: 600, color: '#64748b', marginTop: 3 }}>{label}</p>
-        <p style={{ fontSize: 10, color: '#94a3b8', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {sub}
-        </p>
+        <p style={{ fontSize: 19, fontWeight: 800, color: C.text, lineHeight: 1 }}>{value}</p>
+        <p style={{ fontSize: 11, fontWeight: 600, color: C.slate, marginTop: 3 }}>{label}</p>
+        <p style={{ fontSize: 10, color: '#94a3b8', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub}</p>
       </div>
     </div>
-  );
+  )
 }
 
-function CTooltip({ active, payload, label }: {
-  active?: boolean;
-  payload?: { name: string; value: number; color: string }[];
-  label?: string;
+// Tooltip Recharts personnalisé
+function ChartTooltip({ active, payload, label }: {
+  active?: boolean
+  payload?: { name: string; value: number; color: string }[]
+  label?: string
 }) {
-  if (!active || !payload?.length) return null;
+  if (!active || !payload?.length) return null
   return (
     <div style={{
-      background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12,
+      background: '#fff', border: `1px solid ${C.border}`, borderRadius: 12,
       padding: '10px 14px', boxShadow: '0 8px 24px rgba(0,0,0,0.10)', fontSize: 12,
     }}>
-      <p style={{ fontWeight: 700, color: '#1e293b', marginBottom: 6 }}>{label}</p>
+      <p style={{ fontWeight: 700, color: C.text, marginBottom: 6 }}>{label}</p>
       {payload.map((p, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
-          <span style={{ color: '#64748b' }}>{p.name} :</span>
-          <span style={{ fontWeight: 700, color: '#0f172a' }}>{fmt(p.value)}</span>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
+          <span style={{ color: C.slate }}>{p.name} :</span>
+          <span style={{ fontWeight: 700, color: C.text, marginLeft: 'auto' }}>{fmt(p.value)}</span>
         </div>
       ))}
     </div>
-  );
+  )
 }
 
-/* ─────────────────────────────────────────────
-   INTERFACES
-───────────────────────────────────────────── */
-interface DashboardData {
-  clients:   { total: number; active: number };
-  invoices:  { total: number; paid: number; pending: number; overdue: number };
-  revenue:   { total: number; pending: number };
-  projects:  { total: number; active: number };
-  employees: { total: number; active: number };
-  stock:     { total: number; low_stock: number };
-}
-
-interface InvoiceRaw {
-  status: string;
-  created_at: string;
-  total_amount: number;
-  due_date?: string;
-}
-
-/* ─────────────────────────────────────────────
-   PAGE PRINCIPALE
-───────────────────────────────────────────── */
+// ─── PAGE PRINCIPALE ──────────────────────────────────────────────────────────
 export default function DashboardPage() {
-  const [data,          setData]          = useState<DashboardData | null>(null);
-  const [loading,       setLoading]       = useState(true);
-  const [period,        setPeriod]        = useState<'week' | 'month' | 'quarter' | 'year'>('month');
-  const [updated,       setUpdated]       = useState(new Date());
-  const [chart,         setChart]         = useState<{ month: string; revenus: number }[]>([]);
-  const [pie,           setPie]           = useState<{ name: string; value: number; color: string }[]>([]);
-  const [alerts,        setAlerts]        = useState<string[]>([]);
-  const [periodRevenue, setPeriodRevenue] = useState(0);
+  const [data,    setData]    = useState<DashboardData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [period,  setPeriod]  = useState<'month' | 'quarter' | 'year'>('year')
+  const [updated, setUpdated] = useState(new Date())
 
   const load = useCallback(async () => {
-    setLoading(true);
+    setLoading(true)
     try {
-      const fetchSafe = async (url: string): Promise<Record<string, unknown>> => {
-        try {
-          const r = await fetch(url);
-          if (!r.ok) return {};
-          const text = await r.text();
-          if (!text || text.trim() === '') return {};
-          return JSON.parse(text) as Record<string, unknown>;
-        } catch { return {}; }
-      };
-
-      const [dash, invD] = await Promise.all([
-        fetchSafe('/api/dashboard'),
-        fetchSafe('/api/invoices'),
-      ]);
-
-      if (dash && Object.keys(dash).length > 0) {
-        setData(dash as unknown as DashboardData);
+      const r = await fetch('/api/dashboard')
+      if (r.ok) {
+        const text = await r.text()
+        if (text) setData(JSON.parse(text))
       }
-
-      const { start, end, months } = getPeriodRange(period);
-      const now = new Date();
-
-      // Normalise : accepte un tableau direct ou { data: [...] }
-      const rawInvoices = Array.isArray(invD)
-        ? invD
-        : Array.isArray((invD as Record<string, unknown>).data)
-          ? ((invD as Record<string, unknown>).data as InvoiceRaw[])
-          : [];
-
-      const filteredInvoices: InvoiceRaw[] = rawInvoices.filter((x: InvoiceRaw) => {
-        const d = new Date(x.created_at);
-        return d >= start && d <= end;
-      });
-
-      const pRev = filteredInvoices
-        .filter(x => x.status === 'paid')
-        .reduce((s, x) => s + (x.total_amount || 0), 0);
-
-      setPeriodRevenue(Math.round(pRev));
-
-      /* ── Chart data ── */
-      const m: Record<number, { r: number }> = {};
-      for (let i = months - 1; i >= 0; i--) {
-        m[(now.getMonth() - i + 12) % 12] = { r: 0 };
-      }
-      rawInvoices
-        .filter((x: InvoiceRaw) => x.status === 'paid')
-        .forEach((x: InvoiceRaw) => {
-          const k = new Date(x.created_at).getMonth();
-          if (m[k]) m[k].r += x.total_amount || 0;
-        });
-
-      setChart(
-        Object.entries(m).map(([k, v]) => ({
-          month:   MONTHS[+k],
-          revenus: Math.round(v.r),
-        }))
-      );
-
-      /* ── Pie ── */
-      const paid    = filteredInvoices.filter(x => x.status === 'paid').length;
-      const pending = filteredInvoices.filter(x => x.status === 'sent' || x.status === 'pending').length;
-      const overdue = filteredInvoices.filter(x => {
-        if (x.status === 'paid' || x.status === 'cancelled') return false;
-        if (!x.due_date) return false;
-        return new Date(x.due_date) < now;
-      }).length;
-
-      setPie([
-        { name: 'Payées',     value: paid,    color: '#10b981' },
-        { name: 'En attente', value: pending, color: '#f59e0b' },
-        { name: 'En retard',  value: overdue, color: '#ef4444' },
-      ].filter(x => x.value > 0));
-
-      /* ── Alertes ── */
-      const dashTyped = dash as unknown as DashboardData;
-      const a: string[] = [];
-      if ((dashTyped?.invoices?.overdue || 0) > 0)
-        a.push(`${dashTyped.invoices.overdue} facture(s) en retard de paiement`);
-      if ((dashTyped?.stock?.low_stock || 0) > 0)
-        a.push(`${dashTyped.stock.low_stock} article(s) en rupture ou stock faible`);
-      setAlerts(a);
-
-      setUpdated(new Date());
+      setUpdated(new Date())
     } catch (e) {
-      console.error('Dashboard load error:', e);
+      console.error('Dashboard load error:', e)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, [period]);
+  }, [])
 
   useEffect(() => {
-    load();
-    const t = setInterval(load, 60000);
-    const ch = supabase
-      .channel('db-dashboard')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, load)
-      .subscribe();
-    return () => { clearInterval(t); supabase.removeChannel(ch); };
-  }, [load]);
+    load()
+    const t = setInterval(load, 60000)
+    return () => clearInterval(t)
+  }, [load])
 
-  const PERIOD_LABELS = {
-    week:    'Cette semaine',
-    month:   'Ce mois',
-    quarter: 'Ce trimestre',
-    year:    'Cette année',
-  };
+  // ── Filtrage des données graphique selon la période ──
+  const chartData = data?.chart_data ?? []
+  const periodCount = period === 'month' ? 1 : period === 'quarter' ? 3 : 12
+  const filteredChart = chartData.slice(-periodCount)
 
-  /* ── Actions rapides — lien employees corrigé ── */
+  // ── Calculs de la période sélectionnée ──
+  const periodRevenue  = filteredChart.reduce((s, d) => s + d.revenus, 0)
+  const periodDepenses = filteredChart.reduce((s, d) => s + d.depenses, 0)
+  const periodResultat = periodRevenue - periodDepenses
+
+  // ── Données pie dépenses ──
+  const COLORS_CAT = ['#2563eb','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#84cc16','#f97316']
+  const pieDepenses = data?.depenses?.by_category
+    ? Object.entries(data.depenses.by_category)
+        .filter(([, v]) => v > 0)
+        .map(([name, value], i) => ({ name, value, color: COLORS_CAT[i % COLORS_CAT.length] }))
+        .sort((a, b) => b.value - a.value)
+    : []
+
+  // Ajouter flotte et salaires aux dépenses
+  const pieDepensesFull = [
+    ...pieDepenses,
+    ...(data?.depenses?.flotte ? [{ name: 'Flotte', value: data.depenses.flotte, color: '#06b6d4' }] : []),
+    ...(data?.rh?.masse_salariale ? [{ name: 'Masse salariale', value: data.rh.masse_salariale, color: '#8b5cf6' }] : []),
+  ].filter(d => d.value > 0)
+
+  const totalPieDep = pieDepensesFull.reduce((s, d) => s + d.value, 0)
+
+  const PERIOD_LABELS = { month: 'Ce mois', quarter: 'Ce trimestre', year: 'Cette année' }
+  const alerts: string[] = []
+  if ((data?.invoices?.overdue || 0) > 0)
+    alerts.push(`${data!.invoices.overdue} facture(s) client(s) en retard de paiement`)
+  if ((data?.stock?.low_stock || 0) > 0)
+    alerts.push(`${data!.stock.low_stock} article(s) en rupture ou stock critique`)
+  if ((data?.depenses?.fournisseurs_pending || 0) > 0)
+    alerts.push(`${fmt(data!.depenses.fournisseurs_pending)} de factures fournisseurs en attente`)
+
   const QUICK = [
-    { label: 'Nouveau client',   href: '/dashboard/clients',   color: '#6366f1' },
-    { label: 'Nouvelle facture', href: '/dashboard/invoices',  color: '#10b981' },
-    { label: 'Nouveau projet',   href: '/dashboard/projects',  color: '#8b5cf6' },
-    { label: 'Nouvel employé',   href: '/dashboard/employees', color: '#f59e0b' }, // ✅ corrigé
-    { label: 'Nouveau véhicule', href: '/dashboard/fleet',     color: '#06b6d4' },
+    { label: 'Nouveau client',   href: '/dashboard/clients',   color: C.blue },
+    { label: 'Nouvelle facture', href: '/dashboard/invoices',  color: C.green },
+    { label: 'Nouveau projet',   href: '/dashboard/projects',  color: C.purple },
+    { label: 'Nouvel employé',   href: '/dashboard/employees', color: C.amber },
+    { label: 'Nouveau véhicule', href: '/dashboard/fleet',     color: C.cyan },
     { label: 'Nouvel article',   href: '/dashboard/stock',     color: '#16a34a' },
-  ];
+  ]
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 400 }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{
-          width: 36, height: 36, border: '3px solid #6366f1',
+          width: 36, height: 36, border: `3px solid ${C.blue}`,
           borderTopColor: 'transparent', borderRadius: '50%',
           animation: 'spin 0.8s linear infinite', margin: '0 auto 12px',
         }} />
-        <p style={{ color: '#94a3b8', fontSize: 13 }}>Chargement…</p>
+        <p style={{ color: '#94a3b8', fontSize: 13 }}>Chargement du tableau de bord…</p>
       </div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
-  );
+  )
 
   return (
     <div style={{ padding: 24, maxWidth: 1600, margin: '0 auto' }}>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <style>{`
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .quick-link:hover { transform:translateY(-1px); }
+        .quick-link { transition:all 0.15s; }
+      `}</style>
 
-      {/* ── Header ── */}
+      {/* ── En-tête ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a' }}>Tableau de bord</h1>
-          <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>
-            Mis à jour : {updated.toLocaleTimeString('fr-BE')} · {PERIOD_LABELS[period]}
-          </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 42, height: 42, borderRadius: 12, background: `linear-gradient(135deg,${C.primary},${C.blue})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+              <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+            </svg>
+          </div>
+          <div>
+            <h1 style={{ fontSize: 21, fontWeight: 800, color: C.text }}>Tableau de bord</h1>
+            <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+              {PERIOD_LABELS[period]} · Mis à jour : {updated.toLocaleTimeString('fr-BE')}
+            </p>
+          </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ display: 'flex', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: 12, overflow: 'hidden' }}>
-            {(['week', 'month', 'quarter', 'year'] as const).map((p, i) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                style={{
-                  padding: '7px 14px', border: 'none',
-                  borderRight: i < 3 ? '1px solid #e2e8f0' : 'none',
-                  background: period === p ? '#6366f1' : 'transparent',
-                  color: period === p ? '#fff' : '#64748b',
-                  fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
-                }}
-              >
-                {['Sem.', 'Mois', 'Trim.', 'Année'][i]}
+          <div style={{ display: 'flex', background: C.bg, border: `1.5px solid ${C.border}`, borderRadius: 12, overflow: 'hidden' }}>
+            {(['month', 'quarter', 'year'] as const).map((p, i) => (
+              <button key={p} onClick={() => setPeriod(p)} style={{
+                padding: '7px 16px', border: 'none',
+                borderRight: i < 2 ? `1px solid ${C.border}` : 'none',
+                background: period === p ? C.blue : 'transparent',
+                color: period === p ? '#fff' : C.slate,
+                fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
+              }}>
+                {['Mois', 'Trimestre', 'Année'][i]}
               </button>
             ))}
           </div>
-          <button
-            onClick={load}
-            title="Actualiser"
-            style={{
-              padding: 8, background: '#fff', border: '1.5px solid #e2e8f0', borderRadius: 10,
-              cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-            }}
-          >
+          <button onClick={load} title="Actualiser" style={{
+            padding: 8, background: '#fff', border: `1.5px solid ${C.border}`, borderRadius: 10,
+            cursor: 'pointer', color: C.slate, display: 'flex', alignItems: 'center',
+          }}>
             <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <polyline points="23 4 23 10 17 10"/>
               <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
@@ -368,191 +318,276 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── KPI Finance ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14, marginBottom: 14 }}>
-        <KPI
-          label="Chiffre d'affaires"
+      {/* ── KPIs financiers principaux ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(210px,1fr))', gap: 14, marginBottom: 14 }}>
+        <KpiCard
+          label="Chiffre d'affaires encaissé"
           value={fmt(periodRevenue)}
-          sub={`Revenus encaissés · ${PERIOD_LABELS[period].toLowerCase()}`}
-          trend={periodRevenue > 0 ? 8.2 : undefined}
-          color="#10b981"
+          sub={`Revenus payés · ${PERIOD_LABELS[period].toLowerCase()}`}
+          color={C.green}
+          icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>}
+        />
+        <KpiCard
+          label="Dépenses totales"
+          value={fmt(periodDepenses)}
+          sub={`Fournisseurs + flotte · ${PERIOD_LABELS[period].toLowerCase()}`}
+          color={C.red}
+          icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>}
+        />
+        <KpiCard
+          label="Résultat net"
+          value={fmt(periodResultat)}
+          sub={`Revenus − Dépenses · ${PERIOD_LABELS[period].toLowerCase()}`}
+          color={periodResultat >= 0 ? C.green : C.red}
+          alert={periodResultat < 0}
           icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>}
         />
-        <KPI
+        <KpiCard
           label="En attente d'encaissement"
           value={fmt(data?.revenue.pending || 0)}
           sub={`${data?.invoices.pending || 0} facture(s) non réglée(s)`}
-          color="#f59e0b"
-          icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>}
-        />
-        <KPI
-          label="Revenus totaux"
-          value={fmt(data?.revenue.total || 0)}
-          sub="Toutes périodes confondues"
-          color="#6366f1"
-          icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>}
-        />
-        <KPI
-          label="Factures en retard"
-          value={String(data?.invoices.overdue || 0)}
-          sub="Paiements non reçus"
-          color="#ef4444"
-          icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>}
+          color={C.amber}
+          icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>}
         />
       </div>
 
-      {/* ── Mini KPIs ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10, marginBottom: 20 }}>
-        <MiniKPI
-          label="Clients actifs" value={data?.clients.active || 0}
-          sub={`/${data?.clients.total || 0} total`} color="#6366f1"
-          icon={<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>}
-        />
-        <MiniKPI
-          label="Projets actifs" value={data?.projects.active || 0}
-          sub={`/${data?.projects.total || 0} total`} color="#8b5cf6"
-          icon={<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>}
-        />
-        <MiniKPI
-          label="Employés actifs" value={data?.employees.active || 0}
-          sub={`/${data?.employees.total || 0} total`} color="#f59e0b"
-          icon={<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>}
-        />
-        <MiniKPI
-          label="Stock faible" value={data?.stock.low_stock || 0}
-          sub={`/${data?.stock.total || 0} articles`} color="#ef4444"
-          icon={<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>}
-        />
-        <MiniKPI
-          label="Factures totales" value={data?.invoices.total || 0}
-          sub={`${data?.invoices.paid || 0} payées`} color="#10b981"
-          icon={<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>}
-        />
-        <MiniKPI
-          label="Factures en retard" value={data?.invoices.overdue || 0}
-          sub="impayées" color="#dc2626"
-          icon={<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>}
-        />
-      </div>
-
-      {/* ── Charts row ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 16, marginBottom: 16 }}>
-
-        {/* Area chart */}
-        <Card style={{ padding: 22 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-            <div>
-              <p style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>Évolution des revenus</p>
-              <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
-                {period === 'week' ? 'Cette semaine' : period === 'month' ? 'Ce mois' : period === 'quarter' ? '3 derniers mois' : '12 derniers mois'}
-              </p>
+      {/* ── Alertes financières ── */}
+      {alerts.length > 0 && (
+        <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+          {alerts.map((a, i) => (
+            <div key={i} style={{
+              display: 'flex', alignItems: 'center', gap: 9,
+              padding: '10px 14px', background: '#fffbeb',
+              border: '1.5px solid #fde68a', borderRadius: 10, fontSize: 12, color: '#92400e', fontWeight: 500,
+            }}>
+              <svg width="14" height="14" fill="none" stroke="#d97706" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+              {a}
             </div>
-            <div style={{ display: 'flex', gap: 14, fontSize: 11, color: '#64748b' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ width: 10, height: 3, background: '#10b981', borderRadius: 2, display: 'inline-block' }} />
-                Revenus encaissés
-              </span>
-            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Graphique principal Revenus vs Dépenses ── */}
+      <Card style={{ padding: 22, marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, flexWrap: 'wrap', gap: 8 }}>
+          <div>
+            <p style={{ fontSize: 15, fontWeight: 700, color: C.text }}>Revenus vs Dépenses</p>
+            <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+              {period === 'month' ? 'Mois en cours' : period === 'quarter' ? '3 derniers mois' : '12 derniers mois'} · Comparaison encaissements / charges
+            </p>
           </div>
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={chart} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="gr" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#10b981" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+          <div style={{ display: 'flex', gap: 16, fontSize: 11 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 12, height: 3, background: C.green, borderRadius: 2, display: 'inline-block' }} />
+              <span style={{ color: C.slate }}>Revenus encaissés</span>
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 12, height: 3, background: C.red, borderRadius: 2, display: 'inline-block' }} />
+              <span style={{ color: C.slate }}>Dépenses</span>
+            </span>
+          </div>
+        </div>
+        <ResponsiveContainer width="100%" height={220}>
+          <AreaChart data={filteredChart} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id="grRev" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%"  stopColor={C.green} stopOpacity={0.18}/>
+                <stop offset="95%" stopColor={C.green} stopOpacity={0}/>
+              </linearGradient>
+              <linearGradient id="grDep" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%"  stopColor={C.red} stopOpacity={0.12}/>
+                <stop offset="95%" stopColor={C.red} stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+            <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={fmtK} width={42} />
+            <Tooltip content={<ChartTooltip />} />
+            <Area type="monotone" dataKey="revenus"  name="Revenus"  stroke={C.green} fill="url(#grRev)" strokeWidth={2.5} dot={false} />
+            <Area type="monotone" dataKey="depenses" name="Dépenses" stroke={C.red}   fill="url(#grDep)" strokeWidth={2} dot={false} strokeDasharray="0" />
+          </AreaChart>
+        </ResponsiveContainer>
+      </Card>
+
+      {/* ── 2 graphiques côte à côte ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+
+        {/* Résultat net mensuel */}
+        <Card style={{ padding: 22 }}>
+          <div style={{ marginBottom: 16 }}>
+            <p style={{ fontSize: 15, fontWeight: 700, color: C.text }}>Résultat net mensuel</p>
+            <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Revenus − Dépenses par mois</p>
+          </div>
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={filteredChart} margin={{ top: 5, right: 10, left: 0, bottom: 0 }} barSize={22}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
               <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
-              <Tooltip content={<CTooltip />} />
-              <Area type="monotone" dataKey="revenus" name="Revenus" stroke="#10b981" fill="url(#gr)" strokeWidth={2} dot={false} />
-            </AreaChart>
+              <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={fmtK} width={42} />
+              <Tooltip content={<ChartTooltip />} />
+              <ReferenceLine y={0} stroke={C.border} strokeWidth={1.5} />
+              <Bar
+                dataKey="resultat"
+                name="Résultat"
+                radius={[5, 5, 0, 0]}
+                fill={C.blue}
+              >
+                {filteredChart.map((entry, i) => (
+                  <Cell key={i} fill={entry.resultat >= 0 ? C.green : C.red} />
+                ))}
+              </Bar>
+            </BarChart>
           </ResponsiveContainer>
         </Card>
 
-        {/* Pie chart */}
+        {/* Répartition des dépenses */}
         <Card style={{ padding: 22, display: 'flex', flexDirection: 'column' }}>
-          <p style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', marginBottom: 3 }}>Statut factures</p>
-          <p style={{ fontSize: 11, color: '#94a3b8', marginBottom: 14 }}>{PERIOD_LABELS[period]}</p>
-          {pie.length > 0 ? (
-            <>
-              <ResponsiveContainer width="100%" height={140}>
+          <div style={{ marginBottom: 14 }}>
+            <p style={{ fontSize: 15, fontWeight: 700, color: C.text }}>Répartition des dépenses</p>
+            <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Par catégorie (cumul total)</p>
+          </div>
+          {pieDepensesFull.length > 0 ? (
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center', flex: 1 }}>
+              <ResponsiveContainer width="50%" height={160}>
                 <PieChart>
-                  <Pie data={pie} cx="50%" cy="50%" innerRadius={40} outerRadius={62} paddingAngle={4} dataKey="value">
-                    {pie.map((e, i) => <Cell key={i} fill={e.color} />)}
+                  <Pie
+                    data={pieDepensesFull}
+                    cx="50%" cy="50%"
+                    innerRadius={42} outerRadius={66}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {pieDepensesFull.map((e, i) => <Cell key={i} fill={e.color} />)}
                   </Pie>
-                  <Tooltip formatter={(v: number) => [v, 'factures']} />
+                  <Tooltip formatter={(v: number) => [fmt(v), '']} />
                 </PieChart>
               </ResponsiveContainer>
-              <div style={{ marginTop: 'auto', paddingTop: 14, borderTop: '1px solid #f1f5f9' }}>
-                {pie.map((d, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 0', borderBottom: i < pie.length - 1 ? '1px solid #f8fafc' : 'none' }}>
+              <div style={{ flex: 1, overflowY: 'auto', maxHeight: 160 }}>
+                {pieDepensesFull.slice(0, 7).map((d, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0', borderBottom: i < pieDepensesFull.length - 1 ? `1px solid #f8fafc` : 'none' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                       <span style={{ width: 9, height: 9, borderRadius: '50%', background: d.color, flexShrink: 0 }} />
-                      <span style={{ fontSize: 12, color: '#64748b' }}>{d.name}</span>
+                      <span style={{ fontSize: 11, color: C.slate }}>{d.name}</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{d.value}</span>
-                      <span style={{ fontSize: 10, color: '#94a3b8', background: '#f8fafc', borderRadius: 6, padding: '1px 5px' }}>
-                        {Math.round(d.value / (pie.reduce((s, x) => s + x.value, 0) || 1) * 100)}%
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: C.text }}>{fmt(d.value)}</span>
+                      <span style={{ fontSize: 9, color: '#94a3b8', background: C.bg, borderRadius: 5, padding: '1px 4px' }}>
+                        {totalPieDep > 0 ? Math.round(d.value / totalPieDep * 100) : 0}%
                       </span>
                     </div>
                   </div>
                 ))}
               </div>
-            </>
+            </div>
           ) : (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#cbd5e1', textAlign: 'center', paddingBottom: 16 }}>
-              <svg width="36" height="36" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" style={{ marginBottom: 8 }}>
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-              </svg>
-              <p style={{ fontSize: 12, color: '#94a3b8' }}>Aucune facture</p>
-              <p style={{ fontSize: 11, color: '#cbd5e1', marginTop: 3 }}>sur cette période</p>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#cbd5e1' }}>
+              <p style={{ fontSize: 12 }}>Aucune dépense enregistrée</p>
             </div>
           )}
         </Card>
       </div>
 
-      {/* ── Bar chart ── */}
-      <Card style={{ padding: 22, marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-          <div>
-            <p style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>Revenus encaissés par mois</p>
-            <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Chiffre d&apos;affaires mensuel</p>
-          </div>
-          <div style={{ display: 'flex', gap: 14, fontSize: 11, color: '#64748b' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <span style={{ width: 10, height: 10, background: '#6366f1', borderRadius: 3, display: 'inline-block' }} />
-              Revenus
-            </span>
-          </div>
-        </div>
-        <ResponsiveContainer width="100%" height={150}>
-          <BarChart data={chart} margin={{ top: 5, right: 5, left: 0, bottom: 0 }} barSize={20}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-            <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
-            <Tooltip content={<CTooltip />} />
-            <Bar dataKey="revenus" name="Revenus" fill="#6366f1" radius={[5, 5, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </Card>
+      {/* ── Mini KPIs opérationnels ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 10, marginBottom: 16 }}>
+        <MiniKpi
+          label="Clients actifs" value={data?.clients.active || 0}
+          sub={`sur ${data?.clients.total || 0} total`} color={C.blue}
+          icon={<svg width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>}
+        />
+        <MiniKpi
+          label="Projets actifs" value={data?.projects.active || 0}
+          sub={`sur ${data?.projects.total || 0} total`} color={C.purple}
+          icon={<svg width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>}
+        />
+        <MiniKpi
+          label="Employés actifs" value={data?.employees.active || 0}
+          sub={`Masse sal. : ${fmt(data?.rh?.masse_salariale || 0)}`} color={C.amber}
+          icon={<svg width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>}
+        />
+        <MiniKpi
+          label="Stock critique" value={data?.stock.low_stock || 0}
+          sub={`${data?.stock.total || 0} articles — val. ${fmt(data?.stock.total_value || 0)}`} color={data?.stock.low_stock ? C.red : C.green}
+          icon={<svg width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>}
+        />
+        <MiniKpi
+          label="Factures en retard" value={data?.invoices.overdue || 0}
+          sub="Paiements clients en attente" color={data?.invoices.overdue ? C.red : C.green}
+          icon={<svg width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>}
+        />
+        <MiniKpi
+          label="Factures fournisseurs" value={fmt(data?.depenses?.fournisseurs_total || 0)}
+          sub={`${data?.external_invoices?.total || 0} factures — ${data?.depenses?.fournisseurs_pending ? fmt(data.depenses.fournisseurs_pending) + ' en attente' : 'tout payé'}`}
+          color={C.primary}
+          icon={<svg width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="12 18 12 12"/><polyline points="9 15 12 18 15 15"/></svg>}
+        />
+      </div>
 
-      {/* ── Bottom row ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      {/* ── Revenus par mois (barchart) + Actions rapides ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14, marginBottom: 14 }}>
+
+        {/* Revenus encaissés par mois */}
+        <Card style={{ padding: 22 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div>
+              <p style={{ fontSize: 15, fontWeight: 700, color: C.text }}>Revenus encaissés par mois</p>
+              <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Chiffre d&apos;affaires mensuel (factures payées)</p>
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: C.green }}>{fmt(periodRevenue)}</div>
+          </div>
+          <ResponsiveContainer width="100%" height={160}>
+            <BarChart data={filteredChart} margin={{ top: 5, right: 10, left: 0, bottom: 0 }} barSize={24}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+              <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={fmtK} width={42} />
+              <Tooltip content={<ChartTooltip />} />
+              <Bar dataKey="revenus" name="Revenus" fill={C.blue} radius={[5, 5, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </Card>
+
+        {/* Récap financier */}
+        <Card style={{ padding: 22 }}>
+          <p style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 16 }}>Récapitulatif financier</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[
+              { l: 'Revenus encaissés',        v: data?.revenue.total || 0,              c: C.green },
+              { l: 'En attente encaissement',  v: data?.revenue.pending || 0,            c: C.amber },
+              { l: 'Dépenses fournisseurs',    v: data?.depenses?.fournisseurs_total || 0, c: C.red },
+              { l: 'Dépenses flotte',          v: data?.depenses?.flotte || 0,           c: '#f97316' },
+              { l: 'Masse salariale / mois',   v: data?.rh?.masse_salariale || 0,        c: C.purple },
+            ].map((row, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: row.c, flexShrink: 0 }} />
+                  <span style={{ fontSize: 12, color: C.slate }}>{row.l}</span>
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 700, color: row.c }}>{fmt(row.v)}</span>
+              </div>
+            ))}
+            <div style={{ borderTop: `1.5px solid ${C.border}`, paddingTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Résultat net</span>
+              <span style={{ fontSize: 16, fontWeight: 800, color: (data?.resultat_net || 0) >= 0 ? C.green : C.red }}>
+                {fmt(data?.resultat_net || 0)}
+              </span>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* ── Alertes + Actions rapides ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
 
         {/* Alertes */}
         <Card style={{ padding: 22 }}>
-          <p style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 7 }}>
-            <svg width="15" height="15" fill="none" stroke="#f59e0b" strokeWidth="2" viewBox="0 0 24 24">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 14 }}>
+            <svg width="16" height="16" fill="none" stroke={C.amber} strokeWidth="2" viewBox="0 0 24 24">
               <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-              <line x1="12" y1="9" x2="12" y2="13"/>
-              <line x1="12" y1="17" x2="12.01" y2="17"/>
+              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
-            Alertes &amp; Notifications
-          </p>
+            <p style={{ fontSize: 14, fontWeight: 700, color: C.text }}>Alertes &amp; Notifications</p>
+          </div>
           {alerts.length === 0 ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 14, background: '#f0fdf4', borderRadius: 12, border: '1.5px solid #bbf7d0' }}>
               <div style={{ width: 36, height: 36, background: '#dcfce7', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16a34a', flexShrink: 0 }}>
@@ -565,49 +600,36 @@ export default function DashboardPage() {
                 <p style={{ fontSize: 11, color: '#4ade80', marginTop: 2 }}>Aucune alerte pour le moment</p>
               </div>
             </div>
-          ) : alerts.map((a, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: '#fffbeb', borderRadius: 12, border: '1.5px solid #fde68a', marginBottom: 8 }}>
-              <div style={{ width: 32, height: 32, background: '#fef3c7', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706', flexShrink: 0 }}>
-                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                  <line x1="12" y1="9" x2="12" y2="13"/>
-                  <line x1="12" y1="17" x2="12.01" y2="17"/>
-                </svg>
-              </div>
-              <p style={{ fontSize: 12, color: '#92400e' }}>{a}</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {alerts.map((a, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: '#fffbeb', borderRadius: 10, border: '1.5px solid #fde68a' }}>
+                  <div style={{ width: 30, height: 30, background: '#fef3c7', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706', flexShrink: 0 }}>
+                    <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                      <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                  </div>
+                  <p style={{ fontSize: 12, color: '#92400e', lineHeight: 1.5 }}>{a}</p>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </Card>
 
         {/* Actions rapides */}
         <Card style={{ padding: 22 }}>
-          <p style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', marginBottom: 14 }}>Actions rapides</p>
+          <p style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 14 }}>Actions rapides</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9 }}>
             {QUICK.map((q, i) => (
-              <a
-                key={i}
-                href={q.href}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 9,
-                  padding: '10px 12px', borderRadius: 11,
-                  background: q.color + '10',
-                  border: `1.5px solid ${q.color}30`,
-                  textDecoration: 'none', transition: 'all 0.15s', cursor: 'pointer',
-                }}
-                onMouseEnter={e => {
-                  const el = e.currentTarget as HTMLAnchorElement;
-                  el.style.transform = 'translateY(-1px)';
-                  el.style.boxShadow = `0 4px 14px ${q.color}25`;
-                  el.style.borderColor = q.color + '60';
-                }}
-                onMouseLeave={e => {
-                  const el = e.currentTarget as HTMLAnchorElement;
-                  el.style.transform = 'none';
-                  el.style.boxShadow = 'none';
-                  el.style.borderColor = q.color + '30';
-                }}
-              >
-                <div style={{ width: 26, height: 26, borderRadius: 8, background: q.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <a key={i} href={q.href} className="quick-link" style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '10px 12px', borderRadius: 10,
+                background: q.color + '0e',
+                border: `1.5px solid ${q.color}28`,
+                textDecoration: 'none',
+              }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: q.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <svg width="13" height="13" fill="none" stroke="#fff" strokeWidth="2.5" viewBox="0 0 24 24">
                     <line x1="12" y1="5" x2="12" y2="19"/>
                     <line x1="5" y1="12" x2="19" y2="12"/>
@@ -620,6 +642,5 @@ export default function DashboardPage() {
         </Card>
       </div>
     </div>
-  );
+  )
 }
-

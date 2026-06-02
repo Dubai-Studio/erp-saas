@@ -327,7 +327,7 @@ function EmployeeModal({ open, onClose, onSave, initial }: {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
             <div>
               <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>
-                {initial ? `✏️ ${initial.first_name} ${initial.last_name}` : '👤 Nouvel employé'}
+                {initial ? ` ${initial.first_name} ${initial.last_name}` : ' Nouvel employé'}
               </h2>
               <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', marginTop: 3 }}>Ressources Humaines · Next-ERP</p>
             </div>
@@ -732,7 +732,7 @@ export default function EmployeesPage() {
         fetchSafe('/api/employees'),
         fetchSafe('/api/pay-adjustments'),
       ]);
-      // ✅ toArray accepte tableau direct, { data:[] }, { employees:[] }, etc.
+      //  toArray accepte tableau direct, { data:[] }, { employees:[] }, etc.
       setEmployees(toArray<Employee>(empRaw));
       setAdjustments(toArray<PayAdjustment>(adjRaw));
     } catch (e) {

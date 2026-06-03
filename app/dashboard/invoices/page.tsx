@@ -79,7 +79,14 @@ const COMPANY = {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+// Formatage pour l'interface web (espaces insécables OK dans le navigateur)
 const fmt  = (n: number) => new Intl.NumberFormat('fr-BE',{style:'currency',currency:'EUR'}).format(n||0)
+// Formatage pour jsPDF — remplace les espaces insécables (\u00A0) par des espaces normaux
+const fmtPDF = (n: number) =>
+  new Intl.NumberFormat('fr-BE',{style:'currency',currency:'EUR'})
+    .format(n||0)
+    .replace(/\u00A0/g, ' ')
+    .replace(/\u202F/g, ' ')
 const fmtD = (d: string) => d ? new Date(d).toLocaleDateString('fr-BE',{day:'2-digit',month:'short',year:'numeric'}) : '—'
 const today  = () => new Date().toISOString().split('T')[0]
 const due30  = () => new Date(Date.now()+30*86400000).toISOString().split('T')[0]
@@ -285,9 +292,9 @@ function generatePDF(invoice: Invoice, client: Client|undefined) {
     body: safeLines.map(l => [
       l.description || '',
       String(Number(l.quantity) || 0),
-      fmt(Number(l.unit_price) || 0),
+      fmtPDF(Number(l.unit_price) || 0),
       `${Number(l.vat_rate) || 0} %`,
-      fmt((Number(l.quantity)||0) * (Number(l.unit_price)||0)),
+      fmtPDF((Number(l.quantity)||0) * (Number(l.unit_price)||0)),
     ]),
     headStyles: {
       fillColor: [15, 23, 42],
@@ -303,11 +310,11 @@ function generatePDF(invoice: Invoice, client: Client|undefined) {
     },
     alternateRowStyles: { fillColor: [248, 250, 252] },
     columnStyles: {
-      0: { cellWidth: 82 },
-      1: { halign: 'center', cellWidth: 16 },
-      2: { halign: 'right',  cellWidth: 28 },
-      3: { halign: 'center', cellWidth: 18 },
-      4: { halign: 'right',  cellWidth: 30 },
+      0: { cellWidth: 70 },
+      1: { halign: 'center', cellWidth: 14 },
+      2: { halign: 'right',  cellWidth: 36 },
+      3: { halign: 'center', cellWidth: 16 },
+      4: { halign: 'right',  cellWidth: 38 },
     },
     margin: { left: M, right: M },
     tableLineColor: [226, 232, 240],
@@ -326,8 +333,8 @@ function generatePDF(invoice: Invoice, client: Client|undefined) {
 
   // Lignes sous-total & TVA
   const totRows = [
-    { l: 'Sous-total HTVA', v: fmt(subtotal) },
-    { l: 'TVA',              v: fmt(vat_amount) },
+    { l: 'Sous-total HTVA', v: fmtPDF(subtotal) },
+    { l: 'TVA',              v: fmtPDF(vat_amount) },
   ]
   totRows.forEach((t, i) => {
     const y = fY + 11 + i * 11
@@ -353,7 +360,7 @@ function generatePDF(invoice: Invoice, client: Client|undefined) {
   doc.setFontSize(8.5)
   doc.text('TOTAL TTC', txX + 6, fY + 41)
   doc.setFontSize(11)
-  doc.text(fmt(total_amount), txX + txW - 6, fY + 41, { align: 'right' })
+  doc.text(fmtPDF(total_amount), txX + txW - 6, fY + 41, { align: 'right' })
 
   // Notes (si présentes)
   if (invoice.notes) {

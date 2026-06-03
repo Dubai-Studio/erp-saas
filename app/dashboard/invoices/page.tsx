@@ -1,4 +1,5 @@
 'use client'
+export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import React from 'react'
@@ -447,9 +448,13 @@ function OutgoingModal({ open, onClose, onSave, initial, clients, projects }:{
     if(!form.client_id){ setError('Veuillez sélectionner un client.'); return }
     if(form.lines.some(l=>!l.description.trim())){ setError('Chaque ligne doit avoir une description.'); return }
     setSaving(true); setError('')
-    try{ await onSave({...form,...totals,type:'outgoing'}) }
-    catch{ setError('Erreur lors de la sauvegarde.') }
-    setSaving(false)
+    try{
+      await onSave({...form,...totals,type:'outgoing'})
+    } catch(err){
+      setError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const clientProjects = projects.filter(p => !form.client_id || p.client_id === form.client_id)
@@ -741,7 +746,7 @@ function ImportModal({ open, onClose, onSave, clients, projects }:{
       await onSave({ ...form, file_url: fileUrl, file_name: fileName })
     } catch (err) {
       console.error('ImportModal submit error:', err)
-      setError('Erreur lors de la sauvegarde. Veuillez réessayer.')
+      setError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde. Veuillez réessayer.')
     } finally {
       setSaving(false)
     }
@@ -1256,13 +1261,39 @@ export default function InvoicesPage() {
   }
 
   async function saveOut(data: Partial<Invoice>) {
-    if (editInv) await fetch(`/api/invoices/${editInv.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
-    else         await fetch('/api/invoices',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
+    const url    = editInv ? `/api/invoices/${editInv.id}` : '/api/invoices'
+    const method = editInv ? 'PATCH' : 'POST'
+    const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) })
+    if (!res.ok) {
+      let msg = `Erreur ${res.status}`
+      try { const j = await res.json(); msg = j?.error ?? msg } catch { /* ignore */ }
+      throw new Error(msg)
+    }
     setOutModal(false); setEditInv(null); load()
   }
 
   async function saveExt(data: Omit<ExternalInvoice,'id'|'created_at'>) {
-    await fetch('/api/external-invoices',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
+    // Sanitize : envoyer null (pas '') pour les champs UUID optionnels
+    const payload = {
+      ...data,
+      client_id:   data.client_id   && data.client_id.trim()   !== '' ? data.client_id   : null,
+      project_id:  data.project_id  && data.project_id.trim()  !== '' ? data.project_id  : null,
+      supplier_id: data.supplier_id && data.supplier_id.trim() !== '' ? data.supplier_id : null,
+      file_url:    data.file_url    && data.file_url.trim()    !== '' ? data.file_url    : null,
+      file_name:   data.file_name   && data.file_name.trim()   !== '' ? data.file_name   : null,
+      due_date:    data.due_date    && data.due_date.trim()    !== '' ? data.due_date    : null,
+      notes:       data.notes       && data.notes.trim()       !== '' ? data.notes       : null,
+    }
+    const res = await fetch('/api/external-invoices', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+      let msg = `Erreur ${res.status}`
+      try { const j = await res.json(); msg = j?.error ?? msg } catch { /* ignore */ }
+      throw new Error(msg)
+    }
     setImpModal(false); load()
   }
 

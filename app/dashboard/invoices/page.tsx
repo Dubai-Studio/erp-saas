@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import React from 'react'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { createClient } from '@supabase/supabase-js'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Client {
@@ -169,8 +170,25 @@ function AB({ onClick, title, icon, hBg, hCol, label }:{
   )
 }
 
+// ─── Type données société ─────────────────────────────────────────────────────
+interface CompanyData {
+  name: string; address: string; city: string; vat: string
+  email: string; phone: string; iban: string; bic: string
+}
+
 // ─── PDF Générateur PRO ───────────────────────────────────────────────────────
-function generatePDF(invoice: Invoice, client: Client|undefined) {
+function generatePDF(invoice: Invoice, client: Client|undefined, co?: CompanyData) {
+  // Données société : priorité aux paramètres DB, sinon fallback sur COMPANY
+  const C_PDF: CompanyData = {
+    name:    co?.name    || COMPANY.name,
+    address: co?.address || COMPANY.address,
+    city:    co?.city    || COMPANY.city,
+    vat:     co?.vat     || COMPANY.vat,
+    email:   co?.email   || COMPANY.email,
+    phone:   co?.phone   || COMPANY.phone,
+    iban:    co?.iban    || COMPANY.iban,
+    bic:     co?.bic     || COMPANY.bic,
+  }
   const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' })
   const W=210, M=18, pW=W-M*2
 
@@ -194,14 +212,14 @@ function generatePDF(invoice: Invoice, client: Client|undefined) {
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(20)
   doc.setFont('helvetica', 'bold')
-  doc.text(COMPANY.name, M, 19)
+  doc.text(C_PDF.name, M, 19)
 
   // Sous-titre société
   doc.setFontSize(7.5)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(148, 163, 184)
-  doc.text(COMPANY.address + ', ' + COMPANY.city, M, 26)
-  doc.text('TVA : ' + COMPANY.vat + '   |   ' + COMPANY.email + '   |   ' + COMPANY.phone, M, 32)
+  doc.text(C_PDF.address + ', ' + C_PDF.city, M, 26)
+  doc.text('TVA : ' + C_PDF.vat + '   |   ' + C_PDF.email + '   |   ' + C_PDF.phone, M, 32)
 
   // FACTURE titre (droite)
   doc.setTextColor(255, 255, 255)
@@ -389,7 +407,7 @@ function generatePDF(invoice: Invoice, client: Client|undefined) {
   doc.setFontSize(8.5)
   doc.setTextColor(37, 99, 235)
   doc.text(
-    `IBAN : ${COMPANY.iban}   •   BIC : ${COMPANY.bic}   •   Communication : ${invoice.invoice_number}`,
+    `IBAN : ${C_PDF.iban}   •   BIC : ${C_PDF.bic}   •   Communication : ${invoice.invoice_number}`,
     M + 5, bY + 13
   )
 
@@ -400,7 +418,7 @@ function generatePDF(invoice: Invoice, client: Client|undefined) {
   doc.setFontSize(7)
   doc.setFont('helvetica', 'normal')
   doc.text(
-    `${COMPANY.name}  —  ${COMPANY.vat}  —  ${COMPANY.email}  —  ${COMPANY.address}, ${COMPANY.city}`,
+    `${C_PDF.name}  —  ${C_PDF.vat}  —  ${C_PDF.email}  —  ${C_PDF.address}, ${C_PDF.city}`,
     W / 2, 290.5, { align: 'center' }
   )
 
@@ -633,7 +651,7 @@ function OutgoingModal({ open, onClose, onSave, initial, clients, projects }:{
                   <span style={{color:C.blue}}>{Ic.bank}</span>
                   <p style={{fontSize:12,fontWeight:700,color:'#1e40af'}}>Coordonnées bancaires (ajoutées automatiquement dans le PDF)</p>
                 </div>
-                <p style={{fontSize:12,color:'#1d4ed8'}}>IBAN : {COMPANY.iban} &nbsp;•&nbsp; BIC : {COMPANY.bic}</p>
+                <p style={{fontSize:12,color:'#1d4ed8'}}>Les coordonnées bancaires définies dans les <strong>Paramètres</strong> seront ajoutées automatiquement.</p>
               </div>
             </div>
           )}
@@ -965,10 +983,11 @@ function ImportModal({ open, onClose, onSave, clients, projects }:{
 }
 
 // ─── Drawer détail facture émise ──────────────────────────────────────────────
-function OutgoingDrawer({ invoice, clients, projects, onClose, onEdit, onDelete, onStatusChange }:{
+function OutgoingDrawer({ invoice, clients, projects, onClose, onEdit, onDelete, onStatusChange, companyData }:{
   invoice:Invoice|null; clients:Client[]; projects:Project[]
   onClose:()=>void; onEdit:()=>void; onDelete:()=>void
   onStatusChange:(id:string,s:Invoice['status'])=>void
+  companyData?: CompanyData
 }) {
   if (!invoice) return null
   const st  = STATUS_OUT[invoice.status]
@@ -1048,7 +1067,7 @@ function OutgoingDrawer({ invoice, clients, projects, onClose, onEdit, onDelete,
         </div>
 
         <div style={{padding:'14px 16px',borderTop:`1px solid ${C.border}`,display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,flexShrink:0}}>
-          <button onClick={()=>generatePDF(invoice,cli)} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'9px 0',borderRadius:10,border:`1.5px solid ${C.primary}`,background:'#fff',color:C.primary,fontSize:13,fontWeight:600,cursor:'pointer'}}>
+          <button onClick={()=>generatePDF(invoice,cli,companyData)} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'9px 0',borderRadius:10,border:`1.5px solid ${C.primary}`,background:'#fff',color:C.primary,fontSize:13,fontWeight:600,cursor:'pointer'}}>
             {Ic.pdf} Télécharger PDF
           </button>
           <button onClick={onEdit} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'9px 0',borderRadius:10,border:'none',background:`linear-gradient(135deg,${C.primary},${C.blue})`,color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer'}}>
@@ -1174,13 +1193,14 @@ function IncomingDrawer({ invoice, clients, projects, onClose, onDelete }:{
 
 // ─── PAGE PRINCIPALE ──────────────────────────────────────────────────────────
 export default function InvoicesPage() {
-  const [tab,       setTab]       = useState<TabMode>('outgoing')
-  const [invoices,  setInvoices]  = useState<Invoice[]>([])
-  const [extInvs,   setExtInvs]   = useState<ExternalInvoice[]>([])
-  const [clients,   setClients]   = useState<Client[]>([])
-  const [projects,  setProjects]  = useState<Project[]>([])
-  const [loading,   setLoading]   = useState(true)
-  const [view,      setView]      = useState<'list'|'grid'>('list')
+  const [tab,         setTab]         = useState<TabMode>('outgoing')
+  const [invoices,    setInvoices]    = useState<Invoice[]>([])
+  const [extInvs,     setExtInvs]     = useState<ExternalInvoice[]>([])
+  const [clients,     setClients]     = useState<Client[]>([])
+  const [projects,    setProjects]    = useState<Project[]>([])
+  const [loading,     setLoading]     = useState(true)
+  const [view,        setView]        = useState<'list'|'grid'>('list')
+  const [companyData, setCompanyData] = useState<CompanyData | undefined>(undefined)
 
   const [search,    setSearch]    = useState('')
   const [statusF,   setStatusF]   = useState('all')
@@ -1231,6 +1251,35 @@ export default function InvoicesPage() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  // Charge les données de la société depuis les paramètres
+  useEffect(() => {
+    const sb = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+    sb.auth.getSession().then(async ({ data }) => {
+      if (!data.session) return
+      const uid = data.session.user.id
+      try {
+        const res = await fetch('/api/settings', { headers: { 'x-user-id': uid } })
+        if (res.ok) {
+          const d = await res.json()
+          setCompanyData({
+            name:    d.company_name || COMPANY.name,
+            address: d.address      || COMPANY.address,
+            city:    d.city         || COMPANY.city,
+            vat:     d.vat_number   || COMPANY.vat,
+            email:   d.email        || COMPANY.email,
+            phone:   d.phone        || COMPANY.phone,
+            iban:    d.iban         || COMPANY.iban,
+            bic:     d.bic          || COMPANY.bic,
+          })
+        }
+      } catch { /* ignore, utilise COMPANY par défaut */ }
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ── Filtres factures émises ──
   const filteredOut = invoices.filter(inv => {
@@ -1563,7 +1612,7 @@ export default function InvoicesPage() {
                       <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
                         <AB onClick={()=>setViewOut(inv)} title="Voir le détail" icon={Ic.eye} hBg='#eff6ff' hCol={C.blue}/>
                         <AB onClick={()=>openEdit(inv)} title="Modifier" icon={Ic.edit} hBg='#fef9c3' hCol='#d97706'/>
-                        <AB onClick={()=>{const c=clients.find(x=>x.id===inv.client_id);generatePDF(inv,c)}} title="Télécharger PDF" icon={Ic.pdf} hBg='#ecfdf5' hCol='#10b981'/>
+                        <AB onClick={()=>{const c=clients.find(x=>x.id===inv.client_id);generatePDF(inv,c,companyData)}} title="Télécharger PDF" icon={Ic.pdf} hBg='#ecfdf5' hCol='#10b981'/>
                         <AB onClick={()=>setDeleteId({id:inv.id,type:'out'})} title="Supprimer" icon={Ic.trash} hBg='#fef2f2' hCol='#ef4444'/>
                       </div>
                     </td>
@@ -1600,7 +1649,7 @@ export default function InvoicesPage() {
                     <div style={{display:'flex',gap:5,paddingTop:10,borderTop:`1px solid ${C.border}`}}>
                       <AB onClick={()=>setViewOut(inv)} title="Voir" icon={Ic.eye} hBg='#eff6ff' hCol={C.blue}/>
                       <AB onClick={()=>openEdit(inv)} title="Modifier" icon={Ic.edit} hBg='#fef9c3' hCol='#d97706'/>
-                      <AB onClick={()=>{const c=clients.find(x=>x.id===inv.client_id);generatePDF(inv,c)}} title="PDF" icon={Ic.pdf} hBg='#ecfdf5' hCol='#10b981'/>
+                      <AB onClick={()=>{const c=clients.find(x=>x.id===inv.client_id);generatePDF(inv,c,companyData)}} title="PDF" icon={Ic.pdf} hBg='#ecfdf5' hCol='#10b981'/>
                       <AB onClick={()=>setDeleteId({id:inv.id,type:'out'})} title="Supprimer" icon={Ic.trash} hBg='#fef2f2' hCol='#ef4444'/>
                     </div>
                   </div>
@@ -1743,6 +1792,7 @@ export default function InvoicesPage() {
         onEdit={()=>{ if(viewOut) openEdit(viewOut) }}
         onDelete={()=>{ if(viewOut) setDeleteId({id:viewOut.id,type:'out'}) }}
         onStatusChange={changeStatus}
+        companyData={companyData}
       />
       <IncomingDrawer
         invoice={viewIn} clients={clients} projects={projects}

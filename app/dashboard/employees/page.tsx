@@ -1,4 +1,5 @@
 ﻿'use client';
+export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback } from 'react';
 import React from 'react';
@@ -280,19 +281,22 @@ function EmployeeModal({ open, onClose, onSave, initial }: {
 
   useEffect(() => {
     setForm(initial ? {
-      first_name:        initial.first_name || '',
-      last_name:         initial.last_name || '',
-      email:             initial.email || '',
-      phone:             initial.phone || '',
-      position:          initial.position || '',
-      department:        initial.department || '',
-      salary:            initial.salary || 0,
+      first_name:        initial.first_name        || '',
+      last_name:         initial.last_name         || '',
+      email:             initial.email             || '',
+      phone:             initial.phone             || '',
+      position:          initial.position          || '',
+      department:        initial.department        || '',
+      salary:            initial.salary            || 0,
       hire_date:         initial.hire_date?.split('T')[0] || '',
-      status:            initial.status || 'active',
-      contract_type:     initial.contract_type || 'CDI',
-      iban:              initial.iban || '',
-      national_id:       initial.national_id || '',
-      address:           initial.address || '',
+      status:            initial.status            || 'active',
+      contract_type:     initial.contract_type     || 'CDI',
+      payment_method:    initial.payment_method    || 'Virement',
+      payment_day:       initial.payment_day       ?? 28,
+      payment_frequency: initial.payment_frequency || 'Mensuel',
+      iban:              initial.iban              || '',
+      national_id:       initial.national_id       || '',
+      address:           initial.address           || '',
       emergency_contact: initial.emergency_contact || '',
     } : { ...EMPTY_EMP });
     setError(''); setTab('info');
@@ -306,9 +310,15 @@ function EmployeeModal({ open, onClose, onSave, initial }: {
     e.preventDefault();
     if (!form.first_name.trim() || !form.last_name.trim()) { setError('Prénom et nom obligatoires.'); return; }
     setSaving(true); setError('');
-    try { await onSave(form); }
-    catch { setError('Erreur lors de la sauvegarde.'); }
-    setSaving(false);
+    try {
+      await onSave(form);
+      // Si onSave réussit, la modale est fermée par saveEmployee —
+      // on remet saving à false pour le cas où elle resterait ouverte (mode édition)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   const TS = (t: string): React.CSSProperties => ({
@@ -497,9 +507,13 @@ function AdjustmentModal({ open, onClose, onSave, employee }: {
     e.preventDefault();
     if (!form.amount || !form.reason.trim()) { setError('Montant et motif obligatoires.'); return; }
     setSaving(true); setError('');
-    try { await onSave({ ...form, employee_id: employee.id }); }
-    catch { setError('Erreur lors de la sauvegarde.'); }
-    setSaving(false);
+    try {
+      await onSave({ ...form, employee_id: employee!.id });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   const adjT      = ADJ_TYPES[form.type];
@@ -784,14 +798,61 @@ export default function EmployeesPage() {
 
   /* ── CRUD ── */
   async function saveEmployee(form: typeof EMPTY_EMP) {
-    if (editE) await fetch(`/api/employees/${editE.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
-    else       await fetch('/api/employees', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
-    setEmpModal(false); setEditE(null); load();
+    const url    = editE ? `/api/employees/${editE.id}` : '/api/employees';
+    const method = editE ? 'PATCH' : 'POST';
+
+    // Payload complet : on mappe salary → salary ET on inclut les champs de paiement
+    const payload = {
+      first_name:        form.first_name.trim(),
+      last_name:         form.last_name.trim(),
+      email:             form.email?.trim()             || null,
+      phone:             form.phone?.trim()             || null,
+      position:          form.position?.trim()          || null,
+      department:        form.department?.trim()        || null,
+      hire_date:         form.hire_date                 || null,
+      salary:            Number(form.salary)            || 0,
+      status:            form.status                    || 'active',
+      contract_type:     form.contract_type             || 'CDI',
+      payment_method:    form.payment_method            || 'Virement',
+      payment_day:       Number(form.payment_day)       || 28,
+      payment_frequency: form.payment_frequency         || 'Mensuel',
+      iban:              form.iban?.trim()              || null,
+      national_id:       form.national_id?.trim()       || null,
+      address:           form.address?.trim()           || null,
+      emergency_contact: form.emergency_contact?.trim() || null,
+    };
+
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      let msg = `Erreur ${res.status}`;
+      try { const j = await res.json(); msg = j?.error ?? msg; } catch { /* ignore */ }
+      throw new Error(msg);
+    }
+
+    setEmpModal(false);
+    setEditE(null);
+    load();
   }
 
   async function saveAdjustment(form: typeof EMPTY_ADJ & { employee_id: string }) {
-    await fetch('/api/pay-adjustments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
-    setAdjModal(false); setAdjTarget(null); load();
+    const res = await fetch('/api/pay-adjustments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    });
+    if (!res.ok) {
+      let msg = `Erreur ${res.status}`;
+      try { const j = await res.json(); msg = j?.error ?? msg; } catch { /* ignore */ }
+      throw new Error(msg);
+    }
+    setAdjModal(false);
+    setAdjTarget(null);
+    load();
   }
 
   async function del(id: string) {

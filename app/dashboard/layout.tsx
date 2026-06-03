@@ -5,10 +5,12 @@ import { useRouter, usePathname } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder'
+  );
+}
 
 const NAV = [
   {
@@ -99,19 +101,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    const sb = getSupabase();
+    sb.auth.getSession().then(({ data }) => {
       if (!data.session) { router.push('/login'); return; }
       setUser(data.session.user as { email: string });
       setLoading(false);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT' || !session) router.push('/login');
     });
     return () => subscription.unsubscribe();
   }, [router]);
 
   async function handleLogout() {
-    await supabase.auth.signOut();
+    await getSupabase().auth.signOut();
     router.push('/login');
   }
 

@@ -35,16 +35,23 @@ export async function POST(req: NextRequest) {
     const { data, error } = await getSupabase()
       .from('employees')
       .insert([{
-        first_name:    body.first_name,
-        last_name:     body.last_name,
-        email:         body.email         ?? null,
-        phone:         body.phone         ?? null,
-        position:      body.position      ?? null,
-        department:    body.department    ?? null,
-        hire_date:     body.hire_date     ?? null,
-        salary:        body.salary        ?? body.base_salary ?? 0,
-        status:        body.status        ?? 'active',
-        contract_type: body.contract_type ?? 'CDI',
+        first_name:        body.first_name,
+        last_name:         body.last_name,
+        email:             body.email             ?? null,
+        phone:             body.phone             ?? null,
+        position:          body.position          ?? null,
+        department:        body.department        ?? null,
+        hire_date:         body.hire_date         ?? null,
+        salary:            body.salary            ?? body.base_salary ?? 0,
+        status:            body.status            ?? 'active',
+        contract_type:     body.contract_type     ?? 'CDI',
+        payment_method:    body.payment_method    ?? 'Virement',
+        payment_day:       body.payment_day       ?? 28,
+        payment_frequency: body.payment_frequency ?? 'Mensuel',
+        iban:              body.iban              ?? null,
+        national_id:       body.national_id       ?? null,
+        address:           body.address           ?? null,
+        emergency_contact: body.emergency_contact ?? null,
       }])
       .select()
       .single();

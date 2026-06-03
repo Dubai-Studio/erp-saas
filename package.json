@@ -5,28 +5,36 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:worker": "opennextjs-cloudflare build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "preview": "opennextjs-cloudflare build && wrangler dev"
   },
   "dependencies": {
+    "@opennextjs/cloudflare": "^1.19.11",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.0",
     "date-fns": "^4.1.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
-    "next": "16.2.3",
+    "next": "^16.2.7",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "recharts": "^3.8.1"
   },
   "devDependencies": {
+    "@cloudflare/next-on-pages": "^1.13.16",
+    "@netlify/plugin-nextjs": "^5.15.11",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "esbuild": "^0.25.4",
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.86.0"
   }
 }

@@ -61,7 +61,7 @@ const NAV = [
     ),
   },
   {
-    href: '/dashboard/employees',  // ✅ CORRIGÉ — était '/dashboard/hr'
+    href: '/dashboard/employees',
     label: 'Ressources Humaines',
     icon: (
       <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -91,20 +91,42 @@ const NAV = [
       </svg>
     ),
   },
+  {
+    href: '/dashboard/settings',
+    label: 'Paramètres',
+    icon: (
+      <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    ),
+  },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const router   = useRouter();
-  const pathname = usePathname();
-  const [user,      setUser]      = useState<{ email: string } | null>(null);
-  const [loading,   setLoading]   = useState(true);
-  const [collapsed, setCollapsed] = useState(false);
+  const router    = useRouter();
+  const pathname  = usePathname();
+  const [user,        setUser]        = useState<{ email: string; id: string } | null>(null);
+  const [companyName, setCompanyName] = useState('');
+  const [loading,     setLoading]     = useState(true);
+  const [collapsed,   setCollapsed]   = useState(false);
 
   useEffect(() => {
     const sb = getSupabase();
-    sb.auth.getSession().then(({ data }) => {
+    sb.auth.getSession().then(async ({ data }) => {
       if (!data.session) { router.push('/login'); return; }
-      setUser(data.session.user as { email: string });
+      const u = data.session.user as { email: string; id: string };
+      setUser(u);
+
+      // Charge le nom de la société
+      try {
+        const res = await fetch('/api/settings', { headers: { 'x-user-id': u.id } });
+        if (res.ok) {
+          const d = await res.json();
+          if (d.company_name) setCompanyName(d.company_name);
+        }
+      } catch { /* ignore */ }
+
       setLoading(false);
     });
     const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
@@ -131,6 +153,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
   );
+
+  // Initiales : première lettre du nom société, sinon première lettre de l'email
+  const initiale = companyName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U';
+  const displayName = companyName || user?.email || '';
 
   const sideW = collapsed ? 68 : 240;
 
@@ -175,7 +201,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }}>
           {!collapsed && (
             <div>
-              <div style={{ color: '#fff', fontWeight: 800, fontSize: 16, letterSpacing: '-0.3px' }}>Next-ERP</div>
+              <div style={{ color: '#fff', fontWeight: 800, fontSize: 16, letterSpacing: '-0.3px' }}>
+                {companyName || 'Next-ERP'}
+              </div>
               <div style={{ color: '#64748b', fontSize: 11, marginTop: 2 }}>ERP SaaS PRO</div>
             </div>
           )}
@@ -234,10 +262,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 justifyContent: 'center', color: '#fff', fontSize: 12,
                 fontWeight: 700, marginBottom: 6,
               }}>
-                {user?.email?.[0]?.toUpperCase() || 'U'}
+                {initiale}
               </div>
               <p style={{ color: '#e2e8f0', fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                Utilisateur
+                {displayName}
               </p>
               <p style={{ color: '#64748b', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {user?.email || ''}
@@ -255,14 +283,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               cursor: 'pointer', transition: 'all 0.15s',
             }}
             onMouseEnter={e => {
-              const b = e.currentTarget as HTMLButtonElement;
-              b.style.background = 'rgba(239,68,68,0.12)';
-              b.style.color = '#f87171';
+              (e.currentTarget as HTMLButtonElement).style.background = 'rgba(239,68,68,0.12)';
+              (e.currentTarget as HTMLButtonElement).style.color = '#f87171';
             }}
             onMouseLeave={e => {
-              const b = e.currentTarget as HTMLButtonElement;
-              b.style.background = 'transparent';
-              b.style.color = '#64748b';
+              (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+              (e.currentTarget as HTMLButtonElement).style.color = '#64748b';
             }}
           >
             <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -303,24 +329,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
               </svg>
             </button>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              padding: '6px 12px', background: '#f8fafc',
-              borderRadius: 10, border: '1px solid #e2e8f0',
-            }}>
+            <Link href="/dashboard/settings" style={{ textDecoration: 'none' }}>
               <div style={{
-                width: 30, height: 30,
-                background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
-                borderRadius: 8, display: 'flex', alignItems: 'center',
-                justifyContent: 'center', color: '#fff', fontSize: 13, fontWeight: 700,
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '6px 12px', background: '#f8fafc',
+                borderRadius: 10, border: '1px solid #e2e8f0',
+                cursor: 'pointer',
               }}>
-                {user?.email?.[0]?.toUpperCase() || 'U'}
+                <div style={{
+                  width: 30, height: 30,
+                  background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
+                  borderRadius: 8, display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', color: '#fff', fontSize: 13, fontWeight: 700,
+                }}>
+                  {initiale}
+                </div>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{displayName || 'Mon compte'}</p>
+                  <p style={{ fontSize: 11, color: '#94a3b8' }}>Paramètres</p>
+                </div>
               </div>
-              <div>
-                <p style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>Utilisateur</p>
-                <p style={{ fontSize: 11, color: '#94a3b8' }}>Administrateur</p>
-              </div>
-            </div>
+            </Link>
           </div>
         </header>
 

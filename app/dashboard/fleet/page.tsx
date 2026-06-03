@@ -580,6 +580,7 @@ function ExpenseModal({ vehicles, onSave, onClose }: {
 }) {
   const [form, setForm]     = useState({ ...EMPTY_EXP, date: todayStr() })
   const [saving, setSaving] = useState(false)
+  const [error,  setError]  = useState('')
   const set = (k: string, v: unknown) => setForm(f => ({ ...f, [k]: v }))
   const sel = vehicles.find(v => v.id === form.vehicle_id)
   const et  = EXPENSE_TYPES[form.type]
@@ -587,8 +588,9 @@ function ExpenseModal({ vehicles, onSave, onClose }: {
 
   const submit = async () => {
     if (!form.vehicle_id || (Number(form.amount) || 0) <= 0) return
-    setSaving(true)
+    setSaving(true); setError('')
     try { await onSave({ ...form, amount: Number(form.amount), vat_rate: Number(form.vat_rate) || 21 }) }
+    catch (err) { setError(err instanceof Error ? err.message : 'Erreur lors de l\'enregistrement') }
     finally { setSaving(false) }
   }
 
@@ -600,6 +602,11 @@ function ExpenseModal({ vehicles, onSave, onClose }: {
           <button onClick={onClose} style={{ background: 'rgba(255,255,255,.15)', border: 'none', borderRadius: 8, padding: 6, cursor: 'pointer', color: '#fff', display: 'flex' }}>{I.x}</button>
         </div>
         <div style={{ padding: 24, display: 'grid', gap: 16 }}>
+          {error && (
+            <div style={{ padding: '10px 14px', background: '#fef2f2', border: '1.5px solid #fecaca', borderRadius: 10, fontSize: 13, color: '#dc2626', fontWeight: 500 }}>
+              ⚠️ {error}
+            </div>
+          )}
           <div>
             <label style={lbl}>Véhicule *</label>
             <select style={inp} value={form.vehicle_id} onChange={e => set('vehicle_id', e.target.value)}>
@@ -897,7 +904,11 @@ export default function FleetPage() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...data, vehicle_name: v ? `${v.brand} ${v.model}` : '', plate: v?.plate ?? '' }),
     })
-    if (!res.ok) throw new Error('Erreur dépense')
+    if (!res.ok) {
+      let msg = `Erreur ${res.status}`
+      try { const j = await res.json(); msg = j?.error ?? msg } catch { /* ignore */ }
+      throw new Error(msg)
+    }
     setShowExpModal(false); load()
   }
 

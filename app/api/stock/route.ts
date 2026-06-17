@@ -30,34 +30,46 @@ export async function GET(req: NextRequest) {
   }
 }
 
+// Helper : convertit "" en null pour les dates
+function toDate(v: unknown): string | null {
+  if (!v || String(v).trim() === '') return null;
+  return String(v);
+}
+
+// Helper : convertit en number, null si vide
+function toNum(v: unknown, def = 0): number {
+  const n = parseFloat(String(v));
+  return isNaN(n) ? def : n;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    if (!body.name) return NextResponse.json({ error: 'name requis' }, { status: 400 });
+    if (!body.name?.trim()) return NextResponse.json({ error: 'name requis' }, { status: 400 });
 
     const { data, error } = await getSupabase()
       .from('stock_items')
       .insert([{
-        name:          body.name?.trim(),
-        sku:           body.sku           ?? null,
-        reference:     body.reference     ?? body.supplier_ref ?? null,
-        supplier_ref:  body.supplier_ref  ?? null,
-        category:      body.category      ?? null,
-        unit:          body.unit          ?? 'pièce',
-        quantity:      Number(body.quantity)      ?? 0,
-        min_quantity:  Number(body.min_quantity)  ?? 0,
-        max_quantity:  Number(body.max_quantity)  ?? 0,
-        unit_price:    Number(body.unit_price)    ?? 0,
-        purchase_price:Number(body.purchase_price ?? body.unit_price) ?? 0,
-        selling_price: Number(body.selling_price) ?? 0,
-        vat_rate:      Number(body.vat_rate)      ?? 19,
-        supplier:      body.supplier      ?? null,
-        location:      body.location      ?? null,
-        description:   body.description   ?? null,
-        notes:         body.notes         ?? null,
-        status:        body.status        ?? 'actif',
-        last_restock:  body.last_restock  ?? null,
-        expiry_date:   body.expiry_date   ?? null,
+        name:           body.name.trim(),
+        sku:            body.sku           || null,
+        reference:      body.reference     || null,
+        supplier_ref:   body.supplier_ref  || null,
+        category:       body.category      || null,
+        unit:           body.unit          || 'pièce',
+        quantity:       toNum(body.quantity),
+        min_quantity:   toNum(body.min_quantity),
+        max_quantity:   toNum(body.max_quantity),
+        unit_price:     toNum(body.unit_price),
+        purchase_price: toNum(body.purchase_price ?? body.unit_price),
+        selling_price:  toNum(body.selling_price),
+        vat_rate:       toNum(body.vat_rate, 19),
+        supplier:       body.supplier      || null,
+        location:       body.location      || null,
+        description:    body.description   || null,
+        notes:          body.notes         || null,
+        status:         body.status        || 'actif',
+        last_restock:   toDate(body.last_restock),
+        expiry_date:    toDate(body.expiry_date),
       }])
       .select()
       .single();
@@ -76,9 +88,15 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json();
     if (!id) return NextResponse.json({ error: 'id requis' }, { status: 400 });
 
+    const update: Record<string, unknown> = { ...body, updated_at: new Date().toISOString() };
+
+    // Nettoyer les dates vides
+    if ('last_restock' in update) update.last_restock = toDate(update.last_restock);
+    if ('expiry_date'  in update) update.expiry_date  = toDate(update.expiry_date);
+
     const { data, error } = await getSupabase()
       .from('stock_items')
-      .update({ ...body, updated_at: new Date().toISOString() })
+      .update(update)
       .eq('id', id)
       .select()
       .single();

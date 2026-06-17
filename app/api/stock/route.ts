@@ -8,6 +8,38 @@ function getSupabase() {
   );
 }
 
+// Convertit "" ou undefined en null pour les dates
+function toDate(v: unknown): string | null {
+  if (!v || String(v).trim() === '') return null;
+  return String(v);
+}
+
+// Convertit en number proprement
+function toNum(v: unknown, def = 0): number {
+  const n = parseFloat(String(v));
+  return isNaN(n) ? def : n;
+}
+
+// Normalise le statut — accepte tous les formats du front
+function toStatus(v: unknown): string {
+  const map: Record<string, string> = {
+    in_stock:            'in_stock',
+    low_stock:           'low_stock',
+    out_of_stock:        'out_of_stock',
+    actif:               'in_stock',
+    active:              'in_stock',
+    inactif:             'inactif',
+    inactive:            'inactif',
+    rupture:             'out_of_stock',
+    archived:            'archivé',
+    archivé:             'archivé',
+    'en stock':          'in_stock',
+    'stock faible':      'low_stock',
+    'rupture de stock':  'out_of_stock',
+  };
+  return map[String(v)] ?? 'in_stock';
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -30,18 +62,6 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// Helper : convertit "" en null pour les dates
-function toDate(v: unknown): string | null {
-  if (!v || String(v).trim() === '') return null;
-  return String(v);
-}
-
-// Helper : convertit en number, null si vide
-function toNum(v: unknown, def = 0): number {
-  const n = parseFloat(String(v));
-  return isNaN(n) ? def : n;
-}
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -51,11 +71,11 @@ export async function POST(req: NextRequest) {
       .from('stock_items')
       .insert([{
         name:           body.name.trim(),
-        sku:            body.sku           || null,
-        reference:      body.reference     || null,
-        supplier_ref:   body.supplier_ref  || null,
-        category:       body.category      || null,
-        unit:           body.unit          || 'pièce',
+        sku:            body.sku            || null,
+        reference:      body.reference      || null,
+        supplier_ref:   body.supplier_ref   || null,
+        category:       body.category       || null,
+        unit:           body.unit           || 'pièce',
         quantity:       toNum(body.quantity),
         min_quantity:   toNum(body.min_quantity),
         max_quantity:   toNum(body.max_quantity),
@@ -63,11 +83,11 @@ export async function POST(req: NextRequest) {
         purchase_price: toNum(body.purchase_price ?? body.unit_price),
         selling_price:  toNum(body.selling_price),
         vat_rate:       toNum(body.vat_rate, 19),
-        supplier:       body.supplier      || null,
-        location:       body.location      || null,
-        description:    body.description   || null,
-        notes:          body.notes         || null,
-        status:         body.status        || 'actif',
+        supplier:       body.supplier       || null,
+        location:       body.location       || null,
+        description:    body.description    || null,
+        notes:          body.notes          || null,
+        status:         toStatus(body.status),
         last_restock:   toDate(body.last_restock),
         expiry_date:    toDate(body.expiry_date),
       }])
@@ -88,15 +108,46 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json();
     if (!id) return NextResponse.json({ error: 'id requis' }, { status: 400 });
 
-    const update: Record<string, unknown> = { ...body, updated_at: new Date().toISOString() };
+    const update: Record<string, unknown> = {
+      ...body,
+      updated_at: new Date().toISOString(),
+    };
 
-    // Nettoyer les dates vides
+    // Nettoyer les dates et statut
     if ('last_restock' in update) update.last_restock = toDate(update.last_restock);
     if ('expiry_date'  in update) update.expiry_date  = toDate(update.expiry_date);
+    if ('status'       in update) update.status       = toStatus(update.status);
 
     const { data, error } = await getSupabase()
       .from('stock_items')
       .update(update)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data);
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Erreur serveur' }, { status: 500 });
+  }
+}
+
+export async function PUT(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id   = searchParams.get('id');
+    const body = await req.json();
+    if (!id) return NextResponse.json({ error: 'id requis' }, { status: 400 });
+
+    const { data, error } = await getSupabase()
+      .from('stock_items')
+      .update({
+        ...body,
+        status:      toStatus(body.status),
+        last_restock: toDate(body.last_restock),
+        expiry_date:  toDate(body.expiry_date),
+        updated_at:   new Date().toISOString(),
+      })
       .eq('id', id)
       .select()
       .single();

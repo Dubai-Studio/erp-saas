@@ -40,14 +40,13 @@ export async function GET(_req: NextRequest) {
       .filter(i => i.status === 'sent' || i.status === 'overdue')
       .reduce((s, i) => s + (parseFloat(i.total_amount) || 0), 0)
 
-    // ── Dépenses fournisseurs (factures reçues) ──
+    // ── Dépenses fournisseurs ──
     const allExtInv = externalInvoices.data ?? []
-    const extPaid    = allExtInv.filter(e => e.status === 'paid')
+    const extPaid         = allExtInv.filter(e => e.status === 'paid')
     const totalExtPaid    = extPaid.reduce((s, e) => s + (parseFloat(e.total_amount) || 0), 0)
     const totalExtPending = allExtInv.filter(e => e.status === 'pending').reduce((s, e) => s + (parseFloat(e.total_amount) || 0), 0)
     const totalExtAll     = allExtInv.reduce((s, e) => s + (parseFloat(e.total_amount) || 0), 0)
 
-    // Dépenses par catégorie (factures fournisseurs)
     const extByCategory: Record<string, number> = {}
     allExtInv.forEach(e => {
       const cat = e.category || 'Autre'
@@ -59,10 +58,10 @@ export async function GET(_req: NextRequest) {
     const totalFleetExpenses = allFleetExp.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0)
 
     // ── Masse salariale ──
-    const activeEmps = (employees.data ?? []).filter(e => e.status === 'active')
+    const activeEmps = (employees.data ?? []).filter(e => e.status === 'actif')
     const masseSalariale = activeEmps.reduce((s, e) => s + (parseFloat(e.salary) || 0), 0)
 
-    // Ajustements de paie
+    // ── Ajustements de paie ──
     const allAdj = payAdj.data ?? []
     const nowMonth = new Date().toISOString().slice(0, 7)
     const adjThisMonth = allAdj
@@ -70,8 +69,8 @@ export async function GET(_req: NextRequest) {
       .reduce((s, a) => s + (parseFloat(a.amount) || 0), 0)
     const totalAdjustments = allAdj.reduce((s, a) => s + (parseFloat(a.amount) || 0), 0)
 
-    // ── Totaux dépenses globales ──
-    const totalDepenses = totalExtAll + totalFleetExpenses + masseSalariale
+    // ── Totaux dépenses globales (inclut salaires + ajustements) ──
+    const totalDepenses = totalExtAll + totalFleetExpenses + masseSalariale + totalAdjustments
 
     // ── Résultat net ──
     const resultatNet = totalRevenue - totalDepenses
@@ -90,20 +89,38 @@ export async function GET(_req: NextRequest) {
       monthlyData[key] = { revenus: 0, depenses: 0 }
     }
 
-    // Revenus mensuels
+    // Revenus mensuels (factures payées)
     allInvoices.filter(i => i.status === 'paid').forEach(i => {
       const key = (i.issue_date || i.created_at || '').slice(0, 7)
       if (monthlyData[key]) monthlyData[key].revenus += parseFloat(i.total_amount) || 0
     })
 
-    // Dépenses mensuelles (fournisseurs + flotte)
+    // Dépenses mensuelles fournisseurs
     allExtInv.forEach(e => {
       const key = (e.issue_date || e.created_at || '').slice(0, 7)
       if (monthlyData[key]) monthlyData[key].depenses += parseFloat(e.total_amount) || 0
     })
+
+    // Dépenses mensuelles flotte
     allFleetExp.forEach(e => {
       const key = (e.date || '').slice(0, 7)
       if (monthlyData[key]) monthlyData[key].depenses += parseFloat(e.amount) || 0
+    })
+
+    // Salaires mensuels — répartis sur chaque mois où l'employé est actif
+    activeEmps.forEach(e => {
+      const salary = parseFloat(e.salary) || 0
+      if (salary > 0) {
+        Object.keys(monthlyData).forEach(key => {
+          monthlyData[key].depenses += salary
+        })
+      }
+    })
+
+    // Ajustements de paie mensuels
+    allAdj.forEach(a => {
+      const key = (a.month || a.date || '').slice(0, 7)
+      if (monthlyData[key]) monthlyData[key].depenses += parseFloat(a.amount) || 0
     })
 
     const MONTHS_FR = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc']
@@ -119,7 +136,6 @@ export async function GET(_req: NextRequest) {
     })
 
     return NextResponse.json({
-      // Données agrégées
       clients: {
         total:  clients.data?.length || 0,
         active: clients.data?.filter(c => c.status === 'active').length || 0,

@@ -18,10 +18,8 @@ const NAV = [
     label: 'Dashboard',
     icon: (
       <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-        <rect x="3" y="3" width="7" height="7"/>
-        <rect x="14" y="3" width="7" height="7"/>
-        <rect x="3" y="14" width="7" height="7"/>
-        <rect x="14" y="14" width="7" height="7"/>
+        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+        <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
       </svg>
     ),
   },
@@ -104,36 +102,57 @@ const NAV = [
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const router    = useRouter();
-  const pathname  = usePathname();
+  const router   = useRouter();
+  const pathname = usePathname();
+
   const [user,        setUser]        = useState<{ email: string; id: string } | null>(null);
   const [companyName, setCompanyName] = useState('');
+  const [companyEmail, setCompanyEmail] = useState('');
   const [loading,     setLoading]     = useState(true);
   const [collapsed,   setCollapsed]   = useState(false);
 
   useEffect(() => {
     const sb = getSupabase();
+
     sb.auth.getSession().then(async ({ data }) => {
       if (!data.session) { router.push('/login'); return; }
+
       const u = data.session.user as { email: string; id: string };
       setUser(u);
 
-      // Charge le nom de la société
+      // Charge le nom de la société depuis company_settings
       try {
-        const res = await fetch('/api/settings', { headers: { 'x-user-id': u.id } });
+        const res = await fetch('/api/settings', {
+          headers: { 'x-user-id': u.id },
+        });
         if (res.ok) {
           const d = await res.json();
-          if (d.company_name) setCompanyName(d.company_name);
+          if (d?.company_name) setCompanyName(d.company_name);
+          if (d?.email)        setCompanyEmail(d.email);
         }
       } catch { /* ignore */ }
 
       setLoading(false);
     });
+
     const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT' || !session) router.push('/login');
     });
+
     return () => subscription.unsubscribe();
   }, [router]);
+
+  // Rechargement du nom société quand on revient sur la page settings
+  useEffect(() => {
+    if (!user || !pathname.includes('settings')) return;
+    fetch('/api/settings', { headers: { 'x-user-id': user.id } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.company_name) setCompanyName(d.company_name);
+        if (d?.email)        setCompanyEmail(d.email);
+      })
+      .catch(() => {});
+  }, [pathname, user]);
 
   async function handleLogout() {
     await getSupabase().auth.signOut();
@@ -143,22 +162,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f1f5f9' }}>
       <div style={{ textAlign: 'center' }}>
-        <div style={{
-          width: 40, height: 40, border: '3px solid #6366f1',
-          borderTopColor: 'transparent', borderRadius: '50%',
-          animation: 'spin 0.8s linear infinite', margin: '0 auto 12px',
-        }} />
+        <div style={{ width: 40, height: 40, border: '3px solid #6366f1', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
         <p style={{ color: '#94a3b8', fontSize: 14 }}>Chargement…</p>
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
   );
 
-  // Initiales : première lettre du nom société, sinon première lettre de l'email
-  const initiale = companyName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U';
-  const displayName = companyName || user?.email || '';
-
-  const sideW = collapsed ? 68 : 240;
+  // Affichage : nom société en priorité, sinon email Auth
+  const displayName  = companyName  || user?.email || '';
+  const displaySub   = companyName  ? (companyEmail || user?.email || '') : 'Paramètres';
+  const initiale     = companyName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U';
+  const sideW        = collapsed ? 68 : 240;
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#f1f5f9' }}>
@@ -171,10 +186,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           text-decoration: none; transition: all 0.15s;
           white-space: nowrap; overflow: hidden;
         }
-        .nav-link:hover { background: rgba(255,255,255,0.08); color: #e2e8f0; }
-        .nav-link.active { background: rgba(99,102,241,0.2); color: #a5b4fc; }
-        .nav-link .icon { flex-shrink: 0; }
-        .nav-label { overflow: hidden; transition: opacity 0.2s, width 0.2s; }
+        .nav-link:hover  { background: rgba(255,255,255,0.08); color: #e2e8f0; }
+        .nav-link.active { background: rgba(99,102,241,0.20); color: #a5b4fc; }
+        .nav-link .icon  { flex-shrink: 0; }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
@@ -187,34 +201,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         display: 'flex', flexDirection: 'column',
         transition: 'width 0.2s ease, min-width 0.2s ease',
         overflow: 'hidden', flexShrink: 0,
-        boxShadow: '4px 0 24px rgba(0,0,0,0.15)',
-        zIndex: 30,
+        boxShadow: '4px 0 24px rgba(0,0,0,0.15)', zIndex: 30,
       }}>
 
-        {/* Logo */}
+        {/* Logo / Nom société */}
         <div style={{
           padding: '20px 16px 16px',
           display: 'flex', alignItems: 'center',
           justifyContent: collapsed ? 'center' : 'space-between',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
-          flexShrink: 0,
+          borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0,
         }}>
           {!collapsed && (
-            <div>
-              <div style={{ color: '#fff', fontWeight: 800, fontSize: 16, letterSpacing: '-0.3px' }}>
+            <div style={{ minWidth: 0, flex: 1, marginRight: 8 }}>
+              <div style={{ color: '#fff', fontWeight: 800, fontSize: 15, letterSpacing: '-0.3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {companyName || 'Next-ERP'}
               </div>
               <div style={{ color: '#64748b', fontSize: 11, marginTop: 2 }}>ERP SaaS PRO</div>
             </div>
           )}
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            style={{
-              background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: 8,
-              padding: 7, cursor: 'pointer', color: '#94a3b8',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            }}
-          >
+          <button onClick={() => setCollapsed(!collapsed)} style={{
+            background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: 8,
+            padding: 7, cursor: 'pointer', color: '#94a3b8',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}>
             <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <line x1="3" y1="6"  x2="21" y2="6"/>
               <line x1="3" y1="12" x2="21" y2="12"/>
@@ -230,19 +239,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               ? pathname === '/dashboard'
               : pathname.startsWith(item.href);
             return (
-              <Link
-                key={item.href}
-                href={item.href}
+              <Link key={item.href} href={item.href}
                 className={`nav-link${isActive ? ' active' : ''}`}
                 title={collapsed ? item.label : ''}
-                style={{
-                  justifyContent: collapsed ? 'center' : 'flex-start',
-                  padding:        collapsed ? '10px'   : '10px 16px',
-                  marginBottom: 2,
-                }}
-              >
+                style={{ justifyContent: collapsed ? 'center' : 'flex-start', padding: collapsed ? '10px' : '10px 16px', marginBottom: 2 }}>
                 <span className="icon">{item.icon}</span>
-                {!collapsed && <span className="nav-label">{item.label}</span>}
+                {!collapsed && <span>{item.label}</span>}
               </Link>
             );
           })}
@@ -251,45 +253,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* User + Logout */}
         <div style={{ padding: '12px 10px', borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
           {!collapsed && (
-            <div style={{
-              padding: '10px 12px', background: 'rgba(255,255,255,0.04)',
-              borderRadius: 10, marginBottom: 8,
-            }}>
-              <div style={{
-                width: 28, height: 28,
-                background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
-                borderRadius: 8, display: 'flex', alignItems: 'center',
-                justifyContent: 'center', color: '#fff', fontSize: 12,
-                fontWeight: 700, marginBottom: 6,
-              }}>
+            <div style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 10, marginBottom: 8 }}>
+              <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, fontWeight: 700, marginBottom: 7, flexShrink: 0 }}>
                 {initiale}
               </div>
-              <p style={{ color: '#e2e8f0', fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {displayName}
+              {/* Nom société en gras */}
+              <p style={{ color: '#e2e8f0', fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 2 }}>
+                {companyName || 'Mon compte'}
               </p>
-              <p style={{ color: '#64748b', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {/* Email en sous-titre discret */}
+              <p style={{ color: '#475569', fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {user?.email || ''}
               </p>
             </div>
           )}
-          <button
-            onClick={handleLogout}
-            style={{
-              width: '100%', display: 'flex', alignItems: 'center',
-              justifyContent: collapsed ? 'center' : 'flex-start',
-              gap: 10, padding: collapsed ? '10px' : '10px 12px',
-              background: 'transparent', border: 'none', borderRadius: 10,
-              color: '#64748b', fontSize: 13, fontWeight: 500,
-              cursor: 'pointer', transition: 'all 0.15s',
-            }}
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLButtonElement).style.background = 'rgba(239,68,68,0.12)';
-              (e.currentTarget as HTMLButtonElement).style.color = '#f87171';
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-              (e.currentTarget as HTMLButtonElement).style.color = '#64748b';
-            }}
+          <button onClick={handleLogout} style={{
+            width: '100%', display: 'flex', alignItems: 'center',
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            gap: 10, padding: collapsed ? '10px' : '10px 12px',
+            background: 'transparent', border: 'none', borderRadius: 10,
+            color: '#64748b', fontSize: 13, fontWeight: 500,
+            cursor: 'pointer', transition: 'all 0.15s',
+          }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(239,68,68,0.12)'; (e.currentTarget as HTMLButtonElement).style.color = '#f87171'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = '#64748b'; }}
           >
             <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -311,42 +298,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           padding: '0 24px', flexShrink: 0,
           boxShadow: '0 1px 3px rgba(0,0,0,0.06)', zIndex: 20,
         }}>
-          <div>
-            <p style={{ color: '#94a3b8', fontSize: 13 }}>
-              {new Date().toLocaleDateString('fr-BE', {
-                weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-              })}
-            </p>
-          </div>
+          <p style={{ color: '#94a3b8', fontSize: 13 }}>
+            {new Date().toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button style={{
-              background: 'transparent', border: 'none', cursor: 'pointer',
-              padding: 8, borderRadius: 8, color: '#94a3b8',
-              display: 'flex', alignItems: 'center',
-            }}>
+            {/* Cloche notification */}
+            <button style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8, color: '#94a3b8', display: 'flex', alignItems: 'center' }}>
               <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
                 <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
               </svg>
             </button>
+
+            {/* Profil navbar — affiche nom société */}
             <Link href="/dashboard/settings" style={{ textDecoration: 'none' }}>
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '6px 12px', background: '#f8fafc',
-                borderRadius: 10, border: '1px solid #e2e8f0',
-                cursor: 'pointer',
-              }}>
-                <div style={{
-                  width: 30, height: 30,
-                  background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
-                  borderRadius: 8, display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', color: '#fff', fontSize: 13, fontWeight: 700,
-                }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 12px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.15s' }}
+                onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = '#f1f5f9'}
+                onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = '#f8fafc'}>
+                <div style={{ width: 30, height: 30, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
                   {initiale}
                 </div>
-                <div>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{displayName || 'Mon compte'}</p>
-                  <p style={{ fontSize: 11, color: '#94a3b8' }}>Paramètres</p>
+                <div style={{ minWidth: 0 }}>
+                  {/* Nom société en titre */}
+                  <p style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
+                    {companyName || user?.email || 'Mon compte'}
+                  </p>
+                  {/* Email ou "Paramètres" en sous-titre */}
+                  <p style={{ fontSize: 11, color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
+                    {displaySub}
+                  </p>
                 </div>
               </div>
             </Link>

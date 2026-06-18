@@ -794,22 +794,37 @@ export default function EmployeesPage() {
   const [adjTarget,      setAdjTarget]      = useState<Employee | null>(null);
   const [deleteId,       setDeleteId]       = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [empRaw, adjRaw, companyRaw] = await Promise.all([
-        fetchSafe('/api/employees'),
-        fetchSafe('/api/pay-adjustments'),
-        fetch('/api/settings').then(r => r.ok ? r.json() : null).catch(() => null),
-      ]);
-      setEmployees(toArray<Employee>(empRaw));
-      setAdjustments(toArray<PayAdjustment>(adjRaw));
-      if (companyRaw && !companyRaw.error) setCompany(companyRaw);
-    } catch (e) {
-      console.error('HR load error:', e);
-      setEmployees([]); setAdjustments([]);
-    } finally { setLoading(false); }
-  }, []);
+const load = useCallback(async () => {
+  setLoading(true);
+  try {
+    // Récupérer la session pour obtenir le user_id
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id ?? null;
+
+    const [empRaw, adjRaw, companyRaw] = await Promise.all([
+      fetchSafe('/api/employees'),
+      fetchSafe('/api/pay-adjustments'),
+      userId
+        ? fetch('/api/settings', {
+            headers: { 'x-user-id': userId },
+          }).then(r => r.ok ? r.json() : null).catch(() => null)
+        : Promise.resolve(null),
+    ]);
+
+    setEmployees(toArray<Employee>(empRaw));
+    setAdjustments(toArray<PayAdjustment>(adjRaw));
+    if (companyRaw && !companyRaw.error) setCompany(companyRaw);
+  } catch (e) {
+    console.error('HR load error:', e);
+    setEmployees([]); setAdjustments([]);
+  } finally { setLoading(false); }
+}, []);
+
 
   useEffect(() => { load(); }, [load]);
 

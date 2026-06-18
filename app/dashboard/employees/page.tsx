@@ -23,10 +23,17 @@ interface Employee {
   night_rate?: number;
 }
 
+interface Project {
+  id: string;
+  name: string;
+  status: string;
+}
+
 interface PayAdjustment {
   id: string; employee_id: string;
   type: 'advance' | 'bonus' | 'deduction' | 'correction' | 'salaire' | 'avance' | 'prime' | 'retenue' | 'acompte' | 'indemnite';
   amount: number; reason: string; month: string; created_at: string;
+  project_id?: string;
 }
 
 interface TimeEntry {
@@ -44,6 +51,7 @@ interface TimeEntry {
   notes?: string;
   month: string;
   created_at: string;
+  project_id?: string;
 }
 
 interface PaySlipData {
@@ -117,7 +125,7 @@ const EMPTY_EMP = {
   hourly_rate: 0, overtime_rate: 0, weekend_rate: 0, holiday_rate: 0, night_rate: 0,
 };
 
-const EMPTY_ADJ  = { type: 'bonus' as PayAdjustment['type'], amount: 0, reason: '', month: '' };
+const EMPTY_ADJ = { type: 'bonus' as PayAdjustment['type'], amount: 0, reason: '', month: '', project_id: '' };
 
 /* ─────────────────────────────────────────────
    STYLES
@@ -193,36 +201,37 @@ async function fetchSafe(url: string, options?: RequestInit): Promise<unknown> {
    ICONS
 ───────────────────────────────────────────── */
 const I = {
-  plus:     <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
-  edit:     <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
-  trash:    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>,
-  eye:      <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
-  x:        <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
-  search:   <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>,
-  check:    <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>,
-  list:     <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>,
-  grid:     <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>,
-  mail:     <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>,
-  phone:    <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.56 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>,
-  hr:       <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg>,
-  pdf:      <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>,
-  euro:     <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M4 10h12M4 14h12M19 5A9 9 0 1 1 5 19"/></svg>,
-  refresh:  <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>,
-  export:   <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
-  payslip:  <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><line x1="6" y1="8" x2="10" y2="8"/><line x1="6" y1="12" x2="14" y2="12"/></svg>,
-  adj:      <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
-  calendar: <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
-  building: <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 13h6M9 17h4"/></svg>,
-  id:       <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="8" y1="10" x2="8" y2="10"/><line x1="12" y1="10" x2="16" y2="10"/><line x1="12" y1="14" x2="16" y2="14"/></svg>,
-  clock:    <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
-  alert:    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
-  location: <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>,
-  wallet:   <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 12V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5"/><path d="M16 12h5v4h-5a2 2 0 0 1 0-4z"/></svg>,
-  salary:   <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>,
-  time:     <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/></svg>,
-  timer:    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M9 2h6"/><path d="M12 2v3"/></svg>,
-  percent:  <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>,
-  calculate:<svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="14" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="16" y2="18"/></svg>,
+  plus:      <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+  edit:      <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+  trash:     <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>,
+  eye:       <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
+  x:         <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+  search:    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>,
+  check:     <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>,
+  list:      <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>,
+  grid:      <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>,
+  mail:      <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>,
+  phone:     <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.56 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>,
+  hr:        <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg>,
+  pdf:       <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>,
+  euro:      <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M4 10h12M4 14h12M19 5A9 9 0 1 1 5 19"/></svg>,
+  refresh:   <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>,
+  export:    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
+  payslip:   <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><line x1="6" y1="8" x2="10" y2="8"/><line x1="6" y1="12" x2="14" y2="12"/></svg>,
+  adj:       <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
+  calendar:  <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+  building:  <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 13h6M9 17h4"/></svg>,
+  id:        <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="8" y1="10" x2="8" y2="10"/><line x1="12" y1="10" x2="16" y2="10"/><line x1="12" y1="14" x2="16" y2="14"/></svg>,
+  clock:     <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+  alert:     <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
+  location:  <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>,
+  wallet:    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 12V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5"/><path d="M16 12h5v4h-5a2 2 0 0 1 0-4z"/></svg>,
+  salary:    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>,
+  time:      <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/></svg>,
+  timer:     <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M9 2h6"/><path d="M12 2v3"/></svg>,
+  percent:   <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>,
+  calculate: <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="14" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="16" y2="18"/></svg>,
+  project:   <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>,
 };
 
 /* ─────────────────────────────────────────────
@@ -328,18 +337,60 @@ function generatePaySlip(data: PaySlipData, company: CompanySettings) {
 }
 
 /* ─────────────────────────────────────────────
+   COMPOSANT SELECTEUR DE PROJET
+───────────────────────────────────────────── */
+function ProjectSelect({ value, onChange, projects }: {
+  value: string;
+  onChange: (v: string) => void;
+  projects: Project[];
+}) {
+  const activeProjects = projects.filter(p => p.status === 'actif' || p.status === 'active' || p.status === 'planning' || p.status === 'planification');
+  return (
+    <div>
+      <label style={lbl}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          {I.project} Projet (optionnel)
+        </span>
+      </label>
+      <select
+        style={{ ...inp, width: '100%' }}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+      >
+        <option value="">-- Aucun projet --</option>
+        {activeProjects.map(p => (
+          <option key={p.id} value={p.id}>{p.name}</option>
+        ))}
+        {projects.filter(p => !['actif','active','planning','planification'].includes(p.status)).length > 0 && (
+          <optgroup label="Autres projets">
+            {projects
+              .filter(p => !['actif','active','planning','planification'].includes(p.status))
+              .map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))
+            }
+          </optgroup>
+        )}
+      </select>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
    MODAL POINTAGE
 ───────────────────────────────────────────── */
-function TimeEntryModal({ open, onClose, onSave, employee, initial }: {
+function TimeEntryModal({ open, onClose, onSave, employee, initial, projects }: {
   open: boolean; onClose: () => void;
   onSave: (d: Partial<TimeEntry> & { employee_id: string }) => Promise<void>;
   employee: Employee | null; initial?: TimeEntry | null;
+  projects: Project[];
 }) {
   const defaultForm = {
     date: new Date().toISOString().split('T')[0],
     start_time: '08:00', end_time: '17:00', break_minutes: 60,
     hours_worked: 0, entry_type: 'normal' as TimeEntry['entry_type'],
-    rate_applied: 0, amount: 0, status: 'draft' as TimeEntry['status'], notes: '', month: currentMonth(),
+    rate_applied: 0, amount: 0, status: 'draft' as TimeEntry['status'],
+    notes: '', month: currentMonth(), project_id: '',
   };
   const [form, setForm]     = useState({ ...defaultForm });
   const [saving, setSaving] = useState(false);
@@ -354,6 +405,7 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial }: {
           hours_worked: initial.hours_worked, entry_type: initial.entry_type,
           rate_applied: initial.rate_applied, amount: initial.amount,
           status: initial.status, notes: initial.notes || '', month: initial.month,
+          project_id: initial.project_id || '',
         });
       } else {
         setForm({ ...defaultForm });
@@ -402,6 +454,7 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial }: {
         ...form,
         employee_id: employee.id,
         hourly_rate: hourlyRate,
+        project_id: form.project_id || undefined,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur sauvegarde.');
@@ -427,22 +480,43 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial }: {
         </div>
 
         <form onSubmit={submit} style={{ padding:22, display:'flex', flexDirection:'column', gap:16 }}>
-          {error && <div style={{ padding:'10px 14px', background:'#fef2f2', border:'1.5px solid #fecaca', borderRadius:10, fontSize:13, color:'#dc2626', display:'flex', alignItems:'center', gap:8 }}>{I.alert}{error}</div>}
+          {error && (
+            <div style={{ padding:'10px 14px', background:'#fef2f2', border:'1.5px solid #fecaca', borderRadius:10, fontSize:13, color:'#dc2626', display:'flex', alignItems:'center', gap:8 }}>
+              {I.alert}{error}
+            </div>
+          )}
+
+          {/* Sélecteur de projet */}
+          <ProjectSelect
+            value={form.project_id}
+            onChange={v => setForm(p => ({ ...p, project_id: v }))}
+            projects={projects}
+          />
 
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-            <div><label style={lbl}>Date <span style={{ color:'#ef4444' }}>*</span></label>
-              <input style={inp} type="date" value={form.date} onChange={e => setField('date', e.target.value)} /></div>
-            <div><label style={lbl}>Mois</label>
-              <input style={inp} type="month" value={form.month} onChange={e => setForm(p => ({ ...p, month: e.target.value }))} /></div>
+            <div>
+              <label style={lbl}>Date <span style={{ color:'#ef4444' }}>*</span></label>
+              <input style={inp} type="date" value={form.date} onChange={e => setField('date', e.target.value)} />
+            </div>
+            <div>
+              <label style={lbl}>Mois</label>
+              <input style={inp} type="month" value={form.month} onChange={e => setForm(p => ({ ...p, month: e.target.value }))} />
+            </div>
           </div>
 
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
-            <div><label style={lbl}>Heure début</label>
-              <input style={inp} type="time" value={form.start_time} onChange={e => setField('start_time', e.target.value)} /></div>
-            <div><label style={lbl}>Heure fin</label>
-              <input style={inp} type="time" value={form.end_time} onChange={e => setField('end_time', e.target.value)} /></div>
-            <div><label style={lbl}>Pause (min)</label>
-              <input style={inp} type="number" min="0" value={form.break_minutes} onChange={e => setField('break_minutes', +e.target.value)} /></div>
+            <div>
+              <label style={lbl}>Heure début</label>
+              <input style={inp} type="time" value={form.start_time} onChange={e => setField('start_time', e.target.value)} />
+            </div>
+            <div>
+              <label style={lbl}>Heure fin</label>
+              <input style={inp} type="time" value={form.end_time} onChange={e => setField('end_time', e.target.value)} />
+            </div>
+            <div>
+              <label style={lbl}>Pause (min)</label>
+              <input style={inp} type="number" min="0" value={form.break_minutes} onChange={e => setField('break_minutes', +e.target.value)} />
+            </div>
           </div>
 
           <div style={{ background:'#f0f9ff', borderRadius:12, padding:'12px 16px', border:'1.5px solid #bae6fd', display:'flex', alignItems:'center', gap:12 }}>
@@ -538,7 +612,11 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial }: {
           <div style={{ display:'flex', gap:10, marginTop:4 }}>
             <button type="button" onClick={onClose} style={{ flex:1, padding:'10px 0', borderRadius:10, border:'1.5px solid #e2e8f0', background:'#fff', fontSize:13, fontWeight:600, color:'#64748b', cursor:'pointer' }}>Annuler</button>
             <button type="submit" disabled={saving} style={{ flex:2, padding:'10px 0', borderRadius:10, border:'none', background:'linear-gradient(135deg,#0891b2,#06b6d4)', fontSize:13, fontWeight:700, color:'#fff', cursor:saving?'not-allowed':'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
-              {saving ? <><div style={{ width:14, height:14, border:'2px solid #fff', borderTopColor:'transparent', borderRadius:'50%', animation:'spin 0.8s linear infinite' }} />Enregistrement…</> : <>{I.check} {initial?'Modifier':'Enregistrer le pointage'}</>}
+              {saving ? (
+                <><div style={{ width:14, height:14, border:'2px solid #fff', borderTopColor:'transparent', borderRadius:'50%', animation:'spin 0.8s linear infinite' }} />Enregistrement…</>
+              ) : (
+                <>{I.check} {initial?'Modifier':'Enregistrer le pointage'}</>
+              )}
             </button>
           </div>
         </form>
@@ -628,13 +706,15 @@ function EmployeeModal({ open, onClose, onSave, initial }: {
               <div><label style={lbl}>Telephone</label><input style={inp} value={form.phone} onChange={e=>f('phone',e.target.value)} placeholder="+32 470 00 00 00" /></div>
               <div style={{ gridColumn:'1/-1' }}><label style={lbl}>Adresse</label><input style={inp} value={form.address||''} onChange={e=>f('address',e.target.value)} placeholder="Rue de la Loi 1, 1000 Bruxelles" /></div>
               <div><label style={lbl}>Poste / Fonction</label><input style={inp} value={form.position} onChange={e=>f('position',e.target.value)} placeholder="Technicien" /></div>
-              <div><label style={lbl}>Departement</label>
+              <div>
+                <label style={lbl}>Departement</label>
                 <select style={{ ...inp, width:'100%' }} value={form.department} onChange={e=>f('department',e.target.value)}>
                   <option value="">— Selectionner —</option>
                   {DEPARTMENTS.map(d=><option key={d}>{d}</option>)}
                 </select>
               </div>
-              <div><label style={lbl}>Statut</label>
+              <div>
+                <label style={lbl}>Statut</label>
                 <select style={{ ...inp, width:'100%' }} value={form.status} onChange={e=>f('status',e.target.value as Employee['status'])}>
                   {Object.entries(STATUS).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
                 </select>
@@ -644,7 +724,8 @@ function EmployeeModal({ open, onClose, onSave, initial }: {
 
           {tab==='contract' && (
             <div style={{ padding:24, display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
-              <div><label style={lbl}>Type de contrat</label>
+              <div>
+                <label style={lbl}>Type de contrat</label>
                 <select style={{ ...inp, width:'100%' }} value={form.contract_type} onChange={e=>f('contract_type',e.target.value)}>
                   {CONTRACT_TYPES.map(c=><option key={c}>{c}</option>)}
                 </select>
@@ -678,13 +759,15 @@ function EmployeeModal({ open, onClose, onSave, initial }: {
                 </div>
               )}
               <div style={{ gridColumn:'1/-1', display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
-                <div><label style={lbl}>Mode paiement</label>
+                <div>
+                  <label style={lbl}>Mode paiement</label>
                   <select style={{ ...inp, width:'100%' }} value={form.payment_method||'Virement'} onChange={e=>f('payment_method',e.target.value)}>
                     {['Virement','Cheque','Especes','Neopay'].map(m=><option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
                 <div><label style={lbl}>Jour versement</label><input style={inp} type="number" min="1" max="31" value={form.payment_day||28} onChange={e=>f('payment_day',+e.target.value)} /></div>
-                <div><label style={lbl}>Frequence</label>
+                <div>
+                  <label style={lbl}>Frequence</label>
                   <select style={{ ...inp, width:'100%' }} value={form.payment_frequency||'Mensuel'} onChange={e=>f('payment_frequency',e.target.value)}>
                     {['Mensuel','Hebdomadaire','Bimensuel'].map(m=><option key={m} value={m}>{m}</option>)}
                   </select>
@@ -761,10 +844,11 @@ function EmployeeModal({ open, onClose, onSave, initial }: {
 /* ─────────────────────────────────────────────
    MODAL AJUSTEMENT
 ───────────────────────────────────────────── */
-function AdjustmentModal({ open, onClose, onSave, employee, defaultType }: {
+function AdjustmentModal({ open, onClose, onSave, employee, defaultType, projects }: {
   open: boolean; onClose: () => void;
   onSave: (d: typeof EMPTY_ADJ & { employee_id: string }) => Promise<void>;
   employee: Employee | null; defaultType?: string;
+  projects: Project[];
 }) {
   const [form, setForm]     = useState({ ...EMPTY_ADJ, month: currentMonth() });
   const [saving, setSaving] = useState(false);
@@ -774,7 +858,7 @@ function AdjustmentModal({ open, onClose, onSave, employee, defaultType }: {
     if (open) {
       const type = (defaultType??'bonus') as PayAdjustment['type'];
       const isSalaire = type==='salaire';
-      setForm({ type, amount: isSalaire?(employee?.salary??0):0, reason: isSalaire?`Salaire ${currentMonth()}`:'', month: currentMonth() });
+      setForm({ type, amount: isSalaire?(employee?.salary??0):0, reason: isSalaire?`Salaire ${currentMonth()}`:'', month: currentMonth(), project_id: '' });
       setError('');
     }
   }, [open, defaultType, employee]);
@@ -816,8 +900,17 @@ function AdjustmentModal({ open, onClose, onSave, employee, defaultType }: {
               {I.check}<div><p style={{ fontSize:12, fontWeight:700, color:'#15803d' }}>Paiement salaire mensuel</p><p style={{ fontSize:11, color:'#166534' }}>Montant pre-rempli. Modifiez si besoin.</p></div>
             </div>
           )}
+
+          {/* Sélecteur de projet */}
+          <ProjectSelect
+            value={form.project_id}
+            onChange={v => setForm(p => ({ ...p, project_id: v }))}
+            projects={projects}
+          />
+
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-            <div><label style={lbl}>Type</label>
+            <div>
+              <label style={lbl}>Type</label>
               <select style={{ ...inp, width:'100%' }} value={form.type} onChange={e => {
                 const t = e.target.value as PayAdjustment['type'];
                 setForm(p=>({ ...p, type:t, amount:t==='salaire'?(employee?.salary??0):p.amount, reason:t==='salaire'?`Salaire ${p.month}`:p.reason }));
@@ -825,14 +918,17 @@ function AdjustmentModal({ open, onClose, onSave, employee, defaultType }: {
                 {ADJ_TYPE_OPTIONS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
-            <div><label style={lbl}>Mois concerne</label>
+            <div>
+              <label style={lbl}>Mois concerne</label>
               <input style={inp} type="month" value={form.month} onChange={e=>setForm(p=>({ ...p, month:e.target.value, reason:p.type==='salaire'?`Salaire ${e.target.value}`:p.reason }))} />
             </div>
           </div>
-          <div><label style={lbl}>Montant (EUR) <span style={{ color:'#ef4444' }}>*</span></label>
+          <div>
+            <label style={lbl}>Montant (EUR) <span style={{ color:'#ef4444' }}>*</span></label>
             <input style={{ ...inp, fontWeight:700, fontSize:15 }} type="number" min="0" step="0.01" value={form.amount||''} onChange={e=>setForm(p=>({ ...p, amount:parseFloat(e.target.value)||0 }))} placeholder="0.00" />
           </div>
-          <div><label style={lbl}>Motif {!isSalaire&&<span style={{ color:'#ef4444' }}>*</span>}</label>
+          <div>
+            <label style={lbl}>Motif {!isSalaire&&<span style={{ color:'#ef4444' }}>*</span>}</label>
             <input style={inp} value={form.reason} onChange={e=>setForm(p=>({ ...p, reason:e.target.value }))} placeholder={isSalaire?`Salaire ${form.month}`:'Ex: Prime de rendement Q1...'} />
           </div>
           {(form.amount||0)>0 && (
@@ -840,6 +936,11 @@ function AdjustmentModal({ open, onClose, onSave, employee, defaultType }: {
               <div>
                 <p style={{ fontSize:11, fontWeight:700, color:adjT.color, textTransform:'uppercase', marginBottom:2 }}>{adjT.label}</p>
                 <p style={{ fontSize:12, color:'#64748b' }}>{form.reason||'Sans motif'}</p>
+                {form.project_id && projects.find(p => p.id === form.project_id) && (
+                  <p style={{ fontSize:11, color:'#0891b2', marginTop:2, display:'flex', alignItems:'center', gap:4 }}>
+                    {I.project} {projects.find(p => p.id === form.project_id)?.name}
+                  </p>
+                )}
               </div>
               <p style={{ fontSize:20, fontWeight:800, color:adjT.color }}>{finalAmount>=0?'+':''}{fmt(finalAmount)}</p>
             </div>
@@ -859,8 +960,9 @@ function AdjustmentModal({ open, onClose, onSave, employee, defaultType }: {
 /* ─────────────────────────────────────────────
    DRAWER DÉTAIL EMPLOYÉ
 ───────────────────────────────────────────── */
-function EmployeeDrawer({ employee, adjustments, timeEntries, onClose, onEdit, onDelete, onAdjust, onPaySalary, onPaySlip, onAddTime, onEditTime, onDeleteTime }: {
+function EmployeeDrawer({ employee, adjustments, timeEntries, projects, onClose, onEdit, onDelete, onAdjust, onPaySalary, onPaySlip, onAddTime, onEditTime, onDeleteTime }: {
   employee: Employee|null; adjustments: PayAdjustment[]; timeEntries: TimeEntry[];
+  projects: Project[];
   onClose: ()=>void; onEdit: ()=>void; onDelete: ()=>void;
   onAdjust: ()=>void; onPaySalary: ()=>void;
   onPaySlip: (month: string)=>void;
@@ -941,10 +1043,10 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, onClose, onEdit, o
                 {isHoraire ? (
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
                     {[
-                      { l:'Taux horaire',   v:fmt(employee.hourly_rate||0),                     c:'#92400e' },
-                      { l:'Heures ce mois', v:`${totalHours}h`,                                 c:'#0891b2' },
-                      { l:'Brut calculé',   v:fmt(totalEarned),                                 c:'#15803d' },
-                      { l:'Déjà payé',      v:fmt(paidEntries.reduce((s,t)=>s+(t.amount||0),0)),c:'#64748b' },
+                      { l:'Taux horaire',   v:fmt(employee.hourly_rate||0),                      c:'#92400e' },
+                      { l:'Heures ce mois', v:`${totalHours}h`,                                  c:'#0891b2' },
+                      { l:'Brut calculé',   v:fmt(totalEarned),                                  c:'#15803d' },
+                      { l:'Déjà payé',      v:fmt(paidEntries.reduce((s,t)=>s+(t.amount||0),0)), c:'#64748b' },
                     ].map((k,i) => (
                       <div key={i} style={{ textAlign:'center', padding:'10px 6px', background:'#fff', borderRadius:10, border:'1px solid #fde68a' }}>
                         <p style={{ fontSize:9, color:'#94a3b8', marginBottom:3, textTransform:'uppercase' }}>{k.l}</p>
@@ -1032,11 +1134,17 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, onClose, onEdit, o
                   {myAdj.map((a,i) => {
                     const t = ADJ_TYPES[a.type]??{ label:a.type, color:'#64748b', bg:'#f8fafc', sign:1 as 1|-1 };
                     const sign = t.sign>=0?'+':'-';
+                    const proj = a.project_id ? projects.find(p => p.id === a.project_id) : null;
                     return (
                       <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 0', borderBottom:i<myAdj.length-1?'1px solid #f1f5f9':'none' }}>
                         <div>
                           <span style={{ display:'inline-block', padding:'2px 8px', borderRadius:6, background:t.bg, color:t.color, fontSize:10, fontWeight:700, marginBottom:2 }}>{t.label}</span>
                           <p style={{ fontSize:12, color:'#64748b' }}>{a.reason}</p>
+                          {proj && (
+                            <p style={{ fontSize:11, color:'#0891b2', marginTop:2, display:'flex', alignItems:'center', gap:3 }}>
+                              {I.project} {proj.name}
+                            </p>
+                          )}
                         </div>
                         <p style={{ fontSize:13, fontWeight:800, color:t.color, flexShrink:0 }}>{sign}{fmt(Math.abs(a.amount))}</p>
                       </div>
@@ -1098,14 +1206,20 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, onClose, onEdit, o
                   {myEntries.sort((a,b) => a.date.localeCompare(b.date)).map(entry => {
                     const et = ENTRY_TYPES[entry.entry_type]??ENTRY_TYPES.normal;
                     const es = ENTRY_STATUS[entry.status]??ENTRY_STATUS.draft;
+                    const proj = entry.project_id ? projects.find(p => p.id === entry.project_id) : null;
                     return (
                       <div key={entry.id} style={{ background:'#fff', borderRadius:12, padding:12, border:'1px solid #f1f5f9', boxShadow:'0 1px 3px rgba(0,0,0,0.04)' }}>
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
                           <div>
                             <p style={{ fontSize:13, fontWeight:700, color:'#0f172a' }}>{fmtD(entry.date)}</p>
-                            <div style={{ display:'flex', gap:5, marginTop:4 }}>
+                            <div style={{ display:'flex', gap:5, marginTop:4, flexWrap:'wrap' }}>
                               <span style={{ padding:'2px 8px', borderRadius:20, background:et.bg, color:et.color, fontSize:10, fontWeight:700 }}>{et.label}</span>
                               <span style={{ padding:'2px 8px', borderRadius:20, background:es.bg, color:es.color, fontSize:10, fontWeight:700 }}>{es.label}</span>
+                              {proj && (
+                                <span style={{ padding:'2px 8px', borderRadius:20, background:'#e0f2fe', color:'#0891b2', fontSize:10, fontWeight:700, display:'inline-flex', alignItems:'center', gap:3 }}>
+                                  {I.project} {proj.name}
+                                </span>
+                              )}
                             </div>
                           </div>
                           <div style={{ textAlign:'right' }}>
@@ -1155,6 +1269,7 @@ export default function EmployeesPage() {
   const [employees,      setEmployees]      = useState<Employee[]>([]);
   const [adjustments,    setAdjustments]    = useState<PayAdjustment[]>([]);
   const [timeEntries,    setTimeEntries]    = useState<TimeEntry[]>([]);
+  const [projects,       setProjects]       = useState<Project[]>([]);
   const [company,        setCompany]        = useState<CompanySettings|null>(null);
   const [userId,         setUserId]         = useState<string|null>(null);
   const [loading,        setLoading]        = useState(true);
@@ -1175,7 +1290,6 @@ export default function EmployeesPage() {
   const [editTime,       setEditTime]       = useState<TimeEntry|null>(null);
   const [deleteId,       setDeleteId]       = useState<string|null>(null);
 
-  /* ── Récupère userId une seule fois ── */
   useEffect(() => {
     (async () => {
       const { createClient } = await import('@supabase/supabase-js');
@@ -1188,7 +1302,6 @@ export default function EmployeesPage() {
     })();
   }, []);
 
-  /* ── Charge les données avec userId ── */
   const load = useCallback(async (uid?: string | null) => {
     const currentUid = uid !== undefined ? uid : userId;
     setLoading(true);
@@ -1196,10 +1309,11 @@ export default function EmployeesPage() {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (currentUid) headers['x-user-id'] = currentUid;
 
-      const [empRaw, adjRaw, timeRaw, companyRaw] = await Promise.all([
-        fetchSafe('/api/employees', { headers }),
+      const [empRaw, adjRaw, timeRaw, projRaw, companyRaw] = await Promise.all([
+        fetchSafe('/api/employees',       { headers }),
         fetchSafe('/api/pay-adjustments', { headers }),
-        fetchSafe('/api/time-entries', { headers }),
+        fetchSafe('/api/time-entries',    { headers }),
+        fetchSafe('/api/projects',        { headers }),
         currentUid
           ? fetch('/api/settings', { headers }).then(r => r.ok ? r.json() : null).catch(() => null)
           : Promise.resolve(null),
@@ -1208,14 +1322,14 @@ export default function EmployeesPage() {
       setEmployees(toArray<Employee>(empRaw));
       setAdjustments(toArray<PayAdjustment>(adjRaw));
       setTimeEntries(toArray<TimeEntry>(timeRaw));
+      setProjects(toArray<Project>(projRaw));
       if (companyRaw && !companyRaw.error) setCompany(companyRaw);
     } catch (e) {
       console.error('HR load error:', e);
-      setEmployees([]); setAdjustments([]); setTimeEntries([]);
+      setEmployees([]); setAdjustments([]); setTimeEntries([]); setProjects([]);
     } finally { setLoading(false); }
   }, [userId]);
 
-  /* ── Déclenche le chargement quand userId est prêt ── */
   useEffect(() => {
     if (userId !== null) load(userId);
   }, [userId, load]);
@@ -1251,7 +1365,6 @@ export default function EmployeesPage() {
 
   const hasFilters = !!(search||statusF!=='all'||deptF!=='all'||contractF!=='all');
 
-  /* ── Helpers avec userId dans les headers ── */
   function authHeaders() {
     const h: Record<string, string> = { 'Content-Type': 'application/json' };
     if (userId) h['x-user-id'] = userId;
@@ -1282,7 +1395,8 @@ export default function EmployeesPage() {
   }
 
   async function saveAdjustment(form: typeof EMPTY_ADJ & { employee_id: string }) {
-    const res = await fetch('/api/pay-adjustments', { method:'POST', headers: authHeaders(), body:JSON.stringify(form) });
+    const payload = { ...form, project_id: form.project_id || null };
+    const res = await fetch('/api/pay-adjustments', { method:'POST', headers: authHeaders(), body:JSON.stringify(payload) });
     if (!res.ok) { let msg=`Erreur ${res.status}`; try { const j=await res.json(); msg=j?.error??msg; } catch {} throw new Error(msg); }
     setAdjModal(false); setAdjTarget(null); load();
   }
@@ -1290,10 +1404,11 @@ export default function EmployeesPage() {
   async function saveTimeEntry(form: Partial<TimeEntry> & { employee_id: string }) {
     const url    = editTime ? `/api/time-entries?id=${editTime.id}` : '/api/time-entries';
     const method = editTime ? 'PATCH' : 'POST';
+    const payload = { ...form, project_id: form.project_id || null };
     const res = await fetch(url, {
       method,
-      headers: authHeaders(),  // ← x-user-id inclus ici
-      body: JSON.stringify(form),
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
     });
     if (!res.ok) {
       let msg = `Erreur ${res.status}`;
@@ -1306,7 +1421,7 @@ export default function EmployeesPage() {
   async function deleteTimeEntry(id: string) {
     await fetch(`/api/time-entries?id=${id}`, {
       method: 'DELETE',
-      headers: authHeaders(),  // ← x-user-id inclus ici
+      headers: authHeaders(),
     });
     load();
   }
@@ -1671,13 +1786,33 @@ export default function EmployeesPage() {
       )}
 
       {/* Modals & Drawer */}
-      <EmployeeModal open={empModal} onClose={()=>{ setEmpModal(false); setEditE(null); }} onSave={saveEmployee} initial={editE} />
-      <AdjustmentModal open={adjModal} onClose={()=>{ setAdjModal(false); setAdjTarget(null); }} onSave={saveAdjustment} employee={adjTarget} defaultType={adjDefaultType} />
-      <TimeEntryModal open={timeModal} onClose={()=>{ setTimeModal(false); setTimeTarget(null); setEditTime(null); }} onSave={saveTimeEntry} employee={timeTarget} initial={editTime} />
+      <EmployeeModal
+        open={empModal}
+        onClose={()=>{ setEmpModal(false); setEditE(null); }}
+        onSave={saveEmployee}
+        initial={editE}
+      />
+      <AdjustmentModal
+        open={adjModal}
+        onClose={()=>{ setAdjModal(false); setAdjTarget(null); }}
+        onSave={saveAdjustment}
+        employee={adjTarget}
+        defaultType={adjDefaultType}
+        projects={projects}
+      />
+      <TimeEntryModal
+        open={timeModal}
+        onClose={()=>{ setTimeModal(false); setTimeTarget(null); setEditTime(null); }}
+        onSave={saveTimeEntry}
+        employee={timeTarget}
+        initial={editTime}
+        projects={projects}
+      />
       <EmployeeDrawer
         employee={viewE}
         adjustments={Array.isArray(adjustments)?adjustments:[]}
         timeEntries={Array.isArray(timeEntries)?timeEntries:[]}
+        projects={projects}
         onClose={()=>setViewE(null)}
         onEdit={()=>{ if(viewE) openEdit(viewE); }}
         onDelete={()=>{ if(viewE) openDelete(viewE); }}

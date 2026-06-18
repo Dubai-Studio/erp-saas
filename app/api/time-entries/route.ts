@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Créer le client DANS chaque fonction, pas au niveau du module
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 function calcHours(start: string, end: string, breakMin: number): number {
   if (!start || !end) return 0;
@@ -20,14 +23,14 @@ function calcAmount(hours: number, rate: number, bonus: number): number {
   return Math.round(hours * rate * multiplier * 100) / 100;
 }
 
-// GET - liste des pointages
 export async function GET(req: NextRequest) {
   const userId = req.headers.get('x-user-id');
   if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
+  const supabase = getSupabase();
   const { searchParams } = new URL(req.url);
   const employeeId = searchParams.get('employee_id');
-  const month = searchParams.get('month'); // format YYYY-MM
+  const month = searchParams.get('month');
 
   let query = supabase
     .from('time_entries')
@@ -48,11 +51,11 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(data || []);
 }
 
-// POST - créer un pointage
 export async function POST(req: NextRequest) {
   const userId = req.headers.get('x-user-id');
   if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
+  const supabase = getSupabase();
   const body = await req.json();
 
   const {
@@ -75,7 +78,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'employee_id et date sont requis' }, { status: 400 });
   }
 
-  // Calcul automatique si heures non fournies
   const heures = heures_calculees ?? calcHours(heure_debut, heure_fin, pause_minutes ?? 0);
   const montantFinal = montant ?? calcAmount(heures, hourly_rate ?? 0, bonus_percent ?? 0);
 
@@ -104,17 +106,16 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(data, { status: 201 });
 }
 
-// PATCH - modifier un pointage
 export async function PATCH(req: NextRequest) {
   const userId = req.headers.get('x-user-id');
   if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
+  const supabase = getSupabase();
   const body = await req.json();
   const { id, ...fields } = body;
 
   if (!id) return NextResponse.json({ error: 'id requis' }, { status: 400 });
 
-  // Recalcul si nécessaire
   if (fields.heure_debut && fields.heure_fin && fields.heures_calculees === undefined) {
     fields.heures_calculees = calcHours(fields.heure_debut, fields.heure_fin, fields.pause_minutes ?? 0);
   }
@@ -134,11 +135,11 @@ export async function PATCH(req: NextRequest) {
   return NextResponse.json(data);
 }
 
-// DELETE - supprimer un pointage
 export async function DELETE(req: NextRequest) {
   const userId = req.headers.get('x-user-id');
   if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
+  const supabase = getSupabase();
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id requis' }, { status: 400 });

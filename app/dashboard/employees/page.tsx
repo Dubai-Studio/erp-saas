@@ -28,6 +28,19 @@ interface PaySlipData {
   gross: number; adjustments: PayAdjustment[]; totalAdj: number; net: number;
 }
 
+interface CompanySettings {
+  company_name: string;
+  address: string;
+  city?: string;
+  country?: string;
+  vat_number: string;
+  email: string;
+  phone: string;
+  iban: string;
+  bic?: string;
+  logo_url?: string;
+}
+
 /* ─────────────────────────────────────────────
    CONSTANTES
 ───────────────────────────────────────────── */
@@ -63,15 +76,6 @@ const ADJ_TYPE_OPTIONS = [
 const DEPARTMENTS    = ['Direction','Commercial','Technique','Finance','RH','Marketing','Logistique','Autre'];
 const CONTRACT_TYPES = ['CDI','CDD','Intérimaire','Freelance','Apprentissage','Stage'];
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
-
-const COMPANY = {
-  name:    'Next-ERP.PRO',
-  address: 'Rue de la Loi 1, 1000 Bruxelles',
-  vat:     'BE 0000.000.000',
-  email:   'contact@next-erp.pro',
-  phone:   '+32 2 000 00 00',
-  iban:    'BE00 0000 0000 0000',
-};
 
 const EMPTY_EMP = {
   first_name: '', last_name: '', email: '', phone: '', position: '', department: '',
@@ -179,17 +183,27 @@ const I = {
 /* ─────────────────────────────────────────────
    PDF FICHE DE SALAIRE
 ───────────────────────────────────────────── */
-function generatePaySlip(data: PaySlipData) {
+function generatePaySlip(data: PaySlipData, company: CompanySettings) {
   const { employee: e, month, year, gross, adjustments, totalAdj, net } = data;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const W = 210, M = 15;
 
+  const companyName    = company.company_name || 'Mon Entreprise';
+  const companyAddress = [company.address, company.city, company.country].filter(Boolean).join(', ') || '—';
+  const companyEmail   = company.email        || '—';
+  const companyPhone   = company.phone        || '—';
+  const companyVat     = company.vat_number   || '—';
+  const companyIban    = company.iban         || '—';
+
   doc.setFillColor(245, 158, 11); doc.rect(0, 0, W, 48, 'F');
   doc.setFillColor(234, 140, 0);  doc.rect(0, 42, W, 6, 'F');
   doc.setTextColor(255, 255, 255); doc.setFontSize(22); doc.setFont('helvetica', 'bold');
-  doc.text(COMPANY.name, M, 18);
+  doc.text(companyName, M, 18);
   doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(255, 240, 200);
-  doc.text([COMPANY.address, COMPANY.email, COMPANY.phone, `TVA: ${COMPANY.vat}`], M, 26, { lineHeightFactor: 1.6 });
+  doc.text(
+    [companyAddress, companyEmail, companyPhone, `TVA: ${companyVat}`],
+    M, 26, { lineHeightFactor: 1.6 }
+  );
   doc.setTextColor(255, 255, 255); doc.setFontSize(16); doc.setFont('helvetica', 'bold');
   doc.text('FICHE DE SALAIRE', W - M, 18, { align: 'right' });
   doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.setTextColor(255, 240, 200);
@@ -203,7 +217,13 @@ function generatePaySlip(data: PaySlipData) {
   doc.setTextColor(15, 23, 42); doc.setFontSize(12); doc.setFont('helvetica', 'bold');
   doc.text(`${e.first_name} ${e.last_name}`, M + 5, 73);
   doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(71, 85, 105);
-  const empLines = [e.position || '', e.department || '', `Contrat : ${e.contract_type || '—'}`, e.national_id ? `N° national : ${e.national_id}` : '', `Embauche le : ${fmtD(e.hire_date)}`].filter(Boolean);
+  const empLines = [
+    e.position || '',
+    e.department || '',
+    `Contrat : ${e.contract_type || '—'}`,
+    e.national_id ? `N° national : ${e.national_id}` : '',
+    `Embauche le : ${fmtD(e.hire_date)}`,
+  ].filter(Boolean);
   doc.text(empLines, M + 5, 80, { lineHeightFactor: 1.7 });
 
   doc.setFillColor(255, 251, 235); doc.setDrawColor(253, 230, 138);
@@ -211,13 +231,26 @@ function generatePaySlip(data: PaySlipData) {
   doc.setTextColor(100, 116, 139); doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
   doc.text('DETAILS DE PAIEMENT', W / 2 + 7, 64);
   doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(71, 85, 105);
-  doc.text([`Salaire brut : ${fmtP(Number(gross))}`, e.iban ? `IBAN : ${e.iban}` : `IBAN : ${COMPANY.iban}`, `Periode : ${MONTHS[parseInt(month.split('-')[1]) - 1]} ${year}`], W / 2 + 7, 73, { lineHeightFactor: 1.8 });
+  doc.text(
+    [
+      `Salaire brut : ${fmtP(Number(gross))}`,
+      `IBAN : ${e.iban || companyIban}`,
+      `Periode : ${MONTHS[parseInt(month.split('-')[1]) - 1]} ${year}`,
+    ],
+    W / 2 + 7, 73, { lineHeightFactor: 1.8 }
+  );
 
-  const tableBody: (string | number)[][] = [['Salaire brut mensuel', '1', fmtP(Number(gross)), fmtP(Number(gross))]];
+  const tableBody: (string | number)[][] = [
+    ['Salaire brut mensuel', '1', fmtP(Number(gross)), fmtP(Number(gross))],
+  ];
   adjustments.forEach(adj => {
     const t = ADJ_TYPES[adj.type] ?? { label: adj.type, sign: 1 };
     const sign = t.sign > 0 ? '+' : '-';
-    tableBody.push([`${t.label} — ${adj.reason}`, '1', `${sign} ${fmtP(Math.abs(adj.amount))}`, `${sign} ${fmtP(Math.abs(adj.amount))}`]);
+    tableBody.push([
+      `${t.label} — ${adj.reason}`, '1',
+      `${sign} ${fmtP(Math.abs(adj.amount))}`,
+      `${sign} ${fmtP(Math.abs(adj.amount))}`,
+    ]);
   });
 
   autoTable(doc, {
@@ -227,7 +260,10 @@ function generatePaySlip(data: PaySlipData) {
     headStyles: { fillColor: [245, 158, 11], textColor: 255, fontSize: 9, fontStyle: 'bold', cellPadding: 5 },
     bodyStyles: { fontSize: 9, cellPadding: 4, textColor: [30, 41, 59] },
     alternateRowStyles: { fillColor: [255, 251, 235] },
-    columnStyles: { 0: { cellWidth: 85 }, 1: { halign: 'center', cellWidth: 15 }, 2: { halign: 'right', cellWidth: 45 }, 3: { halign: 'right', cellWidth: 40 } },
+    columnStyles: {
+      0: { cellWidth: 85 }, 1: { halign: 'center', cellWidth: 15 },
+      2: { halign: 'right', cellWidth: 45 }, 3: { halign: 'right', cellWidth: 40 },
+    },
     margin: { left: M, right: M },
     tableLineColor: [226, 232, 240], tableLineWidth: 0.2,
   });
@@ -237,8 +273,8 @@ function generatePaySlip(data: PaySlipData) {
   doc.setFillColor(248, 250, 252); doc.setDrawColor(226, 232, 240);
   doc.roundedRect(txX, fY, txW, 44, 3, 3, 'FD');
   [
-    { l: 'Salaire brut', v: fmtP(Number(gross)), col: [71, 85, 105] as [number, number, number] },
-    { l: 'Ajustements', v: (totalAdj >= 0 ? '+' : '') + fmtP(totalAdj), col: (totalAdj >= 0 ? [21, 128, 61] : [220, 38, 38]) as [number, number, number] },
+    { l: 'Salaire brut',  v: fmtP(Number(gross)),                                         col: [71, 85, 105]  as [number, number, number] },
+    { l: 'Ajustements',   v: (totalAdj >= 0 ? '+' : '') + fmtP(totalAdj),                 col: (totalAdj >= 0 ? [21, 128, 61] : [220, 38, 38]) as [number, number, number] },
   ].forEach((r, i) => {
     const y = fY + 10 + i * 10;
     doc.setFontSize(9); doc.setTextColor(100, 116, 139); doc.setFont('helvetica', 'normal');
@@ -257,7 +293,10 @@ function generatePaySlip(data: PaySlipData) {
   doc.setTextColor(146, 64, 14); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
   doc.text('Virement bancaire', M + 5, bY + 7);
   doc.setFont('helvetica', 'normal'); doc.setTextColor(120, 53, 15);
-  doc.text(`IBAN : ${e.iban || COMPANY.iban}  •  Communication : SALAIRE ${MONTHS[parseInt(month.split('-')[1]) - 1].toUpperCase()} ${year}`, M + 5, bY + 13);
+  doc.text(
+    `IBAN : ${e.iban || companyIban}  •  Communication : SALAIRE ${MONTHS[parseInt(month.split('-')[1]) - 1].toUpperCase()} ${year}`,
+    M + 5, bY + 13
+  );
 
   const sY = Math.min(bY + 26, 238);
   doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.3);
@@ -269,7 +308,10 @@ function generatePaySlip(data: PaySlipData) {
 
   doc.setFillColor(245, 158, 11); doc.rect(0, 282, W, 15, 'F');
   doc.setTextColor(255, 255, 255); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal');
-  doc.text(`${COMPANY.name}  •  ${COMPANY.vat}  •  ${COMPANY.email}  •  Document genere le ${new Date().toLocaleDateString('fr-BE')}`, W / 2, 290.5, { align: 'center' });
+  doc.text(
+    `${companyName}  •  ${companyVat}  •  ${companyEmail}  •  Document genere le ${new Date().toLocaleDateString('fr-BE')}`,
+    W / 2, 290.5, { align: 'center' }
+  );
 
   doc.save(`Fiche-Salaire-${e.last_name}-${month}.pdf`);
 }
@@ -502,7 +544,6 @@ function AdjustmentModal({ open, onClose, onSave, employee, defaultType }: {
         <form onSubmit={submit} style={{ padding: 22, display: 'flex', flexDirection: 'column', gap: 14 }}>
           {error && <div style={{ padding: '10px 14px', background: '#fef2f2', border: '1.5px solid #fecaca', borderRadius: 10, fontSize: 13, color: '#dc2626' }}>{error}</div>}
 
-          {/* Bannière salaire */}
           {isSalaire && (
             <div style={{ background: '#f0fdf4', border: '1.5px solid #bbf7d0', borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
               {I.check}
@@ -589,7 +630,6 @@ function EmployeeDrawer({ employee, adjustments, onClose, onEdit, onDelete, onAd
       <div style={{ position: 'absolute', inset: 0, background: 'rgba(15,23,42,0.35)', backdropFilter: 'blur(3px)' }} onClick={onClose} />
       <div style={{ ...card, position: 'relative', width: 440, height: '100%', borderRadius: '20px 0 0 20px', display: 'flex', flexDirection: 'column', overflowY: 'auto', zIndex: 1 }}>
 
-        {/* Header */}
         <div style={{ background: 'linear-gradient(135deg,#d97706,#f59e0b)', padding: '20px 20px 22px', borderRadius: '20px 0 0 0', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -613,10 +653,8 @@ function EmployeeDrawer({ employee, adjustments, onClose, onEdit, onDelete, onAd
           </div>
         </div>
 
-        {/* Body */}
         <div style={{ flex: 1, overflowY: 'auto', padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-          {/* Remuneration */}
           <div style={{ background: '#fffbeb', borderRadius: 14, padding: 16, border: '1.5px solid #fde68a' }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Remuneration</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -634,7 +672,6 @@ function EmployeeDrawer({ employee, adjustments, onClose, onEdit, onDelete, onAd
             </div>
           </div>
 
-          {/* Payer le salaire */}
           <div style={{ background: salaireThisMonth ? '#f0fdf4' : '#fafafa', borderRadius: 14, padding: 16, border: `1.5px solid ${salaireThisMonth ? '#bbf7d0' : '#e2e8f0'}` }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
               Salaire du mois
@@ -654,7 +691,6 @@ function EmployeeDrawer({ employee, adjustments, onClose, onEdit, onDelete, onAd
             )}
           </div>
 
-          {/* Fiche de salaire + sélecteur de mois */}
           <div style={{ background: '#f8fafc', borderRadius: 14, padding: 16, border: '1px solid #f1f5f9' }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Fiche de salaire</p>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
@@ -677,7 +713,6 @@ function EmployeeDrawer({ employee, adjustments, onClose, onEdit, onDelete, onAd
             </div>
           </div>
 
-          {/* Ajustements du mois */}
           {myAdj.length > 0 && (
             <div style={{ background: '#f8fafc', borderRadius: 14, padding: 16, border: '1px solid #f1f5f9' }}>
               <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
@@ -699,17 +734,16 @@ function EmployeeDrawer({ employee, adjustments, onClose, onEdit, onDelete, onAd
             </div>
           )}
 
-          {/* Informations */}
           <div style={{ background: '#f8fafc', borderRadius: 14, padding: 16, border: '1px solid #f1f5f9' }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Informations</p>
             {[
-              { l: 'Email',           v: employee.email || '—',            i: I.mail },
-              { l: 'Telephone',       v: employee.phone || '—',            i: I.phone },
-              { l: 'Adresse',         v: employee.address || '—',          i: I.location },
-              { l: 'IBAN',            v: employee.iban || '—',             i: I.euro },
-              { l: 'N° national',     v: employee.national_id || '—',      i: I.id },
-              { l: 'Embauche le',     v: fmtD(employee.hire_date),         i: I.calendar },
-              { l: 'Anciennete',      v: seniority(employee.hire_date),    i: I.clock },
+              { l: 'Email',           v: employee.email || '—',             i: I.mail },
+              { l: 'Telephone',       v: employee.phone || '—',             i: I.phone },
+              { l: 'Adresse',         v: employee.address || '—',           i: I.location },
+              { l: 'IBAN',            v: employee.iban || '—',              i: I.euro },
+              { l: 'N° national',     v: employee.national_id || '—',       i: I.id },
+              { l: 'Embauche le',     v: fmtD(employee.hire_date),          i: I.calendar },
+              { l: 'Anciennete',      v: seniority(employee.hire_date),     i: I.clock },
               { l: 'Contact urgence', v: employee.emergency_contact || '—', i: I.phone },
             ].map((r, i, arr) => (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: i < arr.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
@@ -720,7 +754,6 @@ function EmployeeDrawer({ employee, adjustments, onClose, onEdit, onDelete, onAd
           </div>
         </div>
 
-        {/* Footer */}
         <div style={{ padding: '12px 16px', borderTop: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: 8, flexShrink: 0 }}>
           <button onClick={onAdjust} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '10px 0', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
             {I.adj} Avance / Prime / Retenue
@@ -743,29 +776,35 @@ function EmployeeDrawer({ employee, adjustments, onClose, onEdit, onDelete, onAd
    PAGE PRINCIPALE
 ───────────────────────────────────────────── */
 export default function EmployeesPage() {
-  const [employees,   setEmployees]   = useState<Employee[]>([]);
-  const [adjustments, setAdjustments] = useState<PayAdjustment[]>([]);
-  const [loading,     setLoading]     = useState(true);
-  const [view,        setView]        = useState<'list' | 'grid'>('grid');
-  const [search,      setSearch]      = useState('');
-  const [statusF,     setStatusF]     = useState('all');
-  const [deptF,       setDeptF]       = useState('all');
-  const [contractF,   setContractF]   = useState('all');
-  const [sortBy,      setSortBy]      = useState<'name' | 'salary' | 'hire_date'>('name');
-  const [empModal,    setEmpModal]    = useState(false);
-  const [adjModal,    setAdjModal]    = useState(false);
+  const [employees,      setEmployees]      = useState<Employee[]>([]);
+  const [adjustments,    setAdjustments]    = useState<PayAdjustment[]>([]);
+  const [company,        setCompany]        = useState<CompanySettings | null>(null);
+  const [loading,        setLoading]        = useState(true);
+  const [view,           setView]           = useState<'list' | 'grid'>('grid');
+  const [search,         setSearch]         = useState('');
+  const [statusF,        setStatusF]        = useState('all');
+  const [deptF,          setDeptF]          = useState('all');
+  const [contractF,      setContractF]      = useState('all');
+  const [sortBy,         setSortBy]         = useState<'name' | 'salary' | 'hire_date'>('name');
+  const [empModal,       setEmpModal]       = useState(false);
+  const [adjModal,       setAdjModal]       = useState(false);
   const [adjDefaultType, setAdjDefaultType] = useState<string>('bonus');
-  const [editE,       setEditE]       = useState<Employee | null>(null);
-  const [viewE,       setViewE]       = useState<Employee | null>(null);
-  const [adjTarget,   setAdjTarget]   = useState<Employee | null>(null);
-  const [deleteId,    setDeleteId]    = useState<string | null>(null);
+  const [editE,          setEditE]          = useState<Employee | null>(null);
+  const [viewE,          setViewE]          = useState<Employee | null>(null);
+  const [adjTarget,      setAdjTarget]      = useState<Employee | null>(null);
+  const [deleteId,       setDeleteId]       = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [empRaw, adjRaw] = await Promise.all([fetchSafe('/api/employees'), fetchSafe('/api/pay-adjustments')]);
+      const [empRaw, adjRaw, companyRaw] = await Promise.all([
+        fetchSafe('/api/employees'),
+        fetchSafe('/api/pay-adjustments'),
+        fetch('/api/settings').then(r => r.ok ? r.json() : null).catch(() => null),
+      ]);
       setEmployees(toArray<Employee>(empRaw));
       setAdjustments(toArray<PayAdjustment>(adjRaw));
+      if (companyRaw && !companyRaw.error) setCompany(companyRaw);
     } catch (e) {
       console.error('HR load error:', e);
       setEmployees([]); setAdjustments([]);
@@ -859,7 +898,28 @@ export default function EmployeesPage() {
     const myAdj    = (Array.isArray(adjustments) ? adjustments : []).filter(a => a.employee_id === employee.id && a.month === month);
     const totalAdj = myAdj.reduce((s, a) => { const t = ADJ_TYPES[a.type] ?? { sign: 1 }; return s + t.sign * a.amount; }, 0);
     const [yr]     = month.split('-');
-    generatePaySlip({ employee, month, year: parseInt(yr), gross: Number(employee.salary) || 0, adjustments: myAdj, totalAdj, net: (Number(employee.salary) || 0) + totalAdj });
+
+    const companyData: CompanySettings = company ?? {
+      company_name: 'Mon Entreprise',
+      address:      '—',
+      vat_number:   '—',
+      email:        '—',
+      phone:        '—',
+      iban:         '—',
+    };
+
+    generatePaySlip(
+      {
+        employee,
+        month,
+        year:        parseInt(yr),
+        gross:       Number(employee.salary) || 0,
+        adjustments: myAdj,
+        totalAdj,
+        net:         (Number(employee.salary) || 0) + totalAdj,
+      },
+      companyData,
+    );
   }
 
   function exportCSV() {
@@ -915,14 +975,14 @@ export default function EmployeesPage() {
       {/* KPI Strip */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 12, marginBottom: 18 }}>
         {[
-          { l: 'Total',             v: kpi.total,          isN: false, color: '#6366f1', border: '#c7d2fe', bg: '#eef2ff' },
-          { l: 'Actifs',            v: kpi.active,         isN: false, color: '#10b981', border: '#a7f3d0', bg: '#ecfdf5' },
-          { l: 'En conge',          v: kpi.onLeave,        isN: false, color: '#3b82f6', border: '#bfdbfe', bg: '#eff6ff' },
-          { l: 'Inactifs',          v: kpi.inactive,       isN: false, color: '#64748b', border: '#e2e8f0', bg: '#f8fafc' },
-          { l: 'Masse /mois',       v: kpi.masse,          isN: true,  color: '#f59e0b', border: '#fde68a', bg: '#fffbeb' },
-          { l: 'Masse annuelle',    v: kpi.masseAnn,       isN: true,  color: '#d97706', border: '#fde68a', bg: '#fffbeb' },
-          { l: 'Salaire moyen',     v: kpi.avgSalary,      isN: true,  color: '#7c3aed', border: '#e9d5ff', bg: '#faf5ff' },
-          { l: 'Salaires verses',   v: kpi.salairesPaies,  isN: true,  color: '#15803d', border: '#a7f3d0', bg: '#f0fdf4' },
+          { l: 'Total',           v: kpi.total,         isN: false, color: '#6366f1', border: '#c7d2fe', bg: '#eef2ff' },
+          { l: 'Actifs',          v: kpi.active,        isN: false, color: '#10b981', border: '#a7f3d0', bg: '#ecfdf5' },
+          { l: 'En conge',        v: kpi.onLeave,       isN: false, color: '#3b82f6', border: '#bfdbfe', bg: '#eff6ff' },
+          { l: 'Inactifs',        v: kpi.inactive,      isN: false, color: '#64748b', border: '#e2e8f0', bg: '#f8fafc' },
+          { l: 'Masse /mois',     v: kpi.masse,         isN: true,  color: '#f59e0b', border: '#fde68a', bg: '#fffbeb' },
+          { l: 'Masse annuelle',  v: kpi.masseAnn,      isN: true,  color: '#d97706', border: '#fde68a', bg: '#fffbeb' },
+          { l: 'Salaire moyen',   v: kpi.avgSalary,     isN: true,  color: '#7c3aed', border: '#e9d5ff', bg: '#faf5ff' },
+          { l: 'Salaires verses', v: kpi.salairesPaies, isN: true,  color: '#15803d', border: '#a7f3d0', bg: '#f0fdf4' },
         ].map((k, i) => (
           <div key={i} style={{ background: k.bg, borderRadius: 13, border: `1.5px solid ${k.border}`, padding: '12px 14px' }}>
             <p style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{k.l}</p>
@@ -1132,10 +1192,10 @@ export default function EmployeesPage() {
 
                   <div style={{ display: 'flex', gap: 5, paddingTop: 10, borderTop: '1px solid #f1f5f9' }} onClick={ev => ev.stopPropagation()}>
                     {[
-                      { label: 'Voir',    icon: I.eye,    hBg: '#eef2ff', hCol: '#6366f1', fn: () => setViewE(e) },
-                      { label: 'Salaire', icon: I.salary, hBg: '#f0fdf4', hCol: '#15803d', fn: () => openPaySalary(e) },
-                      { label: 'Prime',   icon: I.adj,    hBg: '#faf5ff', hCol: '#7c3aed', fn: () => openAdjust(e) },
-                      { label: 'Fiche',   icon: I.payslip,hBg: '#fffbeb', hCol: '#d97706', fn: () => handlePaySlip(e, currentMonth()) },
+                      { label: 'Voir',    icon: I.eye,     hBg: '#eef2ff', hCol: '#6366f1', fn: () => setViewE(e) },
+                      { label: 'Salaire', icon: I.salary,  hBg: '#f0fdf4', hCol: '#15803d', fn: () => openPaySalary(e) },
+                      { label: 'Prime',   icon: I.adj,     hBg: '#faf5ff', hCol: '#7c3aed', fn: () => openAdjust(e) },
+                      { label: 'Fiche',   icon: I.payslip, hBg: '#fffbeb', hCol: '#d97706', fn: () => handlePaySlip(e, currentMonth()) },
                     ].map((b, bi) => (
                       <button key={bi} onClick={b.fn}
                         style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '7px 0', borderRadius: 8, border: 'none', background: '#f8fafc', fontSize: 11, fontWeight: 600, color: '#64748b', cursor: 'pointer', transition: 'all 0.15s' }}

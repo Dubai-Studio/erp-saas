@@ -3,11 +3,17 @@ import { createClient } from '@supabase/supabase-js';
 
 // Créer le client DANS chaque fonction, pas au niveau du module
 function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY
+           || process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !key) {
+    throw new Error(`Config manquante: url=${!!url} key=${!!key}`);
+  }
+
+  return createClient(url, key);
 }
+
 
 function calcHours(start: string, end: string, breakMin: number): number {
   if (!start || !end) return 0;

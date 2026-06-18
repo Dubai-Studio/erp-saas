@@ -89,11 +89,11 @@ const ADJ_TYPE_OPTIONS = [
 ];
 
 const ENTRY_TYPES: Record<string, { label: string; color: string; bg: string }> = {
-  normal:   { label: 'Normal',    color: '#1d4ed8', bg: '#eff6ff' },
-  overtime: { label: 'Heures sup',color: '#d97706', bg: '#fffbeb' },
-  weekend:  { label: 'Weekend',   color: '#7c3aed', bg: '#faf5ff' },
-  holiday:  { label: 'Férié',     color: '#dc2626', bg: '#fef2f2' },
-  night:    { label: 'Nuit',      color: '#0891b2', bg: '#ecfeff' },
+  normal:   { label: 'Normal',     color: '#1d4ed8', bg: '#eff6ff' },
+  overtime: { label: 'Heures sup', color: '#d97706', bg: '#fffbeb' },
+  weekend:  { label: 'Weekend',    color: '#7c3aed', bg: '#faf5ff' },
+  holiday:  { label: 'Férié',      color: '#dc2626', bg: '#fef2f2' },
+  night:    { label: 'Nuit',       color: '#0891b2', bg: '#ecfeff' },
 };
 
 const ENTRY_STATUS: Record<string, { label: string; color: string; bg: string }> = {
@@ -118,12 +118,6 @@ const EMPTY_EMP = {
 };
 
 const EMPTY_ADJ  = { type: 'bonus' as PayAdjustment['type'], amount: 0, reason: '', month: '' };
-const EMPTY_TIME = {
-  date: new Date().toISOString().split('T')[0],
-  start_time: '08:00', end_time: '17:00', break_minutes: 60,
-  hours_worked: 0, entry_type: 'normal' as TimeEntry['entry_type'],
-  rate_applied: 0, amount: 0, status: 'draft' as TimeEntry['status'], notes: '', month: currentMonth(),
-};
 
 /* ─────────────────────────────────────────────
    STYLES
@@ -185,9 +179,9 @@ function toArray<T>(raw: unknown): T[] {
   return [];
 }
 
-async function fetchSafe(url: string): Promise<unknown> {
+async function fetchSafe(url: string, options?: RequestInit): Promise<unknown> {
   try {
-    const r = await fetch(url);
+    const r = await fetch(url, options);
     if (!r.ok) return [];
     const text = await r.text();
     if (!text || text.trim() === '') return [];
@@ -338,10 +332,16 @@ function generatePaySlip(data: PaySlipData, company: CompanySettings) {
 ───────────────────────────────────────────── */
 function TimeEntryModal({ open, onClose, onSave, employee, initial }: {
   open: boolean; onClose: () => void;
-  onSave: (d: typeof EMPTY_TIME & { employee_id: string }) => Promise<void>;
+  onSave: (d: Partial<TimeEntry> & { employee_id: string }) => Promise<void>;
   employee: Employee | null; initial?: TimeEntry | null;
 }) {
-  const [form, setForm]     = useState({ ...EMPTY_TIME });
+  const defaultForm = {
+    date: new Date().toISOString().split('T')[0],
+    start_time: '08:00', end_time: '17:00', break_minutes: 60,
+    hours_worked: 0, entry_type: 'normal' as TimeEntry['entry_type'],
+    rate_applied: 0, amount: 0, status: 'draft' as TimeEntry['status'], notes: '', month: currentMonth(),
+  };
+  const [form, setForm]     = useState({ ...defaultForm });
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState('');
 
@@ -356,27 +356,24 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial }: {
           status: initial.status, notes: initial.notes || '', month: initial.month,
         });
       } else {
-        const defaultRate = form.entry_type === 'overtime' ? (employee?.overtime_rate ?? 0)
-          : form.entry_type === 'weekend' ? (employee?.weekend_rate ?? 0)
-          : form.entry_type === 'holiday' ? (employee?.holiday_rate ?? 0)
-          : form.entry_type === 'night'   ? (employee?.night_rate   ?? 0) : 0;
-        setForm({ ...EMPTY_TIME, rate_applied: defaultRate });
+        setForm({ ...defaultForm });
       }
       setError('');
     }
-  }, [open, initial, employee]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initial]);
 
   if (!open || !employee) return null;
 
   const hourlyRate = employee.hourly_rate ?? 0;
 
-  function updateCalc(f: typeof EMPTY_TIME) {
+  function updateCalc(f: typeof defaultForm) {
     const h = calcHours(f.start_time, f.end_time, f.break_minutes);
     const a = calcAmount(h, hourlyRate, f.rate_applied);
     return { ...f, hours_worked: h, amount: a };
   }
 
-  function setField(k: keyof typeof EMPTY_TIME, v: string | number) {
+  function setField(k: keyof typeof defaultForm, v: string | number) {
     setForm(p => updateCalc({ ...p, [k]: v }));
   }
 
@@ -400,9 +397,15 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial }: {
     if (!form.date) { setError('Date obligatoire.'); return; }
     if (form.hours_worked <= 0) { setError('Heures travaillées doivent être > 0.'); return; }
     setSaving(true); setError('');
-    try { await onSave({ ...form, employee_id: employee.id, hourly_rate: hourlyRate } as typeof EMPTY_TIME & { employee_id: string }); }
-    catch (err) { setError(err instanceof Error ? err.message : 'Erreur sauvegarde.'); }
-    finally { setSaving(false); }
+    try {
+      await onSave({
+        ...form,
+        employee_id: employee.id,
+        hourly_rate: hourlyRate,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur sauvegarde.');
+    } finally { setSaving(false); }
   }
 
   const totalPreview = calcAmount(form.hours_worked, hourlyRate, form.rate_applied);
@@ -426,7 +429,6 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial }: {
         <form onSubmit={submit} style={{ padding:22, display:'flex', flexDirection:'column', gap:16 }}>
           {error && <div style={{ padding:'10px 14px', background:'#fef2f2', border:'1.5px solid #fecaca', borderRadius:10, fontSize:13, color:'#dc2626', display:'flex', alignItems:'center', gap:8 }}>{I.alert}{error}</div>}
 
-          {/* Date et mois */}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             <div><label style={lbl}>Date <span style={{ color:'#ef4444' }}>*</span></label>
               <input style={inp} type="date" value={form.date} onChange={e => setField('date', e.target.value)} /></div>
@@ -434,7 +436,6 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial }: {
               <input style={inp} type="month" value={form.month} onChange={e => setForm(p => ({ ...p, month: e.target.value }))} /></div>
           </div>
 
-          {/* Heures */}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
             <div><label style={lbl}>Heure début</label>
               <input style={inp} type="time" value={form.start_time} onChange={e => setField('start_time', e.target.value)} /></div>
@@ -444,7 +445,6 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial }: {
               <input style={inp} type="number" min="0" value={form.break_minutes} onChange={e => setField('break_minutes', +e.target.value)} /></div>
           </div>
 
-          {/* Heures calculées */}
           <div style={{ background:'#f0f9ff', borderRadius:12, padding:'12px 16px', border:'1.5px solid #bae6fd', display:'flex', alignItems:'center', gap:12 }}>
             <span style={{ color:'#0891b2' }}>{I.timer}</span>
             <div style={{ flex:1 }}>
@@ -458,7 +458,6 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial }: {
             </div>
           </div>
 
-          {/* Type de jour */}
           <div>
             <label style={lbl}>Type de journée</label>
             <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
@@ -471,7 +470,6 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial }: {
             </div>
           </div>
 
-          {/* Majoration */}
           <div>
             <label style={lbl}>Majoration (%) — <span style={{ fontWeight:400, textTransform:'none' }}>choisissez un preset ou saisissez librement</span></label>
             <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:10 }}>
@@ -496,15 +494,14 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial }: {
             </div>
           </div>
 
-          {/* Aperçu calcul */}
           {hourlyRate > 0 && form.hours_worked > 0 && (
             <div style={{ background:'#f0fdf4', borderRadius:12, padding:14, border:'1.5px solid #bbf7d0' }}>
               <p style={{ fontSize:11, fontWeight:700, color:'#15803d', textTransform:'uppercase', marginBottom:8, display:'flex', alignItems:'center', gap:6 }}>{I.calculate} Calcul automatique</p>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
                 {[
-                  { l:'Taux horaire',  v:`${fmt(hourlyRate)}/h` },
-                  { l:'Heures',        v:`${form.hours_worked}h` },
-                  { l:'Majoration',    v:form.rate_applied > 0 ? `+${form.rate_applied}%` : 'Aucune' },
+                  { l:'Taux horaire', v:`${fmt(hourlyRate)}/h` },
+                  { l:'Heures',       v:`${form.hours_worked}h` },
+                  { l:'Majoration',   v:form.rate_applied > 0 ? `+${form.rate_applied}%` : 'Aucune' },
                 ].map((k,i) => (
                   <div key={i} style={{ textAlign:'center', padding:'8px 4px', background:'#fff', borderRadius:8, border:'1px solid #bbf7d0' }}>
                     <p style={{ fontSize:9, color:'#94a3b8', marginBottom:2 }}>{k.l}</p>
@@ -519,14 +516,12 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial }: {
             </div>
           )}
 
-          {/* Montant manuel */}
           <div>
             <label style={lbl}>Montant (EUR) — <span style={{ fontWeight:400, textTransform:'none' }}>modifiable manuellement</span></label>
             <input style={{ ...inp, fontWeight:700, fontSize:15 }} type="number" min="0" step="0.01"
               value={form.amount || ''} onChange={e => setForm(p => ({ ...p, amount: +e.target.value }))} placeholder="0.00" />
           </div>
 
-          {/* Statut et notes */}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             <div>
               <label style={lbl}>Statut</label>
@@ -703,7 +698,7 @@ function EmployeeModal({ open, onClose, onSave, initial }: {
             <div style={{ padding:24, display:'flex', flexDirection:'column', gap:16 }}>
               <div style={{ background:'#f0f9ff', borderRadius:12, padding:14, border:'1.5px solid #bae6fd' }}>
                 <p style={{ fontSize:12, fontWeight:700, color:'#0369a1', marginBottom:4, display:'flex', alignItems:'center', gap:6 }}>{I.time} Configuration des taux horaires</p>
-                <p style={{ fontSize:12, color:'#0284c7', lineHeight:1.6 }}>Définissez le taux de base et les majorations. Ces valeurs seront proposées automatiquement lors du pointage. La majoration peut toujours être modifiée manuellement pour chaque entrée.</p>
+                <p style={{ fontSize:12, color:'#0284c7', lineHeight:1.6 }}>Définissez le taux de base et les majorations. Ces valeurs seront proposées automatiquement lors du pointage.</p>
               </div>
               <div>
                 <label style={lbl}>Taux horaire de base (EUR/heure) <span style={{ color:'#ef4444' }}>*</span></label>
@@ -740,10 +735,6 @@ function EmployeeModal({ open, onClose, onSave, initial }: {
                     )}
                   </div>
                 ))}
-              </div>
-              <div style={{ background:'#fffbeb', borderRadius:12, padding:14, border:'1.5px solid #fde68a' }}>
-                <p style={{ fontSize:12, fontWeight:700, color:'#92400e', marginBottom:4 }}>{I.alert} Note</p>
-                <p style={{ fontSize:12, color:'#78350f', lineHeight:1.6 }}>Un taux de 0% signifie aucune majoration. Lors du pointage, vous pouvez toujours ajuster ou saisir un pourcentage libre différent du taux par défaut.</p>
               </div>
             </div>
           )}
@@ -906,7 +897,6 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, onClose, onEdit, o
       <div style={{ position:'absolute', inset:0, background:'rgba(15,23,42,0.35)', backdropFilter:'blur(3px)' }} onClick={onClose} />
       <div style={{ ...card, position:'relative', width:460, height:'100%', borderRadius:'20px 0 0 20px', display:'flex', flexDirection:'column', overflowY:'auto', zIndex:1 }}>
 
-        {/* Header */}
         <div style={{ background:'linear-gradient(135deg,#d97706,#f59e0b)', padding:'20px 20px 0', borderRadius:'20px 0 0 0', flexShrink:0 }}>
           <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:14 }}>
             <div style={{ display:'flex', alignItems:'center', gap:14 }}>
@@ -930,7 +920,6 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, onClose, onEdit, o
             <span style={{ fontSize:11, color:'rgba(255,255,255,0.7)', background:'rgba(255,255,255,0.15)', padding:'3px 10px', borderRadius:20 }}>{employee.department||'—'}</span>
             {isHoraire && <span style={{ fontSize:11, color:'rgba(255,255,255,0.9)', background:'rgba(255,255,255,0.25)', padding:'3px 10px', borderRadius:20, fontWeight:700 }}>Ouvrier horaire</span>}
           </div>
-          {/* Tabs */}
           <div style={{ display:'flex', borderTop:'1px solid rgba(255,255,255,0.2)' }}>
             <button style={DT('info')} onClick={() => setDrawerTab('info')}>Dossier</button>
             <button style={DT('pointage')} onClick={() => setDrawerTab('pointage')}>
@@ -939,10 +928,7 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, onClose, onEdit, o
           </div>
         </div>
 
-        {/* Body */}
         <div style={{ flex:1, overflowY:'auto', padding:18, display:'flex', flexDirection:'column', gap:14 }}>
-
-          {/* Sélecteur de mois commun */}
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
             <span style={{ fontSize:11, color:'#94a3b8', fontWeight:700, whiteSpace:'nowrap' }}>{I.calendar} Mois :</span>
             <input type="month" value={selMonth} onChange={e => setSelMonth(e.target.value)} style={{ ...inp, flex:1 }} />
@@ -950,15 +936,14 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, onClose, onEdit, o
 
           {drawerTab==='info' && (
             <>
-              {/* Rémunération */}
               <div style={{ background:'#fffbeb', borderRadius:14, padding:16, border:'1.5px solid #fde68a' }}>
                 <p style={{ fontSize:11, fontWeight:700, color:'#92400e', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8 }}>Remuneration</p>
                 {isHoraire ? (
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
                     {[
-                      { l:'Taux horaire',   v:fmt(employee.hourly_rate||0),                    c:'#92400e' },
-                      { l:'Heures ce mois', v:`${totalHours}h`,                                c:'#0891b2' },
-                      { l:'Brut calculé',   v:fmt(totalEarned),                                c:'#15803d' },
+                      { l:'Taux horaire',   v:fmt(employee.hourly_rate||0),                     c:'#92400e' },
+                      { l:'Heures ce mois', v:`${totalHours}h`,                                 c:'#0891b2' },
+                      { l:'Brut calculé',   v:fmt(totalEarned),                                 c:'#15803d' },
                       { l:'Déjà payé',      v:fmt(paidEntries.reduce((s,t)=>s+(t.amount||0),0)),c:'#64748b' },
                     ].map((k,i) => (
                       <div key={i} style={{ textAlign:'center', padding:'10px 6px', background:'#fff', borderRadius:10, border:'1px solid #fde68a' }}>
@@ -970,10 +955,10 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, onClose, onEdit, o
                 ) : (
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
                     {[
-                      { l:'Salaire brut',   v:fmt(employee.salary||0),          c:'#92400e' },
-                      { l:'Net estime',     v:fmt((employee.salary||0)*0.75),    c:'#15803d' },
-                      { l:'Annuel brut',    v:fmt((employee.salary||0)*12),      c:'#1d4ed8' },
-                      { l:'Charges patron', v:fmt((employee.salary||0)*0.35),    c:'#dc2626' },
+                      { l:'Salaire brut',   v:fmt(employee.salary||0),       c:'#92400e' },
+                      { l:'Net estime',     v:fmt((employee.salary||0)*0.75), c:'#15803d' },
+                      { l:'Annuel brut',    v:fmt((employee.salary||0)*12),   c:'#1d4ed8' },
+                      { l:'Charges patron', v:fmt((employee.salary||0)*0.35), c:'#dc2626' },
                     ].map((k,i) => (
                       <div key={i} style={{ textAlign:'center', padding:'10px 6px', background:'#fff', borderRadius:10, border:'1px solid #fde68a' }}>
                         <p style={{ fontSize:9, color:'#94a3b8', marginBottom:3, textTransform:'uppercase' }}>{k.l}</p>
@@ -984,7 +969,6 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, onClose, onEdit, o
                 )}
               </div>
 
-              {/* Solde à payer (horaire) */}
               {isHoraire && pendingAmount > 0 && (
                 <div style={{ background:'#fff7ed', borderRadius:14, padding:16, border:'1.5px solid #fed7aa' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
@@ -1000,7 +984,6 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, onClose, onEdit, o
                 </div>
               )}
 
-              {/* Paiement salaire mensuel (salarié) */}
               {!isHoraire && (
                 <div style={{ background:salaireThisMonth?'#f0fdf4':'#fafafa', borderRadius:14, padding:16, border:`1.5px solid ${salaireThisMonth?'#bbf7d0':'#e2e8f0'}` }}>
                   <p style={{ fontSize:11, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:10 }}>Salaire du mois</p>
@@ -1020,20 +1003,17 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, onClose, onEdit, o
                 </div>
               )}
 
-              {/* Fiche de salaire */}
               <div style={{ background:'#f8fafc', borderRadius:14, padding:16, border:'1px solid #f1f5f9' }}>
                 <p style={{ fontSize:11, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:10 }}>Fiche de salaire</p>
-                <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:10 }}>
-                  <button onClick={() => onPaySlip(selMonth)} style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'9px 14px', borderRadius:9, border:'none', background:'linear-gradient(135deg,#d97706,#f59e0b)', color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer' }}>
-                    {I.pdf} Générer PDF — {MONTHS[parseInt(selMonth.split('-')[1])-1]} {selMonth.split('-')[0]}
-                  </button>
-                </div>
+                <button onClick={() => onPaySlip(selMonth)} style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'9px 14px', borderRadius:9, border:'none', background:'linear-gradient(135deg,#d97706,#f59e0b)', color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer' }}>
+                  {I.pdf} Générer PDF — {MONTHS[parseInt(selMonth.split('-')[1])-1]} {selMonth.split('-')[0]}
+                </button>
                 {!isHoraire && (
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6 }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginTop:10 }}>
                     {[
-                      { l:'Brut',        v:fmt(employee.salary||0),                   c:'#0f172a' },
-                      { l:'Ajustements', v:(totalAdj>=0?'+':'')+fmt(totalAdj),        c:totalAdj>=0?'#15803d':'#dc2626' },
-                      { l:'Net a payer', v:fmt(net),                                  c:'#d97706' },
+                      { l:'Brut',        v:fmt(employee.salary||0),            c:'#0f172a' },
+                      { l:'Ajustements', v:(totalAdj>=0?'+':'')+fmt(totalAdj), c:totalAdj>=0?'#15803d':'#dc2626' },
+                      { l:'Net a payer', v:fmt(net),                           c:'#d97706' },
                     ].map((k,i) => (
                       <div key={i} style={{ textAlign:'center', padding:'8px 4px', background:'#fff', borderRadius:9, border:'1px solid #e2e8f0' }}>
                         <p style={{ fontSize:9, color:'#94a3b8', marginBottom:2 }}>{k.l}</p>
@@ -1044,7 +1024,6 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, onClose, onEdit, o
                 )}
               </div>
 
-              {/* Ajustements */}
               {myAdj.length > 0 && (
                 <div style={{ background:'#f8fafc', borderRadius:14, padding:16, border:'1px solid #f1f5f9' }}>
                   <p style={{ fontSize:11, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:10 }}>
@@ -1066,7 +1045,6 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, onClose, onEdit, o
                 </div>
               )}
 
-              {/* Informations */}
               <div style={{ background:'#f8fafc', borderRadius:14, padding:16, border:'1px solid #f1f5f9' }}>
                 <p style={{ fontSize:11, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:10 }}>Informations</p>
                 {[
@@ -1090,14 +1068,13 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, onClose, onEdit, o
 
           {drawerTab==='pointage' && (
             <>
-              {/* Résumé pointage du mois */}
               <div style={{ background:'linear-gradient(135deg,#0891b2,#06b6d4)', borderRadius:14, padding:16 }}>
                 <p style={{ fontSize:11, fontWeight:700, color:'rgba(255,255,255,0.8)', textTransform:'uppercase', marginBottom:10 }}>Résumé — {MONTHS[parseInt(selMonth.split('-')[1])-1]} {selMonth.split('-')[0]}</p>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
                   {[
-                    { l:'Total heures',  v:`${totalHours}h`,      c:'#fff' },
-                    { l:'Brut calculé',  v:fmt(totalEarned),       c:'#fff' },
-                    { l:'Reste à payer', v:fmt(pendingAmount),     c:pendingAmount>0?'#fde68a':'#fff' },
+                    { l:'Total heures',  v:`${totalHours}h`,  c:'#fff' },
+                    { l:'Brut calculé',  v:fmt(totalEarned),  c:'#fff' },
+                    { l:'Reste à payer', v:fmt(pendingAmount),c:pendingAmount>0?'#fde68a':'#fff' },
                   ].map((k,i) => (
                     <div key={i} style={{ textAlign:'center', padding:'10px 4px', background:'rgba(255,255,255,0.15)', borderRadius:10 }}>
                       <p style={{ fontSize:9, color:'rgba(255,255,255,0.7)', marginBottom:3 }}>{k.l}</p>
@@ -1105,19 +1082,12 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, onClose, onEdit, o
                     </div>
                   ))}
                 </div>
-                {!isHoraire && !employee.hourly_rate && (
-                  <div style={{ marginTop:10, padding:'8px 12px', background:'rgba(255,255,255,0.15)', borderRadius:8 }}>
-                    <p style={{ fontSize:11, color:'rgba(255,255,255,0.9)', display:'flex', alignItems:'center', gap:6 }}>{I.alert} Aucun taux horaire défini — configurez-le dans le dossier employé</p>
-                  </div>
-                )}
               </div>
 
-              {/* Bouton ajouter */}
               <button onClick={onAddTime} style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:8, padding:'11px 0', borderRadius:10, border:'none', background:'linear-gradient(135deg,#0891b2,#06b6d4)', color:'#fff', fontSize:13, fontWeight:700, cursor:'pointer' }}>
                 {I.plus} Ajouter un pointage
               </button>
 
-              {/* Liste des entrées */}
               {myEntries.length === 0 ? (
                 <div style={{ textAlign:'center', padding:'40px 20px', background:'#f8fafc', borderRadius:14, border:'1px solid #f1f5f9' }}>
                   <div style={{ color:'#94a3b8', marginBottom:8 }}>{I.time}</div>
@@ -1164,7 +1134,6 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, onClose, onEdit, o
           )}
         </div>
 
-        {/* Footer */}
         <div style={{ padding:'12px 16px', borderTop:'1px solid #f1f5f9', display:'flex', flexDirection:'column', gap:8, flexShrink:0 }}>
           <button onClick={onAdjust} style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:7, padding:'10px 0', borderRadius:10, border:'none', background:'linear-gradient(135deg,#4f46e5,#7c3aed)', color:'#fff', fontSize:13, fontWeight:700, cursor:'pointer' }}>
             {I.adj} Avance / Prime / Retenue
@@ -1187,6 +1156,7 @@ export default function EmployeesPage() {
   const [adjustments,    setAdjustments]    = useState<PayAdjustment[]>([]);
   const [timeEntries,    setTimeEntries]    = useState<TimeEntry[]>([]);
   const [company,        setCompany]        = useState<CompanySettings|null>(null);
+  const [userId,         setUserId]         = useState<string|null>(null);
   const [loading,        setLoading]        = useState(true);
   const [view,           setView]           = useState<'list'|'grid'>('grid');
   const [search,         setSearch]         = useState('');
@@ -1205,19 +1175,36 @@ export default function EmployeesPage() {
   const [editTime,       setEditTime]       = useState<TimeEntry|null>(null);
   const [deleteId,       setDeleteId]       = useState<string|null>(null);
 
-  const load = useCallback(async () => {
+  /* ── Récupère userId une seule fois ── */
+  useEffect(() => {
+    (async () => {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      const { data: { session } } = await supabase.auth.getSession();
+      setUserId(session?.user?.id ?? null);
+    })();
+  }, []);
+
+  /* ── Charge les données avec userId ── */
+  const load = useCallback(async (uid?: string | null) => {
+    const currentUid = uid !== undefined ? uid : userId;
     setLoading(true);
     try {
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
-      const { data: { session } } = await supabase.auth.getSession();
-      const userId = session?.user?.id ?? null;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (currentUid) headers['x-user-id'] = currentUid;
+
       const [empRaw, adjRaw, timeRaw, companyRaw] = await Promise.all([
-        fetchSafe('/api/employees'),
-        fetchSafe('/api/pay-adjustments'),
-        fetchSafe('/api/time-entries'),
-        userId ? fetch('/api/settings', { headers:{ 'x-user-id': userId } }).then(r=>r.ok?r.json():null).catch(()=>null) : Promise.resolve(null),
+        fetchSafe('/api/employees', { headers }),
+        fetchSafe('/api/pay-adjustments', { headers }),
+        fetchSafe('/api/time-entries', { headers }),
+        currentUid
+          ? fetch('/api/settings', { headers }).then(r => r.ok ? r.json() : null).catch(() => null)
+          : Promise.resolve(null),
       ]);
+
       setEmployees(toArray<Employee>(empRaw));
       setAdjustments(toArray<PayAdjustment>(adjRaw));
       setTimeEntries(toArray<TimeEntry>(timeRaw));
@@ -1226,9 +1213,12 @@ export default function EmployeesPage() {
       console.error('HR load error:', e);
       setEmployees([]); setAdjustments([]); setTimeEntries([]);
     } finally { setLoading(false); }
-  }, []);
+  }, [userId]);
 
-  useEffect(() => { load(); }, [load]);
+  /* ── Déclenche le chargement quand userId est prêt ── */
+  useEffect(() => {
+    if (userId !== null) load(userId);
+  }, [userId, load]);
 
   const filtered = (Array.isArray(employees)?employees:[])
     .filter(e => {
@@ -1261,6 +1251,13 @@ export default function EmployeesPage() {
 
   const hasFilters = !!(search||statusF!=='all'||deptF!=='all'||contractF!=='all');
 
+  /* ── Helpers avec userId dans les headers ── */
+  function authHeaders() {
+    const h: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (userId) h['x-user-id'] = userId;
+    return h;
+  }
+
   async function saveEmployee(form: typeof EMPTY_EMP) {
     const url    = editE?`/api/employees/${editE.id}`:'/api/employees';
     const method = editE?'PATCH':'POST';
@@ -1279,32 +1276,43 @@ export default function EmployeesPage() {
       weekend_rate:Number(form.weekend_rate)||0, holiday_rate:Number(form.holiday_rate)||0,
       night_rate:Number(form.night_rate)||0,
     };
-    const res = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+    const res = await fetch(url, { method, headers: authHeaders(), body:JSON.stringify(payload) });
     if (!res.ok) { let msg=`Erreur ${res.status}`; try { const j=await res.json(); msg=j?.error??msg; } catch {} throw new Error(msg); }
     setEmpModal(false); setEditE(null); load();
   }
 
   async function saveAdjustment(form: typeof EMPTY_ADJ & { employee_id: string }) {
-    const res = await fetch('/api/pay-adjustments', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(form) });
+    const res = await fetch('/api/pay-adjustments', { method:'POST', headers: authHeaders(), body:JSON.stringify(form) });
     if (!res.ok) { let msg=`Erreur ${res.status}`; try { const j=await res.json(); msg=j?.error??msg; } catch {} throw new Error(msg); }
     setAdjModal(false); setAdjTarget(null); load();
   }
 
-  async function saveTimeEntry(form: typeof EMPTY_TIME & { employee_id: string }) {
-    const url    = editTime?`/api/time-entries?id=${editTime.id}`:'/api/time-entries';
-    const method = editTime?'PATCH':'POST';
-    const res = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(form) });
-    if (!res.ok) { let msg=`Erreur ${res.status}`; try { const j=await res.json(); msg=j?.error??msg; } catch {} throw new Error(msg); }
+  async function saveTimeEntry(form: Partial<TimeEntry> & { employee_id: string }) {
+    const url    = editTime ? `/api/time-entries?id=${editTime.id}` : '/api/time-entries';
+    const method = editTime ? 'PATCH' : 'POST';
+    const res = await fetch(url, {
+      method,
+      headers: authHeaders(),  // ← x-user-id inclus ici
+      body: JSON.stringify(form),
+    });
+    if (!res.ok) {
+      let msg = `Erreur ${res.status}`;
+      try { const j = await res.json(); msg = j?.error ?? msg; } catch {}
+      throw new Error(msg);
+    }
     setTimeModal(false); setTimeTarget(null); setEditTime(null); load();
   }
 
   async function deleteTimeEntry(id: string) {
-    await fetch(`/api/time-entries?id=${id}`, { method:'DELETE' });
+    await fetch(`/api/time-entries?id=${id}`, {
+      method: 'DELETE',
+      headers: authHeaders(),  // ← x-user-id inclus ici
+    });
     load();
   }
 
   async function del(id: string) {
-    await fetch(`/api/employees/${id}`, { method:'DELETE' });
+    await fetch(`/api/employees/${id}`, { method:'DELETE', headers: authHeaders() });
     setDeleteId(null); setViewE(null); load();
   }
 
@@ -1366,7 +1374,7 @@ export default function EmployeesPage() {
         </div>
         <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
           <button onClick={exportCSV} style={{ display:'flex', alignItems:'center', gap:7, padding:'9px 14px', borderRadius:10, border:'1.5px solid #e2e8f0', background:'#fff', fontSize:13, fontWeight:600, color:'#64748b', cursor:'pointer' }}>{I.export} Export CSV</button>
-          <button onClick={load} style={{ display:'flex', alignItems:'center', gap:7, padding:'9px 12px', borderRadius:10, border:'1.5px solid #e2e8f0', background:'#fff', fontSize:13, color:'#64748b', cursor:'pointer' }}>{I.refresh}</button>
+          <button onClick={() => load()} style={{ display:'flex', alignItems:'center', gap:7, padding:'9px 12px', borderRadius:10, border:'1.5px solid #e2e8f0', background:'#fff', fontSize:13, color:'#64748b', cursor:'pointer' }}>{I.refresh}</button>
           <button onClick={() => { setEditE(null); setEmpModal(true); }} style={{ display:'flex', alignItems:'center', gap:7, padding:'9px 18px', borderRadius:10, border:'none', background:'linear-gradient(135deg,#d97706,#f59e0b)', fontSize:13, fontWeight:700, color:'#fff', cursor:'pointer', boxShadow:'0 4px 14px rgba(245,158,11,0.35)' }}>
             {I.plus} Nouvel employe
           </button>
@@ -1388,7 +1396,7 @@ export default function EmployeesPage() {
           <div key={i} style={{ background:k.bg, borderRadius:13, border:`1.5px solid ${k.border}`, padding:'12px 14px' }}>
             <p style={{ fontSize:10, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:4 }}>{k.l}</p>
             <p style={{ fontSize:k.isN?13:20, fontWeight:800, color:k.color }}>
-              {k.isN ? fmt(k.v as number) : k.unit ? `${k.v}${k.unit}` : k.v}
+              {k.isN ? fmt(k.v as number) : (k as {unit?: string}).unit ? `${k.v}${(k as {unit?: string}).unit}` : k.v}
             </p>
           </div>
         ))}

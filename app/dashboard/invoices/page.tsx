@@ -6,6 +6,7 @@ import React from 'react'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { createBrowserClient } from '@supabase/ssr'
+import { ocrInvoice, OcrResult, OcrProgress } from '@/lib/ocr'
 
 // â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 interface Client {
@@ -673,6 +674,78 @@ function OutgoingModal({ open, onClose, onSave, initial, clients, projects }:{
 }
 
 // â”€â”€â”€ MODAL : Import facture fournisseur â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function OcrSummary({ result, extracted }:{
+  result: OcrResult
+  extracted: {
+    supplier_name: boolean
+    issue_date:    boolean
+    due_date:      boolean
+    amount_ht:     boolean
+    vat_amount:    boolean
+    total_amount:  boolean
+    iban:          boolean
+  }
+}) {
+  const conf = Math.round(result.confidence || 0)
+  const confColor = conf >= 80 ? '#15803d' : conf >= 60 ? '#a16207' : '#b91c1c'
+  const confBg    = conf >= 80 ? '#f0fdf4' : conf >= 60 ? '#fef9c3' : '#fef2f2'
+  const confBorder= conf >= 80 ? '#bbf7d0' : conf >= 60 ? '#fde68a' : '#fecaca'
+  const fmtMoney = (n?: number) => n == null ? '—' :
+    new Intl.NumberFormat('fr-BE',{style:'currency',currency:'EUR'}).format(n)
+  const rows: Array<{ l: string; v: string; ok: boolean }> = [
+    { l: 'Fournisseur', v: result.supplier_name || '—', ok: extracted.supplier_name },
+    { l: 'Date facture',v: result.issue_date    || '—', ok: extracted.issue_date },
+    { l: 'Échéance',    v: result.due_date      || '—', ok: extracted.due_date },
+    { l: 'Montant HT',  v: fmtMoney(result.amount_ht),   ok: extracted.amount_ht },
+    { l: 'TVA',         v: fmtMoney(result.vat_amount),  ok: extracted.vat_amount },
+    { l: 'Total TTC',   v: fmtMoney(result.total_amount),ok: extracted.total_amount },
+    { l: 'IBAN',        v: result.iban ? `${result.iban.slice(0,4)}…${result.iban.slice(-4)}` : '—', ok: extracted.iban },
+  ]
+  return (
+    <div style={{
+      background:'#faf5ff', border:`1.5px solid #ddd6fe`, borderRadius:12,
+      padding:'12px 14px',
+    }}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <span style={{fontSize:13,fontWeight:700,color:C.purple}}>✨ Résultat OCR</span>
+          {result.lowConfidence && (
+            <span style={{fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:20,background:'#fef3c7',color:'#92400e',border:'1px solid #fde68a'}}>
+              Confiance faible
+            </span>
+          )}
+        </div>
+        <span style={{
+          fontSize:10,fontWeight:700,padding:'3px 9px',borderRadius:20,
+          color:confColor, background:confBg, border:`1px solid ${confBorder}`,
+        }}>
+          Confiance {conf}%
+        </span>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6px 14px'}}>
+        {rows.map(r => (
+          <div key={r.l} style={{display:'flex',alignItems:'center',gap:6,fontSize:12}}>
+            <span style={{
+              width:14,height:14,borderRadius:'50%',
+              background:r.ok ? '#10b981' : '#cbd5e1',
+              color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,
+            }}>
+              {r.ok ? '✓' : '·'}
+            </span>
+            <span style={{color:C.slate,fontWeight:600}}>{r.l} :</span>
+            <span style={{color:C.text,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+              {r.v}
+            </span>
+          </div>
+        ))}
+      </div>
+      <p style={{fontSize:10,color:C.slate,marginTop:8,lineHeight:1.45}}>
+        Vérifiez chaque champ ci-dessous avant d'enregistrer — l'OCR peut se tromper, surtout sur des scans de mauvaise qualité.
+      </p>
+    </div>
+  )
+}
+
 function ImportModal({ open, onClose, onSave, clients, projects }:{
   open:boolean; onClose:()=>void
   onSave:(d:Omit<ExternalInvoice,'id'|'created_at'>)=>Promise<void>
@@ -696,12 +769,22 @@ function ImportModal({ open, onClose, onSave, clients, projects }:{
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
   const [file,   setFile]   = useState<File|null>(null)
+  const [ocrStatus, setOcrStatus] = useState<'idle'|'scanning'|'done'|'error'>('idle')
+  const [ocrProgress, setOcrProgress] = useState(0)
+  const [ocrProgressLabel, setOcrProgressLabel] = useState('')
+  const [ocrResult, setOcrResult] = useState<OcrResult|null>(null)
+  const [ocrError, setOcrError] = useState('')
 
   useEffect(() => {
     if (open) {
       setForm(getEmptyForm())
       setError('')
       setFile(null)
+      setOcrStatus('idle')
+      setOcrProgress(0)
+      setOcrProgressLabel('')
+      setOcrResult(null)
+      setOcrError('')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
@@ -719,9 +802,72 @@ function ImportModal({ open, onClose, onSave, clients, projects }:{
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const fl = e.target.files?.[0]
-    if (fl) { setFile(fl); setForm(p => ({ ...p, file_name: fl.name })) }
+    if (fl) {
+      setFile(fl)
+      setForm(p => ({ ...p, file_name: fl.name }))
+      // Reset OCR state if user re-uploads
+      setOcrStatus('idle')
+      setOcrProgress(0)
+      setOcrProgressLabel('')
+      setOcrResult(null)
+      setOcrError('')
+    }
     // Reset input so same file can be re-selected
     e.target.value = ''
+  }
+
+  async function runOcr() {
+    if (!file || ocrStatus === 'scanning') return
+    setOcrStatus('scanning')
+    setOcrProgress(0)
+    setOcrProgressLabel('Initialisation…')
+    setOcrError('')
+    setOcrResult(null)
+    try {
+      const onProgress = (p: OcrProgress) => {
+        setOcrProgress(p.progress)
+        setOcrProgressLabel(p.status || 'Analyse…')
+      }
+      const result = await ocrInvoice(file, onProgress)
+      setOcrResult(result)
+      setOcrStatus('done')
+      setOcrProgress(1)
+      setOcrProgressLabel('Terminé')
+
+      // Pre-fill the form with extracted values (only fields the OCR found).
+      setForm(prev => {
+        const next = { ...prev }
+        if (result.supplier_name && !prev.supplier_name) {
+          next.supplier_name = result.supplier_name
+        }
+        if (result.issue_date)     next.issue_date   = result.issue_date
+        if (result.due_date)       next.due_date     = result.due_date
+        if (result.amount_ht  != null) next.amount_ht    = result.amount_ht
+        if (result.vat_amount != null) next.vat_amount   = result.vat_amount
+        if (result.total_amount != null) next.total_amount = result.total_amount
+        return next
+      })
+
+      // If we found an IBAN, surface it in the notes so the user can copy
+      // it. We don't auto-create a supplier record here to avoid silent side
+      // effects — the user stays in control.
+      if (result.iban) {
+        setForm(prev => ({
+          ...prev,
+          notes: prev.notes
+            ? `${prev.notes}\nIBAN détecté : ${result.iban}`
+            : `IBAN détecté : ${result.iban}`,
+        }))
+      }
+    } catch (err) {
+      console.error('OCR error:', err)
+      setOcrStatus('error')
+      setOcrError(
+        err instanceof Error
+          ? err.message
+          : 'Impossible de lire le document. Vérifiez qu\'il s\'agit d\'un PDF ou d\'une image.',
+      )
+    }
   }
 
   async function submit(e: React.FormEvent) {
@@ -843,6 +989,64 @@ function ImportModal({ open, onClose, onSave, clients, projects }:{
               </>
             )}
           </div>
+
+          {/* Bouton OCR + bannière résultat */}
+          {file && (
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              <button
+                type="button"
+                onClick={runOcr}
+                disabled={ocrStatus === 'scanning'}
+                style={{
+                  display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+                  padding:'10px 14px', borderRadius:10,
+                  border:`1.5px solid ${C.purple}`,
+                  background: ocrStatus === 'scanning' ? '#f5f3ff' : '#fff',
+                  color: ocrStatus === 'scanning' ? C.purple : '#fff',
+                  fontSize:13, fontWeight:700, cursor: ocrStatus === 'scanning' ? 'wait' : 'pointer',
+                  backgroundImage: ocrStatus === 'scanning' ? 'none' : `linear-gradient(135deg,${C.purple},#a855f7)`,
+                  transition:'all 0.15s',
+                }}
+                title="Extraire automatiquement les champs depuis le document (Tesseract.js, navigateur)"
+              >
+                {ocrStatus === 'scanning' ? (
+                  <>
+                    <div style={{width:14,height:14,border:`2px solid ${C.purple}`,borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/>
+                    Analyse OCR en cours… {Math.round(ocrProgress * 100)}%
+                  </>
+                ) : (
+                  <>📷 Scanner la facture (OCR automatique)</>
+                )}
+              </button>
+
+              {ocrStatus === 'scanning' && ocrProgressLabel && (
+                <p style={{fontSize:11,color:C.slate,marginTop:-2,paddingLeft:4}}>
+                  {ocrProgressLabel}
+                </p>
+              )}
+
+              {ocrStatus === 'error' && ocrError && (
+                <div style={{padding:'10px 12px',background:'#fef2f2',border:`1.5px solid #fecaca`,borderRadius:10,fontSize:12,color:'#dc2626',display:'flex',alignItems:'flex-start',gap:8}}>
+                  {Ic.warn}<span>{ocrError}</span>
+                </div>
+              )}
+
+              {ocrStatus === 'done' && ocrResult && (
+                <OcrSummary
+                  result={ocrResult}
+                  extracted={{
+                    supplier_name: !!form.supplier_name && form.supplier_name === ocrResult.supplier_name,
+                    issue_date:    form.issue_date   === ocrResult.issue_date,
+                    due_date:      form.due_date     === ocrResult.due_date,
+                    amount_ht:     form.amount_ht    === ocrResult.amount_ht,
+                    vat_amount:    form.vat_amount   === ocrResult.vat_amount,
+                    total_amount:  form.total_amount === ocrResult.total_amount,
+                    iban:          !!ocrResult.iban,
+                  }}
+                />
+              )}
+            </div>
+          )}
 
           {/* Fournisseur */}
           <div>

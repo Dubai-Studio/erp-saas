@@ -801,7 +801,8 @@ export default function StockPage() {
   useEffect(() => { load() }, [load])
 
   const saveItem = async (data: Partial<StockItem>) => {
-    const method = data.id ? 'PUT' : 'POST'
+    // /api/stock/[id] n'exporte que PATCH (pas PUT) — utiliser PATCH pour la mise à jour
+    const method = data.id ? 'PATCH' : 'POST'
     const url    = data.id ? `/api/stock/${data.id}` : '/api/stock'
     const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
     if (!res.ok) throw new Error('Erreur sauvegarde')

@@ -1,5 +1,5 @@
 import { withAuth, ok, created, badRequest, conflict } from '@/lib/api-helpers'
-import { PayAdjustmentCreate } from '@/lib/schemas'
+import { PayAdjustmentCreate, PayAdjustmentUpdate } from '@/lib/schemas'
 import { currentMonth } from '@/lib/calculations'
 
 export const GET = withAuth(async ({ req, supabase }) => {
@@ -48,14 +48,22 @@ export const POST = withAuth(async ({ supabase, body }) => {
   return created(data)
 }, PayAdjustmentCreate)
 
-export const PATCH = withAuth(async ({ supabase, body }) => {
-  const { id, ...fields } = body as any
-  if (!id) return badRequest('id requis')
-  if ('project_id' in fields && !fields.project_id) fields.project_id = null
-  const { data, error } = await supabase.from('pay_adjustments').update(fields).eq('id', id).select().single()
+export const PATCH = withAuth(async ({ supabase, body, req }) => {
+  // Whitelist explicite via Zod — anti mass-assignment
+  // user_id n'est JAMAIS accepté : il vient du trigger RLS via auth.uid()
+  const updates = PayAdjustmentUpdate.parse(body)
+  if (Object.keys(updates).length === 0) return badRequest('Aucun champ à modifier')
+
+  // id est dans la query string (?id=...) — collection route, pas de segment [id]
+  const id = new URL(req.url).searchParams.get('id')
+  if (!id) return badRequest('id requis (?id=...)')
+
+  if ('project_id' in updates && !updates.project_id) updates.project_id = null
+
+  const { data, error } = await supabase.from('pay_adjustments').update(updates).eq('id', id).select().single()
   if (error) return badRequest(error.message)
   return ok(data)
-})
+}, PayAdjustmentUpdate)
 
 export const DELETE = withAuth(async ({ req, supabase }) => {
   const id = new URL(req.url).searchParams.get('id')

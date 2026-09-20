@@ -1,7 +1,6 @@
-import { withAuth, ok, created, badRequest } from '@/lib/api-helpers'
-import { TimeEntryCreate } from '@/lib/schemas'
+import { withAuth, ok, created, badRequest, notFound } from '@/lib/api-helpers'
+import { TimeEntryCreate, TimeEntryUpdate } from '@/lib/schemas'
 import { calcAmount, calcHoursWorked, monthFromDate } from '@/lib/calculations'
-import { z } from 'zod'
 
 export const GET = withAuth(async ({ req, supabase }) => {
   const { searchParams } = new URL(req.url)
@@ -35,19 +34,28 @@ export const POST = withAuth(async ({ supabase, body }) => {
   return created(data)
 }, TimeEntryCreate)
 
-export const PATCH = withAuth(async ({ supabase, body }) => {
-  const parsed = z.object({ id: z.string().uuid() }).passthrough().parse(body) as any
-  const { id, ...fields } = parsed
-  if (fields.start_time && fields.end_time && fields.hours_worked === undefined) {
-    fields.hours_worked = calcHoursWorked(fields.start_time, fields.end_time, fields.break_minutes ?? 0)
+export const PATCH = withAuth(async ({ supabase, body, req }) => {
+  // Whitelist explicite via Zod — anti mass-assignment (drop .passthrough())
+  // user_id n'est JAMAIS accepté : il vient du trigger RLS via auth.uid()
+  const updates = TimeEntryUpdate.parse(body)
+  if (Object.keys(updates).length === 0) return badRequest('Aucun champ à modifier')
+
+  // id est dans la query string (?id=...) — collection route, pas de segment [id]
+  const id = new URL(req.url).searchParams.get('id')
+  if (!id) return badRequest('id requis (?id=...)')
+
+  if (updates.start_time && updates.end_time && updates.hours_worked === undefined) {
+    updates.hours_worked = calcHoursWorked(updates.start_time, updates.end_time, updates.break_minutes ?? 0)
   }
-  if (fields.hours_worked !== undefined && fields.hourly_rate !== undefined && fields.amount === undefined) {
-    fields.amount = calcAmount(fields.hours_worked, fields.hourly_rate, fields.rate_applied ?? 0)
+  if (updates.hours_worked != null && updates.hourly_rate !== undefined && updates.amount === undefined) {
+    updates.amount = calcAmount(updates.hours_worked, updates.hourly_rate, updates.rate_applied ?? 0)
   }
-  const { data, error } = await supabase.from('time_entries').update(fields).eq('id', id).select().single()
+
+  const { data, error } = await supabase.from('time_entries').update(updates).eq('id', id).select().single()
   if (error) return badRequest(error.message)
+  if (!data) return notFound('Entrée de temps introuvable')
   return ok(data)
-})
+}, TimeEntryUpdate)
 
 export const DELETE = withAuth(async ({ req, supabase }) => {
   const id = new URL(req.url).searchParams.get('id')

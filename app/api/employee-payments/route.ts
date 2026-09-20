@@ -1,5 +1,5 @@
 ﻿import { withAuth, ok, created, badRequest } from '@/lib/api-helpers'
-import { EmployeePaymentCreate } from '@/lib/schemas'
+import { EmployeePaymentCreate, EmployeePaymentUpdate } from '@/lib/schemas'
 
 export const GET = withAuth(async ({ req, supabase }) => {
   const { searchParams } = new URL(req.url)
@@ -25,13 +25,20 @@ export const POST = withAuth(async ({ supabase, body }) => {
   return created(data)
 }, EmployeePaymentCreate)
 
-export const PATCH = withAuth(async ({ supabase, body }) => {
-  const { id, ...fields } = body as any
-  if (!id) return badRequest('id requis')
-  const { data, error } = await supabase.from('employee_payments').update(fields).eq('id', id).select().single()
+export const PATCH = withAuth(async ({ supabase, body, req }) => {
+  // Whitelist explicite via Zod — anti mass-assignment
+  // user_id n'est JAMAIS accepté : il vient du trigger RLS via auth.uid()
+  const updates = EmployeePaymentUpdate.parse(body)
+  if (Object.keys(updates).length === 0) return badRequest('Aucun champ à modifier')
+
+  // id est dans la query string (?id=...) — collection route, pas de segment [id]
+  const id = new URL(req.url).searchParams.get('id')
+  if (!id) return badRequest('id requis (?id=...)')
+
+  const { data, error } = await supabase.from('employee_payments').update(updates).eq('id', id).select().single()
   if (error) return badRequest(error.message)
   return ok(data)
-})
+}, EmployeePaymentUpdate)
 
 export const DELETE = withAuth(async ({ req, supabase }) => {
   const id = new URL(req.url).searchParams.get('id')

@@ -96,10 +96,30 @@ export const GET = withAuth(async ({ req, supabase }) => {
   const netMargin  = round2(totalRevenue - totalDepenses)
   const marginPct  = totalRevenue > 0 ? round2((netMargin / totalRevenue) * 100) : 0
 
-  // ── Cashflow ──────────────────────────────────────────────────────────────────────────────
+  // ── Cashflow + Runway ────────────────────────────────────────────────────────
+  // cashOnHand  = total des factures payées - total des dépenses payées (toutes périodes)
+  // monthlyBurn = moyenne des dépenses des 3 derniers mois
+  // runway      = cashOnHand / monthlyBurn, en mois
   const cashIn  = totalRevenue
   const cashOut = totalDepenses
-  const cashRunway = cashOut > 0 ? round2(cashIn / (cashOut / 12)) : 0
+  const cashOnHand = totalRevenue - totalDepenses
+
+  const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1).toISOString().slice(0, 10)
+  const last3Months = sumBy([
+    ...externalInvoices.filter((e: any) => (e.issue_date || '') >= threeMonthsAgo),
+    ...fleetExp.filter((e: any) => (e.date || '') >= threeMonthsAgo),
+    ...expenses.filter((e: any) => (e.month || e.date || '') >= threeMonthsAgo),
+    ...payAdj.filter((a: any) => (a.month || a.date || '') >= threeMonthsAgo),
+  ], (x: any) => Number(x.total_amount ?? x.amount ?? 0))
+  const monthlyBurn = last3Months / 3
+
+  // Runway en mois : cashOnHand / monthlyBurn.
+  // - Si pas de cash positif → 0 mois
+  // - Si pas de dépenses (burn=0) → 999+ (illimité)
+  let cashRunway: number
+  if (cashOnHand <= 0)        cashRunway = 0
+  else if (monthlyBurn <= 0)  cashRunway = 999
+  else                        cashRunway = round2(cashOnHand / monthlyBurn)
 
   // ── Clients ────────────────────────────────────────────────────────────────────────────────
   const activeClients = clients.filter((c: any) => c.status === 'active').length

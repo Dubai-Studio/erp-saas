@@ -554,7 +554,8 @@ export default function ProjectsPage() {
     const uid = await getUserId()
     const headers = { 'Content-Type': 'application/json' }
     if(editP) {
-      await fetch('/api/projects', { method:'PATCH', headers, body: JSON.stringify({ id: editP.id, ...form }) })
+      // PATCH doit cibler /api/projects/[id] — le handler [id] est la seule route qui exporte PATCH
+      await fetch(`/api/projects/${editP.id}`, { method:'PATCH', headers, body: JSON.stringify(form) })
     } else {
       await fetch('/api/projects', { method:'POST', headers, body: JSON.stringify(form) })
     }
@@ -563,21 +564,22 @@ export default function ProjectsPage() {
 
   async function del(id: string) {
     const uid = await getUserId()
-    await fetch(`/api/projects?id=${id}`, { method:'DELETE', credentials: 'include' })
+    // DELETE doit cibler /api/projects/[id] — la collection route n'exporte que GET et POST
+    await fetch(`/api/projects/${id}`, { method:'DELETE', credentials: 'include' })
     setDeleteId(null); load()
   }
 
   async function changeStatus(id: string, status: Project['status']) {
     const uid = await getUserId()
-    await fetch('/api/projects', { method:'PATCH', headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', body: JSON.stringify({ id, status }) })
+    await fetch(`/api/projects/${id}`, { method:'PATCH', headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', body: JSON.stringify({ status }) })
     load()
   }
 
   async function changeProgress(id: string, progress: number) {
     const uid = await getUserId()
-    await fetch('/api/projects', { method:'PATCH', headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', body: JSON.stringify({ id, progress }) })
+    await fetch(`/api/projects/${id}`, { method:'PATCH', headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', body: JSON.stringify({ progress }) })
     setViewP(v=>v?{...v,progress}:v)
     load()
   }

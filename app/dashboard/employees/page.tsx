@@ -12,7 +12,7 @@ import autoTable from 'jspdf-autotable';
 interface Employee {
   id: string; first_name: string; last_name: string; email: string; phone: string;
   position: string; department: string; salary: number; hire_date: string;
-  status: 'active' | 'inactive' | 'on_leave'; contract_type: string; created_at: string;
+  status: 'active' | 'inactive' | 'leave'; contract_type: string; created_at: string;
   payment_method?: string; payment_day?: number; payment_frequency?: string;
   iban?: string; national_id?: string; address?: string; emergency_contact?: string;
   worker_type?: 'salarie' | 'horaire';
@@ -70,7 +70,7 @@ interface CompanySettings {
 const STATUS: Record<string, { label: string; color: string; bg: string; border: string; dot: string }> = {
   active:   { label: 'Actif',    color: '#15803d', bg: '#f0fdf4', border: '#bbf7d0', dot: '#22c55e' },
   inactive: { label: 'Inactif',  color: '#64748b', bg: '#f8fafc', border: '#e2e8f0', dot: '#94a3b8' },
-  on_leave: { label: 'En congé', color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe', dot: '#3b82f6' },
+  leave:    { label: 'En congé', color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe', dot: '#3b82f6' },
 };
 
 const ADJ_TYPES: Record<string, { label: string; color: string; bg: string; sign: 1 | -1 }> = {
@@ -1353,7 +1353,7 @@ export default function EmployeesPage() {
   const kpi = {
     total:    employees.length,
     active:   activeEmps.length,
-    onLeave:  (Array.isArray(employees)?employees:[]).filter(e=>e.status==='on_leave').length,
+    onLeave:  (Array.isArray(employees)?employees:[]).filter(e=>e.status==='leave').length,
     inactive: (Array.isArray(employees)?employees:[]).filter(e=>e.status==='inactive').length,
     masse:    activeEmps.reduce((s,e)=>s+(e.salary||0),0),
     masseAnn: activeEmps.reduce((s,e)=>s+(e.salary||0),0)*12,
@@ -1671,7 +1671,7 @@ export default function EmployeesPage() {
             const myTimeHours = (Array.isArray(timeEntries)?timeEntries:[]).filter(t=>t.employee_id===e.id&&t.month===currentMonth()).reduce((s,t)=>s+(t.hours_worked||0),0);
             return (
               <div key={e.id} className="ec" style={{ ...card, overflow:'hidden', cursor:'pointer' }} onClick={()=>setViewE(e)}>
-                <div style={{ height:4, background:e.status==='active'?'linear-gradient(90deg,#d97706,#f59e0b)':e.status==='on_leave'?'linear-gradient(90deg,#2563eb,#3b82f6)':'linear-gradient(90deg,#94a3b8,#64748b)' }} />
+                <div style={{ height:4, background:e.status==='active'?'linear-gradient(90deg,#d97706,#f59e0b)':e.status==='leave'?'linear-gradient(90deg,#2563eb,#3b82f6)':'linear-gradient(90deg,#94a3b8,#64748b)' }} />
                 <div style={{ padding:'16px 16px 14px' }}>
                   <div style={{ display:'flex', alignItems:'flex-start', gap:12, marginBottom:12 }}>
                     <div style={{ width:50, height:50, borderRadius:14, background:col, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:18, fontWeight:800, flexShrink:0 }}>{initials(e.first_name,e.last_name)}</div>

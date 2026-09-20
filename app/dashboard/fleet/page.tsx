@@ -5,6 +5,32 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+// IMPORTANT : ces enums doivent matcher les CHECK constraints DB
+//   fleet_vehicles.status  = 'actif' | 'inactif' | 'en réparation' | 'vendu' | 'hors service'
+//   fleet_expenses.type    = 'carburant' | 'assurance' | 'entretien' | 'réparation' |
+//                            'contrôle technique' | 'pneus' | 'lavage' | 'amende' |
+//                            'parking' | 'péage' | 'location' | 'autre'
+type VehicleStatus =
+  | 'actif'
+  | 'inactif'
+  | 'en réparation'
+  | 'vendu'
+  | 'hors service'
+
+type FleetExpenseType =
+  | 'carburant'
+  | 'assurance'
+  | 'entretien'
+  | 'réparation'
+  | 'contrôle technique'
+  | 'pneus'
+  | 'lavage'
+  | 'amende'
+  | 'parking'
+  | 'péage'
+  | 'location'
+  | 'autre'
+
 interface Vehicle {
   id: string
   name: string
@@ -14,7 +40,7 @@ interface Vehicle {
   year: number
   category: string
   fuel_type: string
-  status: 'active' | 'maintenance' | 'inactive' | 'sold'
+  status: VehicleStatus
   driver: string
   driver_id?: string
   mileage: number
@@ -37,9 +63,9 @@ interface VehicleExpense {
   vehicle_id: string
   vehicle_name: string
   plate: string
-  type: 'fuel' | 'maintenance' | 'insurance' | 'tax' | 'repair' | 'parking' | 'fine' | 'other'
+  type: FleetExpenseType
   amount: number
-  vat_rate: number
+  vat_rate?: number
   description: string
   date: string
   km?: number
@@ -59,33 +85,39 @@ interface FleetKPI {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const STATUS: Record<string, { label: string; color: string; bg: string; border: string; dot: string }> = {
-  active:      { label: 'Actif',        color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', dot: '#22c55e' },
-  maintenance: { label: 'Maintenance',  color: '#d97706', bg: '#fffbeb', border: '#fde68a', dot: '#f59e0b' },
-  inactive:    { label: 'Inactif',      color: '#64748b', bg: '#f8fafc', border: '#e2e8f0', dot: '#94a3b8' },
-  sold:        { label: 'Vendu',        color: '#dc2626', bg: '#fef2f2', border: '#fecaca', dot: '#ef4444' },
+// Enums FR alignés sur les CHECK constraints DB
+const STATUS: Record<VehicleStatus, { label: string; color: string; bg: string; border: string; dot: string }> = {
+  'actif':         { label: 'Actif',         color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', dot: '#22c55e' },
+  'inactif':       { label: 'Inactif',       color: '#64748b', bg: '#f8fafc', border: '#e2e8f0', dot: '#94a3b8' },
+  'en réparation': { label: 'En réparation', color: '#d97706', bg: '#fffbeb', border: '#fde68a', dot: '#f59e0b' },
+  'vendu':         { label: 'Vendu',         color: '#dc2626', bg: '#fef2f2', border: '#fecaca', dot: '#ef4444' },
+  'hors service':  { label: 'Hors service',  color: '#9f1239', bg: '#fff1f2', border: '#fecdd3', dot: '#e11d48' },
 }
 
 const CATEGORIES = ['Voiture de société', 'Utilitaire', 'Camion', 'Moto', 'Van', 'Minibus', 'Autre']
 const FUEL_TYPES = ['Diesel', 'Essence', 'Hybride', 'Électrique', 'GPL', 'Hydrogène']
 const VAT_RATES  = [0, 6, 12, 21]
 
-const EXPENSE_TYPES: Record<string, { label: string; color: string; bg: string }> = {
-  fuel:        { label: 'Carburant',       color: '#2563eb', bg: '#eff6ff' },
-  maintenance: { label: 'Entretien',       color: '#d97706', bg: '#fffbeb' },
-  insurance:   { label: 'Assurance',       color: '#7c3aed', bg: '#f5f3ff' },
-  tax:         { label: 'Taxe / Vignette', color: '#0891b2', bg: '#ecfeff' },
-  repair:      { label: 'Réparation',      color: '#dc2626', bg: '#fef2f2' },
-  parking:     { label: 'Parking',         color: '#16a34a', bg: '#f0fdf4' },
-  fine:        { label: 'Amende',          color: '#9f1239', bg: '#fff1f2' },
-  other:       { label: 'Autre',           color: '#64748b', bg: '#f8fafc' },
+const EXPENSE_TYPES: Record<FleetExpenseType, { label: string; color: string; bg: string }> = {
+  'carburant':          { label: 'Carburant',          color: '#2563eb', bg: '#eff6ff' },
+  'assurance':          { label: 'Assurance',          color: '#7c3aed', bg: '#f5f3ff' },
+  'entretien':          { label: 'Entretien',          color: '#d97706', bg: '#fffbeb' },
+  'réparation':         { label: 'Réparation',         color: '#dc2626', bg: '#fef2f2' },
+  'contrôle technique': { label: 'Contrôle technique', color: '#0891b2', bg: '#ecfeff' },
+  'pneus':              { label: 'Pneus',              color: '#0d9488', bg: '#f0fdfa' },
+  'lavage':             { label: 'Lavage',             color: '#0284c7', bg: '#f0f9ff' },
+  'amende':             { label: 'Amende',             color: '#9f1239', bg: '#fff1f2' },
+  'parking':            { label: 'Parking',            color: '#16a34a', bg: '#f0fdf4' },
+  'péage':              { label: 'Péage',              color: '#65a30d', bg: '#f7fee7' },
+  'location':           { label: 'Location',           color: '#7c3aed', bg: '#f5f3ff' },
+  'autre':              { label: 'Autre',              color: '#64748b', bg: '#f8fafc' },
 }
 
 const COMPANY = { name: 'Wasalak SPRL', address: 'Bruxelles, Belgique', vat: 'BE 0000.000.000' }
 
 const EMPTY_V: Omit<Vehicle, 'id' | 'created_at'> = {
   name: '', plate: '', brand: '', model: '', year: new Date().getFullYear(),
-  category: CATEGORIES[0], fuel_type: FUEL_TYPES[0], status: 'active',
+  category: CATEGORIES[0], fuel_type: FUEL_TYPES[0], status: 'actif',
   driver: '', driver_id: '', mileage: 0, purchase_date: '',
   purchase_price: 0, current_value: 0, insurance_expiry: '',
   technical_control_expiry: '', vignette_expiry: '', oil_change_km: 15000,
@@ -93,7 +125,7 @@ const EMPTY_V: Omit<Vehicle, 'id' | 'created_at'> = {
 }
 
 const EMPTY_EXP: Omit<VehicleExpense, 'id' | 'created_at' | 'vehicle_name' | 'plate'> = {
-  vehicle_id: '', type: 'fuel', amount: 0, vat_rate: 21,
+  vehicle_id: '', type: 'carburant', amount: 0, vat_rate: 21,
   description: '', date: '', km: 0, invoice_ref: '',
 }
 
@@ -274,8 +306,8 @@ function calcKPI(vehicles: Vehicle[], expenses: VehicleExpense[]): FleetKPI {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
   return {
     totalVehicles:       vehicles.length,
-    activeVehicles:      vehicles.filter(v => v.status === 'active').length,
-    maintenanceVehicles: vehicles.filter(v => v.status === 'maintenance').length,
+    activeVehicles:      vehicles.filter(v => v.status === 'actif').length,
+    maintenanceVehicles: vehicles.filter(v => v.status === 'en réparation').length,
     totalValue:          vehicles.reduce((s, v) => s + (Number(v.current_value) || 0), 0),
     totalExpenses:       expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0),
     monthlyExpenses:     expenses.filter(e => (e.date || e.created_at) >= monthStart).reduce((s, e) => s + (Number(e.amount) || 0), 0),
@@ -304,7 +336,7 @@ function ExpenseDetailModal({ expense, onClose, onDelete }: {
   onClose: () => void
   onDelete: (id: string) => void
 }) {
-  const et  = EXPENSE_TYPES[expense.type] ?? EXPENSE_TYPES.other
+  const et  = EXPENSE_TYPES[expense.type] ?? EXPENSE_TYPES['autre']
   const ttc = (expense.amount || 0) * (1 + (expense.vat_rate || 21) / 100)
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 1300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
@@ -445,7 +477,7 @@ function VehicleModal({ vehicle, onSave, onClose }: {
               </div>
               <div>
                 <label style={lbl}>Statut</label>
-                <select style={{ ...inp, background: STATUS[form.status ?? 'active']?.bg, color: STATUS[form.status ?? 'active']?.color, fontWeight: 600 }} value={form.status ?? 'active'} onChange={e => set('status', e.target.value)}>
+                <select style={{ ...inp, background: STATUS[form.status ?? 'actif']?.bg, color: STATUS[form.status ?? 'actif']?.color, fontWeight: 600 }} value={form.status ?? 'actif'} onChange={e => set('status', e.target.value as VehicleStatus)}>
                   {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                 </select>
               </div>
@@ -682,7 +714,7 @@ function VehicleDrawer({ vehicle, expenses, onEdit, onClose }: {
   onEdit: () => void
   onClose: () => void
 }) {
-  const st          = STATUS[vehicle.status] ?? STATUS.active
+  const st          = STATUS[vehicle.status] ?? STATUS['actif']
   const alerts      = getVehicleAlerts(vehicle)
   const vExpenses   = expenses.filter(e => e.vehicle_id === vehicle.id)
   const totalExp    = vExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
@@ -691,7 +723,7 @@ function VehicleDrawer({ vehicle, expenses, onEdit, onClose }: {
   const ctD         = daysUntil(vehicle.technical_control_expiry)
   const vigD        = daysUntil(vehicle.vignette_expiry)
   const kmToService = (vehicle.next_service_km || 0) - (vehicle.mileage || 0)
-  const expByType   = Object.keys(EXPENSE_TYPES).map(k => ({
+  const expByType   = (Object.keys(EXPENSE_TYPES) as FleetExpenseType[]).map(k => ({
     key: k, label: EXPENSE_TYPES[k].label, color: EXPENSE_TYPES[k].color, bg: EXPENSE_TYPES[k].bg,
     total: vExpenses.filter(e => e.type === k).reduce((s, e) => s + (Number(e.amount) || 0), 0),
   })).filter(e => e.total > 0)
@@ -803,7 +835,7 @@ function VehicleDrawer({ vehicle, expenses, onEdit, onClose }: {
             <div style={{ ...card }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 12 }}>Dernières dépenses</div>
               {vExpenses.slice(0, 8).map(e => {
-                const et = EXPENSE_TYPES[e.type] ?? EXPENSE_TYPES.other
+                const et = EXPENSE_TYPES[e.type] ?? EXPENSE_TYPES['autre']
                 return (
                   <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
                     <div>
@@ -1071,7 +1103,7 @@ export default function FleetPage() {
                   {filteredV.length === 0
                     ? <tr><td colSpan={12} style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Aucun véhicule trouvé</td></tr>
                     : filteredV.map(v => {
-                      const st   = STATUS[v.status] ?? STATUS.active
+                      const st   = STATUS[v.status] ?? STATUS['actif']
                       const al   = getVehicleAlerts(v)
                       const vExp = expenses.filter(e => e.vehicle_id === v.id).reduce((s, e) => s + (e.amount || 0), 0)
                       return (
@@ -1124,7 +1156,7 @@ export default function FleetPage() {
             {filteredV.length === 0
               ? <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: 60, color: '#94a3b8' }}>Aucun véhicule trouvé</div>
               : filteredV.map(v => {
-                const st   = STATUS[v.status] ?? STATUS.active
+                const st   = STATUS[v.status] ?? STATUS['actif']
                 const al   = getVehicleAlerts(v)
                 const vExp = expenses.filter(e => e.vehicle_id === v.id).reduce((s, e) => s + (e.amount || 0), 0)
                 const dep  = depreciation(v.purchase_price, v.current_value)
@@ -1200,7 +1232,7 @@ export default function FleetPage() {
                   {filteredE.length === 0
                     ? <tr><td colSpan={11} style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Aucune dépense enregistrée</td></tr>
                     : filteredE.map(e => {
-                      const et  = EXPENSE_TYPES[e.type] ?? EXPENSE_TYPES.other
+                      const et  = EXPENSE_TYPES[e.type] ?? EXPENSE_TYPES['autre']
                       const ttc = (e.amount || 0) * (1 + (e.vat_rate || 21) / 100)
                       return (
                         <tr key={e.id} style={{ borderBottom: '1px solid #f1f5f9' }}

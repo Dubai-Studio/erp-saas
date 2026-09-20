@@ -103,6 +103,24 @@ export const ExternalInvoiceCreate = z.object({
   { message: 'total_amount doit être ≈ amount_ht + vat_amount', path: ['total_amount'] },
 )
 
+// Whitelist explicite pour PATCH — JAMAIS d'id / user_id (le trigger RLS gère user_id)
+export const ExternalInvoiceUpdate = z.object({
+  supplier_name: z.string().trim().min(1).max(200).optional(),
+  supplier_id:   optionalUuid,
+  client_id:     optionalUuid,
+  project_id:    optionalUuid,
+  amount_ht:     nonNegativeNum.optional(),
+  vat_amount:    nonNegativeNum.optional(),
+  total_amount:  nonNegativeNum.optional(),
+  issue_date:    isoDate.nullish(),
+  due_date:      isoDate.nullish(),
+  category:      z.string().max(100).nullish(),
+  notes:         optionalString,
+  status:        z.enum(['pending', 'paid', 'overdue', 'cancelled']).optional(),
+  file_name:     optionalString,
+  file_url:      optionalString,
+})
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Employees
 // ─────────────────────────────────────────────────────────────────────────────
@@ -176,6 +194,19 @@ export const FleetExpenseCreate = z.object({
   vehicle_id:  z.string().uuid(),
   type:        ExpenseType.default('autre'),
   amount:      positiveAmount,
+  date:        isoDate.nullish(),
+  month:       z.string().regex(/^\d{4}-\d{2}$/).nullish(),
+  mileage:     z.number().int().nonnegative().nullish(),
+  description: optionalString,
+  supplier:    optionalString,
+  invoice_ref: optionalString,
+})
+
+// Whitelist explicite pour PATCH — JAMAIS d'id / user_id (le trigger RLS gère user_id)
+export const FleetExpenseUpdate = z.object({
+  vehicle_id:  z.string().uuid().optional(),
+  type:        ExpenseType.optional(),
+  amount:      positiveAmount.optional(),
   date:        isoDate.nullish(),
   month:       z.string().regex(/^\d{4}-\d{2}$/).nullish(),
   mileage:     z.number().int().nonnegative().nullish(),
@@ -293,6 +324,47 @@ export const EmployeePaymentCreate = z.object({
   payment_date:    isoDate.nullish(),
   payment_method:  z.string().max(50).default('Virement'),
   note:            optionalString,
+})
+
+// Whitelist explicite pour PATCH — JAMAIS d'id / user_id (le trigger RLS gère user_id)
+export const EmployeePaymentUpdate = z.object({
+  employee_id:     z.string().uuid().optional(),
+  month:           z.string().regex(/^\d{4}-\d{2}$/).optional(),
+  year:            z.number().int().min(2000).max(2100).optional(),
+  type:            z.enum(['salaire', 'prime', 'avance']).optional(),
+  amount:          nonNegativeNum.optional(),
+  status:          z.enum(['pending', 'paid', 'cancelled']).optional(),
+  payment_date:    isoDate.nullish(),
+  payment_method:  z.string().max(50).optional(),
+  note:            optionalString,
+})
+
+// Whitelist explicite pour PATCH time_entries — JAMAIS d'id / user_id
+export const TimeEntryUpdate = z.object({
+  employee_id:    z.string().uuid().optional(),
+  date:           isoDate.optional(),
+  month:          z.string().regex(/^\d{4}-\d{2}$/).nullish(),
+  start_time:     z.string().regex(/^\d{2}:\d{2}$/).nullish(),
+  end_time:       z.string().regex(/^\d{2}:\d{2}$/).nullish(),
+  break_minutes:  z.number().int().min(0).max(480).optional(),
+  hours_worked:   nonNegativeNum.nullish(),
+  entry_type:     z.enum(['normal', 'overtime', 'night', 'holiday']).optional(),
+  hourly_rate:    nonNegativeNum.optional(),
+  rate_applied:   z.number().min(0).max(100).optional(),
+  amount:         nonNegativeNum.nullish(),
+  status:         z.enum(['draft', 'submitted', 'approved', 'paid']).optional(),
+  notes:          optionalString,
+})
+
+// Whitelist explicite pour PATCH pay_adjustments — JAMAIS d'id / user_id
+export const PayAdjustmentUpdate = z.object({
+  employee_id: z.string().uuid().optional(),
+  type:        z.enum(['salaire', 'prime', 'avance', 'deduction', 'autre']).optional(),
+  amount:      z.number().optional(),
+  reason:      optionalString,
+  date:        isoDate.nullish(),
+  month:       z.string().regex(/^\d{4}-\d{2}$/).nullish(),
+  project_id:  optionalUuid,
 })
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -89,7 +89,11 @@ export async function ocrFromPdf(
     canvas.height = viewport.height
     const ctx = canvas.getContext('2d')
     if (!ctx) continue
-    await page.render({ canvasContext: ctx, viewport }).promise
+    // pdfjs-dist 4.10.38 (installé) : `canvasContext` est la clé attendue (TypeScript + runtime).
+// NOTE: l'audit mentionnait que pdfjs-dist 4 avait renommé `canvasContext` → `canvas` ; ce n'est pas
+// le cas pour la version 4.10.38 actuellement verrouillée dans package.json. On garde donc
+// `canvasContext` pour respecter le typage strict et la compatibilité runtime.
+await page.render({ canvasContext: ctx, viewport }).promise
 
     const blob: Blob | null = await new Promise(resolve =>
       canvas.toBlob(resolve, 'image/png'),

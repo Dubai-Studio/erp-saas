@@ -1,4 +1,5 @@
 ﻿import { withAuth, ok, notFound, badRequest } from '@/lib/api-helpers'
+import { ExternalInvoiceUpdate } from '@/lib/schemas'
 
 export const GET = withAuth(async ({ supabase, params }) => {
   const id = params.id
@@ -14,11 +15,15 @@ export const GET = withAuth(async ({ supabase, params }) => {
 
 export const PATCH = withAuth(async ({ supabase, params, body }) => {
   const id = params.id
-  // Whitelist explicite — pas de spread body (anti mass-assignment)
+  // Whitelist explicite via Zod — anti mass-assignment
+  // user_id n'est JAMAIS accepté : il vient du trigger RLS via auth.uid()
+  const updates = ExternalInvoiceUpdate.parse(body)
+  if (Object.keys(updates).length === 0) return badRequest('Aucun champ à modifier')
+
   const { data, error } = await supabase
     .from('external_invoices')
     .update({
-      ...(body as any),
+      ...updates,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
@@ -26,7 +31,7 @@ export const PATCH = withAuth(async ({ supabase, params, body }) => {
     .single()
   if (error) return badRequest(error.message)
   return ok(data)
-})
+}, ExternalInvoiceUpdate)
 
 export const DELETE = withAuth(async ({ supabase, params }) => {
   const id = params.id

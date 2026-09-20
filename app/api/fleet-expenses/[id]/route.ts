@@ -1,4 +1,5 @@
 ﻿import { withAuth, ok, notFound, badRequest } from '@/lib/api-helpers'
+import { FleetExpenseUpdate } from '@/lib/schemas'
 
 export const GET = withAuth(async ({ supabase, params }) => {
   const id = params.id
@@ -14,10 +15,15 @@ export const GET = withAuth(async ({ supabase, params }) => {
 
 export const PATCH = withAuth(async ({ supabase, params, body }) => {
   const id = params.id
+  // Whitelist explicite via Zod — anti mass-assignment
+  // user_id n'est JAMAIS accepté : il vient du trigger RLS via auth.uid()
+  const updates = FleetExpenseUpdate.parse(body)
+  if (Object.keys(updates).length === 0) return badRequest('Aucun champ à modifier')
+
   const { data, error } = await supabase
     .from('fleet_expenses')
     .update({
-      ...(body as any),
+      ...updates,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
@@ -25,7 +31,7 @@ export const PATCH = withAuth(async ({ supabase, params, body }) => {
     .single()
   if (error) return badRequest(error.message)
   return ok(data)
-})
+}, FleetExpenseUpdate)
 
 export const DELETE = withAuth(async ({ supabase, params }) => {
   const id = params.id

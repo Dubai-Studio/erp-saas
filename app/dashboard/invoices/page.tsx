@@ -19,11 +19,11 @@ interface InvoiceLine {
 interface Invoice {
   id: string; invoice_number: string; client_id: string; client_name?: string
   project_id?: string; project_name?: string
-  status: 'draft'|'sent'|'paid'|'overdue'|'cancelled'
+  status: 'draft'|'sent'|'paid'|'overdue'|'cancelled'|'pending'
   issue_date: string; due_date: string; lines: InvoiceLine[]
   subtotal: number; vat_amount: number; total_amount: number
   notes: string; payment_terms: string; created_at: string
-  type: 'outgoing'
+  type: 'invoice' | 'quote' | 'credit_note' | 'proforma'
 }
 interface ExternalInvoice {
   id: string; type: 'incoming'; file_name: string; file_url?: string
@@ -31,7 +31,7 @@ interface ExternalInvoice {
   client_id?: string; project_id?: string; project_name?: string
   amount_ht: number; vat_amount: number; total_amount: number
   issue_date: string; due_date?: string; category: string
-  notes: string; status: 'pending'|'paid'|'contested'; created_at: string
+  notes: string; status: 'pending'|'paid'|'contested'|'overdue'|'cancelled'; created_at: string
 }
 type TabMode = 'outgoing' | 'incoming'
 
@@ -474,7 +474,8 @@ function OutgoingModal({ open, onClose, onSave, initial, clients, projects }:{
     if(form.lines.some(l=>!l.description.trim())){ setError('Chaque ligne doit avoir une description.'); return }
     setSaving(true); setError('')
     try{
-      await onSave({...form,...totals,type:'outgoing'})
+      // type='invoice' conforme au schéma Zod (invoice | quote | credit_note | proforma)
+      await onSave({...form,...totals,type:'invoice'})
     } catch(err){
       setError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde.')
     } finally {

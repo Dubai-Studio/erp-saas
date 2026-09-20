@@ -97,7 +97,12 @@ export function withAuth <TBody = unknown> (
         body = schema.parse(raw)
       } catch (e) {
         if (e instanceof ZodError) {
-          return badRequest('Validation échouée', e.flatten())
+          // Construit un message lisible à partir des erreurs de champs
+          const flat = e.flatten()
+          const fieldErrors = flat.fieldErrors as Record<string, string[]>
+          const firstField = Object.keys(fieldErrors)[0]
+          const firstMsg = firstField ? `${firstField}: ${(fieldErrors[firstField] ?? []).join(', ')}` : (flat.formErrors[0] ?? 'Données invalides')
+          return badRequest(`Validation échouée — ${firstMsg}`, flat)
         }
         return badRequest('JSON invalide')
       }
@@ -128,7 +133,13 @@ export function withPublic <TBody = unknown> (
         const raw = await req.json().catch(() => ({}))
         body = schema.parse(raw)
       } catch (e) {
-        if (e instanceof ZodError) return badRequest('Validation échouée', (e as ZodError).flatten())
+        if (e instanceof ZodError) {
+          const flat = (e as ZodError).flatten()
+          const fieldErrors = flat.fieldErrors as Record<string, string[]>
+          const firstField = Object.keys(fieldErrors)[0]
+          const firstMsg = firstField ? `${firstField}: ${(fieldErrors[firstField] ?? []).join(', ')}` : (flat.formErrors[0] ?? 'Données invalides')
+          return badRequest(`Validation échouée — ${firstMsg}`, flat)
+        }
         return badRequest('JSON invalide')
       }
     }

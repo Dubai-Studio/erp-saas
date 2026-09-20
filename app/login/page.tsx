@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
 import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
@@ -20,7 +20,9 @@ export default function LoginPage() {
   const [resetError,   setResetError]   = useState('')
 
   function getSupabase() {
-    return createClient(
+    // ⚠️ createBrowserClient (et non createClient de @supabase/supabase-js)
+    // pour que les cookies HttpOnly soient settés et lus par le middleware SSR.
+    return createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )

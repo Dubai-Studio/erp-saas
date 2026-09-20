@@ -1,13 +1,13 @@
-'use client'
+﻿'use client'
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import React from 'react'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { createClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 interface Client {
   id: string; name: string; email: string; address: string
   city: string; country: string; vat_number: string
@@ -35,7 +35,7 @@ interface ExternalInvoice {
 }
 type TabMode = 'outgoing' | 'incoming'
 
-// ─── Constantes ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ Constantes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const C = {
   primary:   '#1e3a5f',
   blue:      '#2563eb',
@@ -52,19 +52,19 @@ const C = {
 
 const STATUS_OUT: Record<string, { label:string; color:string; bg:string; border:string; dot:string }> = {
   draft:     { label:'Brouillon', color:'#64748b', bg:'#f8fafc',  border:'#e2e8f0', dot:'#94a3b8' },
-  sent:      { label:'Envoyée',   color:'#1d4ed8', bg:'#eff6ff',  border:'#bfdbfe', dot:'#3b82f6' },
-  paid:      { label:'Payée',     color:'#15803d', bg:'#f0fdf4',  border:'#bbf7d0', dot:'#22c55e' },
+  sent:      { label:'EnvoyÃ©e',   color:'#1d4ed8', bg:'#eff6ff',  border:'#bfdbfe', dot:'#3b82f6' },
+  paid:      { label:'PayÃ©e',     color:'#15803d', bg:'#f0fdf4',  border:'#bbf7d0', dot:'#22c55e' },
   overdue:   { label:'En retard', color:'#b91c1c', bg:'#fef2f2',  border:'#fecaca', dot:'#ef4444' },
-  cancelled: { label:'Annulée',   color:'#92400e', bg:'#fffbeb',  border:'#fde68a', dot:'#f59e0b' },
+  cancelled: { label:'AnnulÃ©e',   color:'#92400e', bg:'#fffbeb',  border:'#fde68a', dot:'#f59e0b' },
 }
 const STATUS_IN: Record<string, { label:string; color:string; bg:string; border:string; dot:string }> = {
   pending:   { label:'En attente', color:'#1d4ed8', bg:'#eff6ff', border:'#bfdbfe', dot:'#3b82f6' },
-  paid:      { label:'Payée',      color:'#15803d', bg:'#f0fdf4', border:'#bbf7d0', dot:'#22c55e' },
-  contested: { label:'Contestée',  color:'#b91c1c', bg:'#fef2f2', border:'#fecaca', dot:'#ef4444' },
+  paid:      { label:'PayÃ©e',      color:'#15803d', bg:'#f0fdf4', border:'#bbf7d0', dot:'#22c55e' },
+  contested: { label:'ContestÃ©e',  color:'#b91c1c', bg:'#fef2f2', border:'#fecaca', dot:'#ef4444' },
 }
-const EXT_CATEGORIES = ['Prestation','Matériel','Logistique','Loyer','Utilities','Assurance','Honoraires','Autre']
+const EXT_CATEGORIES = ['Prestation','MatÃ©riel','Logistique','Loyer','Utilities','Assurance','Honoraires','Autre']
 const VAT_RATES    = [0, 6, 12, 21]
-const PAYMENT_TERMS = ['Immédiat','15 jours','30 jours','45 jours','60 jours','Sur commande']
+const PAYMENT_TERMS = ['ImmÃ©diat','15 jours','30 jours','45 jours','60 jours','Sur commande']
 const EMPTY_LINE: InvoiceLine = { description:'', quantity:1, unit_price:0, vat_rate:21 }
 
 const COMPANY = {
@@ -79,16 +79,16 @@ const COMPANY = {
   bic:     'GEBABEBB',
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-// Formatage pour l'interface web (espaces insécables OK dans le navigateur)
+// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Formatage pour l'interface web (espaces insÃ©cables OK dans le navigateur)
 const fmt  = (n: number) => new Intl.NumberFormat('fr-BE',{style:'currency',currency:'EUR'}).format(n||0)
-// Formatage pour jsPDF — remplace les espaces insécables (\u00A0) par des espaces normaux
+// Formatage pour jsPDF â€” remplace les espaces insÃ©cables (\u00A0) par des espaces normaux
 const fmtPDF = (n: number) =>
   new Intl.NumberFormat('fr-BE',{style:'currency',currency:'EUR'})
     .format(n||0)
     .replace(/\u00A0/g, ' ')
     .replace(/\u202F/g, ' ')
-const fmtD = (d: string) => d ? new Date(d).toLocaleDateString('fr-BE',{day:'2-digit',month:'short',year:'numeric'}) : '—'
+const fmtD = (d: string) => d ? new Date(d).toLocaleDateString('fr-BE',{day:'2-digit',month:'short',year:'numeric'}) : 'â€”'
 const today  = () => new Date().toISOString().split('T')[0]
 const due30  = () => new Date(Date.now()+30*86400000).toISOString().split('T')[0]
 
@@ -98,7 +98,7 @@ function calcLines(lines: InvoiceLine[]) {
   return { subtotal, vat_amount, total_amount: subtotal + vat_amount }
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const card: React.CSSProperties = {
   background:'#fff', borderRadius:14,
   boxShadow:'0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)',
@@ -114,7 +114,7 @@ const lbl: React.CSSProperties = {
   marginBottom:5, textTransform:'uppercase', letterSpacing:'0.04em',
 }
 
-// ─── Icons ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Icons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const Ic = {
   plus:     <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
   edit:     <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
@@ -146,7 +146,7 @@ const Ic = {
   link:     <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>,
 }
 
-// ─── ActionBtn ────────────────────────────────────────────────────────────────
+// â”€â”€â”€ ActionBtn â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function AB({ onClick, title, icon, hBg, hCol, label }:{
   onClick:()=>void; title:string; icon:React.ReactNode
   hBg:string; hCol:string; label?:string
@@ -170,15 +170,15 @@ function AB({ onClick, title, icon, hBg, hCol, label }:{
   )
 }
 
-// ─── Type données société ─────────────────────────────────────────────────────
+// â”€â”€â”€ Type donnÃ©es sociÃ©tÃ© â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 interface CompanyData {
   name: string; address: string; city: string; vat: string
   email: string; phone: string; iban: string; bic: string
 }
 
-// ─── PDF Générateur PRO ───────────────────────────────────────────────────────
+// â”€â”€â”€ PDF GÃ©nÃ©rateur PRO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function generatePDF(invoice: Invoice, client: Client|undefined, co?: CompanyData) {
-  // Données société : priorité aux paramètres DB, sinon fallback sur COMPANY
+  // DonnÃ©es sociÃ©tÃ© : prioritÃ© aux paramÃ¨tres DB, sinon fallback sur COMPANY
   const C_PDF: CompanyData = {
     name:    co?.name    || COMPANY.name,
     address: co?.address || COMPANY.address,
@@ -192,7 +192,7 @@ function generatePDF(invoice: Invoice, client: Client|undefined, co?: CompanyDat
   const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' })
   const W=210, M=18, pW=W-M*2
 
-  // Recalcul défensif des totaux
+  // Recalcul dÃ©fensif des totaux
   const safeLines: InvoiceLine[] = Array.isArray(invoice.lines) ? invoice.lines : []
   const subtotal     = (invoice.subtotal != null && !isNaN(invoice.subtotal))
     ? Number(invoice.subtotal)
@@ -204,17 +204,17 @@ function generatePDF(invoice: Invoice, client: Client|undefined, co?: CompanyDat
     ? Number(invoice.total_amount)
     : subtotal + vat_amount
 
-  // ── En-tête fond sombre ──
+  // â”€â”€ En-tÃªte fond sombre â”€â”€
   doc.setFillColor(15, 23, 42)
   doc.rect(0, 0, W, 56, 'F')
 
-  // Logo / Nom société
+  // Logo / Nom sociÃ©tÃ©
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(20)
   doc.setFont('helvetica', 'bold')
   doc.text(C_PDF.name, M, 19)
 
-  // Sous-titre société
+  // Sous-titre sociÃ©tÃ©
   doc.setFontSize(7.5)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(148, 163, 184)
@@ -230,7 +230,7 @@ function generatePDF(invoice: Invoice, client: Client|undefined, co?: CompanyDat
   doc.setFontSize(11)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(148, 163, 184)
-  doc.text('N° ' + invoice.invoice_number, W - M, 27, { align: 'right' })
+  doc.text('NÂ° ' + invoice.invoice_number, W - M, 27, { align: 'right' })
 
   // Badge statut
   const stColors: Record<string,[number,number,number]> = {
@@ -245,12 +245,12 @@ function generatePDF(invoice: Invoice, client: Client|undefined, co?: CompanyDat
   doc.setFont('helvetica', 'bold')
   doc.text(stLabel, W - M - 15, 38.2, { align: 'center' })
 
-  // ── Bande info dates ──
+  // â”€â”€ Bande info dates â”€â”€
   doc.setFillColor(241, 245, 249)
   doc.rect(0, 57, W, 20, 'F')
   const dateItems = [
-    { l: "Date d'émission", v: fmtD(invoice.issue_date) },
-    { l: "Date d'échéance",  v: fmtD(invoice.due_date) },
+    { l: "Date d'Ã©mission", v: fmtD(invoice.issue_date) },
+    { l: "Date d'Ã©chÃ©ance",  v: fmtD(invoice.due_date) },
     { l: "Conditions de paiement", v: invoice.payment_terms || '30 jours' },
   ]
   dateItems.forEach((d, i) => {
@@ -265,7 +265,7 @@ function generatePDF(invoice: Invoice, client: Client|undefined, co?: CompanyDat
     doc.text(d.v, x, 71)
   })
 
-  // ── Bloc facturer à ──
+  // â”€â”€ Bloc facturer Ã  â”€â”€
   doc.setFillColor(255, 255, 255)
   doc.setDrawColor(226, 232, 240)
   doc.setLineWidth(0.3)
@@ -273,10 +273,10 @@ function generatePDF(invoice: Invoice, client: Client|undefined, co?: CompanyDat
   doc.setFontSize(7)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(100, 116, 139)
-  doc.text('FACTURÉ À', M + 5, 92)
+  doc.text('FACTURÃ‰ Ã€', M + 5, 92)
   doc.setFontSize(10)
   doc.setTextColor(15, 23, 42)
-  doc.text(client?.name || invoice.client_name || '—', M + 5, 100)
+  doc.text(client?.name || invoice.client_name || 'â€”', M + 5, 100)
   doc.setFontSize(8)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(71, 85, 105)
@@ -284,11 +284,11 @@ function generatePDF(invoice: Invoice, client: Client|undefined, co?: CompanyDat
     client?.address || '',
     [client?.city, client?.country].filter(Boolean).join(', '),
     client?.email || '',
-    client?.vat_number ? 'N° TVA : ' + client.vat_number : '',
+    client?.vat_number ? 'NÂ° TVA : ' + client.vat_number : '',
   ].filter(Boolean)
   doc.text(clientLines, M + 5, 108, { lineHeightFactor: 1.65 })
 
-  // Bloc projet si présent
+  // Bloc projet si prÃ©sent
   if (invoice.project_name) {
     doc.setFillColor(239, 246, 255)
     doc.setDrawColor(191, 219, 254)
@@ -303,10 +303,10 @@ function generatePDF(invoice: Invoice, client: Client|undefined, co?: CompanyDat
     doc.text(invoice.project_name, W - M - 85, 99)
   }
 
-  // ── Tableau des lignes ──
+  // â”€â”€ Tableau des lignes â”€â”€
   autoTable(doc, {
     startY: 136,
-    head: [['Description', 'Qté', 'Prix unit. HT', 'TVA', 'Total HT']],
+    head: [['Description', 'QtÃ©', 'Prix unit. HT', 'TVA', 'Total HT']],
     body: safeLines.map(l => [
       l.description || '',
       String(Number(l.quantity) || 0),
@@ -365,7 +365,7 @@ function generatePDF(invoice: Invoice, client: Client|undefined, co?: CompanyDat
     doc.text(t.v, txX + txW - 6, y, { align: 'right' })
   })
 
-  // Ligne séparateur
+  // Ligne sÃ©parateur
   doc.setDrawColor(226, 232, 240)
   doc.setLineWidth(0.4)
   doc.line(txX + 5, fY + 32, txX + txW - 5, fY + 32)
@@ -380,7 +380,7 @@ function generatePDF(invoice: Invoice, client: Client|undefined, co?: CompanyDat
   doc.setFontSize(11)
   doc.text(fmtPDF(total_amount), txX + txW - 6, fY + 41, { align: 'right' })
 
-  // Notes (si présentes)
+  // Notes (si prÃ©sentes)
   if (invoice.notes) {
     doc.setFontSize(7.5)
     doc.setFont('helvetica', 'bold')
@@ -393,7 +393,7 @@ function generatePDF(invoice: Invoice, client: Client|undefined, co?: CompanyDat
     doc.text(noteLines, M, fY + 20)
   }
 
-  // ── Coordonnées bancaires ──
+  // â”€â”€ CoordonnÃ©es bancaires â”€â”€
   const bY = fY + 56
   doc.setFillColor(239, 246, 255)
   doc.setDrawColor(191, 219, 254)
@@ -402,30 +402,30 @@ function generatePDF(invoice: Invoice, client: Client|undefined, co?: CompanyDat
   doc.setFontSize(7)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(30, 64, 175)
-  doc.text('COORDONNÉES BANCAIRES', M + 5, bY + 6.5)
+  doc.text('COORDONNÃ‰ES BANCAIRES', M + 5, bY + 6.5)
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8.5)
   doc.setTextColor(37, 99, 235)
   doc.text(
-    `IBAN : ${C_PDF.iban}   •   BIC : ${C_PDF.bic}   •   Communication : ${invoice.invoice_number}`,
+    `IBAN : ${C_PDF.iban}   â€¢   BIC : ${C_PDF.bic}   â€¢   Communication : ${invoice.invoice_number}`,
     M + 5, bY + 13
   )
 
-  // ── Pied de page ──
+  // â”€â”€ Pied de page â”€â”€
   doc.setFillColor(15, 23, 42)
   doc.rect(0, 282, W, 15, 'F')
   doc.setTextColor(148, 163, 184)
   doc.setFontSize(7)
   doc.setFont('helvetica', 'normal')
   doc.text(
-    `${C_PDF.name}  —  ${C_PDF.vat}  —  ${C_PDF.email}  —  ${C_PDF.address}, ${C_PDF.city}`,
+    `${C_PDF.name}  â€”  ${C_PDF.vat}  â€”  ${C_PDF.email}  â€”  ${C_PDF.address}, ${C_PDF.city}`,
     W / 2, 290.5, { align: 'center' }
   )
 
   doc.save(`Facture-${invoice.invoice_number}.pdf`)
 }
 
-// ─── MODAL : Facture émise ────────────────────────────────────────────────────
+// â”€â”€â”€ MODAL : Facture Ã©mise â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function OutgoingModal({ open, onClose, onSave, initial, clients, projects }:{
   open:boolean; onClose:()=>void
   onSave:(d:Partial<Invoice>)=>Promise<void>
@@ -470,7 +470,7 @@ function OutgoingModal({ open, onClose, onSave, initial, clients, projects }:{
 
   async function submit(e:React.FormEvent){
     e.preventDefault()
-    if(!form.client_id){ setError('Veuillez sélectionner un client.'); return }
+    if(!form.client_id){ setError('Veuillez sÃ©lectionner un client.'); return }
     if(form.lines.some(l=>!l.description.trim())){ setError('Chaque ligne doit avoir une description.'); return }
     setSaving(true); setError('')
     try{
@@ -507,7 +507,7 @@ function OutgoingModal({ open, onClose, onSave, initial, clients, projects }:{
                   {initial?`Modifier ${initial.invoice_number}`:'Nouvelle facture client'}
                 </h2>
               </div>
-              <p style={{fontSize:12,color:'rgba(255,255,255,0.6)',marginTop:4,marginLeft:44}}>Facturation TVA Belgique — 0 / 6 / 12 / 21 %</p>
+              <p style={{fontSize:12,color:'rgba(255,255,255,0.6)',marginTop:4,marginLeft:44}}>Facturation TVA Belgique â€” 0 / 6 / 12 / 21 %</p>
             </div>
             <button onClick={onClose} style={{background:'rgba(255,255,255,0.12)',border:'none',borderRadius:9,padding:8,cursor:'pointer',color:'#fff',display:'flex',flexShrink:0}}>{Ic.x}</button>
           </div>
@@ -534,27 +534,27 @@ function OutgoingModal({ open, onClose, onSave, initial, clients, projects }:{
                   <label style={lbl}>Client <span style={{color:'#ef4444'}}>*</span></label>
                   <select style={{...inp}} value={form.client_id}
                     onChange={e=>setForm(f=>({...f,client_id:e.target.value,project_id:''}))}>
-                    <option value="">— Sélectionner un client —</option>
+                    <option value="">â€” SÃ©lectionner un client â€”</option>
                     {clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
                 {clientProjects.length>0&&(
                   <div style={{gridColumn:'1/-1'}}>
-                    <label style={lbl}>Projet associé (optionnel)</label>
+                    <label style={lbl}>Projet associÃ© (optionnel)</label>
                     <select style={{...inp}} value={form.project_id||''}
                       onChange={e=>setForm(f=>({...f,project_id:e.target.value}))}>
-                      <option value="">— Aucun projet —</option>
+                      <option value="">â€” Aucun projet â€”</option>
                       {clientProjects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                   </div>
                 )}
                 <div>
-                  <label style={lbl}>Date d'émission</label>
+                  <label style={lbl}>Date d'Ã©mission</label>
                   <input type="date" style={inp} value={form.issue_date}
                     onChange={e=>setForm(f=>({...f,issue_date:e.target.value}))}/>
                 </div>
                 <div>
-                  <label style={lbl}>Date d'échéance</label>
+                  <label style={lbl}>Date d'Ã©chÃ©ance</label>
                   <input type="date" style={inp} value={form.due_date}
                     onChange={e=>setForm(f=>({...f,due_date:e.target.value}))}/>
                 </div>
@@ -574,7 +574,7 @@ function OutgoingModal({ open, onClose, onSave, initial, clients, projects }:{
                 </div>
               </div>
               <div style={{background:C.bg,borderRadius:12,padding:16,border:`1px solid ${C.border}`}}>
-                <p style={{...lbl,marginBottom:12}}>Aperçu des montants</p>
+                <p style={{...lbl,marginBottom:12}}>AperÃ§u des montants</p>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
                   {[
                     {l:'Sous-total HTVA',v:fmt(totals.subtotal),hi:false},
@@ -594,7 +594,7 @@ function OutgoingModal({ open, onClose, onSave, initial, clients, projects }:{
           {tab==='lines'&&(
             <div style={{padding:24,flex:1,overflowY:'auto'}}>
               <div style={{display:'grid',gridTemplateColumns:'1fr 68px 110px 78px 104px 34px',gap:8,marginBottom:6,padding:'0 4px'}}>
-                {['Description','Qté','Prix unit. HT','TVA %','Total HT',''].map((h,i)=>(
+                {['Description','QtÃ©','Prix unit. HT','TVA %','Total HT',''].map((h,i)=>(
                   <p key={i} style={{...lbl,marginBottom:0,textAlign:i>0&&i<5?'center':'left',fontSize:10}}>{h}</p>
                 ))}
               </div>
@@ -641,17 +641,17 @@ function OutgoingModal({ open, onClose, onSave, initial, clients, projects }:{
           {tab==='notes'&&(
             <div style={{padding:24,display:'flex',flexDirection:'column',gap:16,flex:1,overflowY:'auto'}}>
               <div>
-                <label style={lbl}>Notes / Mentions légales</label>
+                <label style={lbl}>Notes / Mentions lÃ©gales</label>
                 <textarea style={{...inp,minHeight:110,resize:'vertical',lineHeight:1.6}}
-                  placeholder="Conditions générales, délais, pénalités de retard…"
+                  placeholder="Conditions gÃ©nÃ©rales, dÃ©lais, pÃ©nalitÃ©s de retardâ€¦"
                   value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))}/>
               </div>
               <div style={{background:'#eff6ff',borderRadius:12,padding:'14px 16px',border:`1.5px solid #bfdbfe`}}>
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
                   <span style={{color:C.blue}}>{Ic.bank}</span>
-                  <p style={{fontSize:12,fontWeight:700,color:'#1e40af'}}>Coordonnées bancaires (ajoutées automatiquement dans le PDF)</p>
+                  <p style={{fontSize:12,fontWeight:700,color:'#1e40af'}}>CoordonnÃ©es bancaires (ajoutÃ©es automatiquement dans le PDF)</p>
                 </div>
-                <p style={{fontSize:12,color:'#1d4ed8'}}>Les coordonnées bancaires définies dans les <strong>Paramètres</strong> seront ajoutées automatiquement.</p>
+                <p style={{fontSize:12,color:'#1d4ed8'}}>Les coordonnÃ©es bancaires dÃ©finies dans les <strong>ParamÃ¨tres</strong> seront ajoutÃ©es automatiquement.</p>
               </div>
             </div>
           )}
@@ -660,8 +660,8 @@ function OutgoingModal({ open, onClose, onSave, initial, clients, projects }:{
             <button type="button" onClick={onClose} style={{flex:1,padding:'10px 0',borderRadius:10,border:`1.5px solid ${C.border}`,background:'#fff',fontSize:13,fontWeight:600,color:C.slate,cursor:'pointer'}}>Annuler</button>
             <button type="submit" disabled={saving} style={{flex:2,padding:'10px 0',borderRadius:10,border:'none',background:saving?'#93c5fd':`linear-gradient(135deg,${C.primary},${C.blue})`,fontSize:13,fontWeight:700,color:'#fff',cursor:saving?'not-allowed':'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
               {saving
-                ? <><div style={{width:14,height:14,border:'2px solid #fff',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/> Enregistrement…</>
-                : <>{Ic.check} {initial?'Mettre à jour la facture':'Créer la facture'}</>
+                ? <><div style={{width:14,height:14,border:'2px solid #fff',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/> Enregistrementâ€¦</>
+                : <>{Ic.check} {initial?'Mettre Ã  jour la facture':'CrÃ©er la facture'}</>
               }
             </button>
           </div>
@@ -671,7 +671,7 @@ function OutgoingModal({ open, onClose, onSave, initial, clients, projects }:{
   )
 }
 
-// ─── MODAL : Import facture fournisseur ───────────────────────────────────────
+// â”€â”€â”€ MODAL : Import facture fournisseur â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function ImportModal({ open, onClose, onSave, clients, projects }:{
   open:boolean; onClose:()=>void
   onSave:(d:Omit<ExternalInvoice,'id'|'created_at'>)=>Promise<void>
@@ -771,7 +771,7 @@ function ImportModal({ open, onClose, onSave, clients, projects }:{
       await onSave({ ...form, file_url: fileUrl, file_name: fileName })
     } catch (err) {
       console.error('ImportModal submit error:', err)
-      setError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde. Veuillez réessayer.')
+      setError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde. Veuillez rÃ©essayer.')
     } finally {
       setSaving(false)
     }
@@ -791,7 +791,7 @@ function ImportModal({ open, onClose, onSave, clients, projects }:{
               <div style={{width:36,height:36,borderRadius:10,background:'rgba(255,255,255,0.12)',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',flexShrink:0}}>{Ic.fileIn}</div>
               <div>
                 <h2 style={{fontSize:16,fontWeight:800,color:'#fff'}}>Importer une facture fournisseur</h2>
-                <p style={{fontSize:11,color:'rgba(255,255,255,0.6)',marginTop:2}}>Joindre le document et saisir les données comptables</p>
+                <p style={{fontSize:11,color:'rgba(255,255,255,0.6)',marginTop:2}}>Joindre le document et saisir les donnÃ©es comptables</p>
               </div>
             </div>
             <button onClick={onClose} style={{background:'rgba(255,255,255,0.12)',border:'none',borderRadius:9,padding:8,cursor:'pointer',color:'#fff',display:'flex',flexShrink:0}}>{Ic.x}</button>
@@ -806,7 +806,7 @@ function ImportModal({ open, onClose, onSave, clients, projects }:{
             </div>
           )}
 
-          {/* Zone de dépôt fichier */}
+          {/* Zone de dÃ©pÃ´t fichier */}
           <div
             role="button"
             tabIndex={0}
@@ -833,12 +833,12 @@ function ImportModal({ open, onClose, onSave, clients, projects }:{
             {file ? (
               <>
                 <p style={{fontSize:13,fontWeight:700,color:C.blue}}>{file.name}</p>
-                <p style={{fontSize:11,color:C.slate,marginTop:3}}>{(file.size/1024).toFixed(0)} Ko — Cliquer pour changer</p>
+                <p style={{fontSize:11,color:C.slate,marginTop:3}}>{(file.size/1024).toFixed(0)} Ko â€” Cliquer pour changer</p>
               </>
             ) : (
               <>
                 <p style={{fontSize:13,fontWeight:600,color:C.slate}}>Glisser ou cliquer pour joindre le document</p>
-                <p style={{fontSize:11,color:'#94a3b8',marginTop:3}}>PDF, JPG, PNG — max 10 Mo (optionnel)</p>
+                <p style={{fontSize:11,color:'#94a3b8',marginTop:3}}>PDF, JPG, PNG â€” max 10 Mo (optionnel)</p>
               </>
             )}
           </div>
@@ -850,14 +850,14 @@ function ImportModal({ open, onClose, onSave, clients, projects }:{
               style={inp}
               value={form.supplier_name}
               onChange={e => sf('supplier_name', e.target.value)}
-              placeholder="Ex : Fournisseur SARL, Amazon, Microsoft…"
+              placeholder="Ex : Fournisseur SARL, Amazon, Microsoftâ€¦"
             />
           </div>
 
           {/* Montants */}
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
             <div>
-              <label style={lbl}>Montant HT (€) <span style={{color:'#ef4444'}}>*</span></label>
+              <label style={lbl}>Montant HT (â‚¬) <span style={{color:'#ef4444'}}>*</span></label>
               <input
                 style={{...inp,textAlign:'right'}}
                 type="number" min="0" step="0.01"
@@ -867,7 +867,7 @@ function ImportModal({ open, onClose, onSave, clients, projects }:{
               />
             </div>
             <div>
-              <label style={lbl}>TVA (€)</label>
+              <label style={lbl}>TVA (â‚¬)</label>
               <input
                 style={{...inp,textAlign:'right'}}
                 type="number" min="0" step="0.01"
@@ -880,7 +880,7 @@ function ImportModal({ open, onClose, onSave, clients, projects }:{
               />
             </div>
             <div>
-              <label style={lbl}>Total TTC (€)</label>
+              <label style={lbl}>Total TTC (â‚¬)</label>
               <input
                 style={{...inp,textAlign:'right',fontWeight:700,color:C.primary}}
                 type="number" min="0" step="0.01"
@@ -891,18 +891,18 @@ function ImportModal({ open, onClose, onSave, clients, projects }:{
             </div>
           </div>
 
-          {/* Dates et catégorie */}
+          {/* Dates et catÃ©gorie */}
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
             <div>
               <label style={lbl}>Date de facture <span style={{color:'#ef4444'}}>*</span></label>
               <input type="date" style={inp} value={form.issue_date} onChange={e=>sf('issue_date',e.target.value)}/>
             </div>
             <div>
-              <label style={lbl}>Date d'échéance</label>
+              <label style={lbl}>Date d'Ã©chÃ©ance</label>
               <input type="date" style={inp} value={form.due_date} onChange={e=>sf('due_date',e.target.value)}/>
             </div>
             <div>
-              <label style={lbl}>Catégorie</label>
+              <label style={lbl}>CatÃ©gorie</label>
               <select style={inp} value={form.category} onChange={e=>sf('category',e.target.value)}>
                 {EXT_CATEGORIES.map(c=><option key={c}>{c}</option>)}
               </select>
@@ -912,16 +912,16 @@ function ImportModal({ open, onClose, onSave, clients, projects }:{
           {/* Client / Projet */}
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
             <div>
-              <label style={lbl}>Client associé (optionnel)</label>
+              <label style={lbl}>Client associÃ© (optionnel)</label>
               <select style={inp} value={form.client_id} onChange={e=>sf('client_id',e.target.value)}>
-                <option value="">— Aucun client —</option>
+                <option value="">â€” Aucun client â€”</option>
                 {clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div>
-              <label style={lbl}>Projet associé (optionnel)</label>
+              <label style={lbl}>Projet associÃ© (optionnel)</label>
               <select style={inp} value={form.project_id} onChange={e=>sf('project_id',e.target.value)}>
-                <option value="">— Aucun projet —</option>
+                <option value="">â€” Aucun projet â€”</option>
                 {projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
@@ -932,8 +932,8 @@ function ImportModal({ open, onClose, onSave, clients, projects }:{
             <label style={lbl}>Statut</label>
             <select style={inp} value={form.status} onChange={e=>sf('status',e.target.value as ExternalInvoice['status'])}>
               <option value="pending">En attente</option>
-              <option value="paid">Payée</option>
-              <option value="contested">Contestée</option>
+              <option value="paid">PayÃ©e</option>
+              <option value="contested">ContestÃ©e</option>
             </select>
           </div>
 
@@ -942,16 +942,16 @@ function ImportModal({ open, onClose, onSave, clients, projects }:{
             <label style={lbl}>Notes internes</label>
             <textarea
               style={{...inp,minHeight:72,resize:'vertical',lineHeight:1.6}}
-              placeholder="Référence interne, numéro de commande, remarques comptables…"
+              placeholder="RÃ©fÃ©rence interne, numÃ©ro de commande, remarques comptablesâ€¦"
               value={form.notes}
               onChange={e=>sf('notes',e.target.value)}
             />
           </div>
 
-          {/* Récapitulatif montant */}
+          {/* RÃ©capitulatif montant */}
           {form.total_amount > 0 && (
             <div style={{background:'#eff6ff',border:`1.5px solid #bfdbfe`,borderRadius:12,padding:'12px 16px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <span style={{fontSize:13,color:'#1e40af',fontWeight:600}}>Montant total à comptabiliser</span>
+              <span style={{fontSize:13,color:'#1e40af',fontWeight:600}}>Montant total Ã  comptabiliser</span>
               <span style={{fontSize:20,fontWeight:800,color:C.primary}}>{fmt(form.total_amount)}</span>
             </div>
           )}
@@ -971,7 +971,7 @@ function ImportModal({ open, onClose, onSave, clients, projects }:{
               style={{flex:2,padding:'10px 0',borderRadius:10,border:'none',background:saving?'#93c5fd':`linear-gradient(135deg,${C.primary},${C.blue})`,fontSize:13,fontWeight:700,color:'#fff',cursor:saving?'not-allowed':'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}
             >
               {saving
-                ? <><div style={{width:14,height:14,border:'2px solid #fff',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/> Enregistrement…</>
+                ? <><div style={{width:14,height:14,border:'2px solid #fff',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/> Enregistrementâ€¦</>
                 : <>{Ic.check} Enregistrer la facture</>
               }
             </button>
@@ -982,7 +982,7 @@ function ImportModal({ open, onClose, onSave, clients, projects }:{
   )
 }
 
-// ─── Drawer détail facture émise ──────────────────────────────────────────────
+// â”€â”€â”€ Drawer dÃ©tail facture Ã©mise â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function OutgoingDrawer({ invoice, clients, projects, onClose, onEdit, onDelete, onStatusChange, companyData }:{
   invoice:Invoice|null; clients:Client[]; projects:Project[]
   onClose:()=>void; onEdit:()=>void; onDelete:()=>void
@@ -1004,7 +1004,7 @@ function OutgoingDrawer({ invoice, clients, projects, onClose, onEdit, onDelete,
         <div style={{background:'linear-gradient(135deg,#1e3a5f,#2563eb)',padding:'20px 20px 22px',borderRadius:'20px 0 0 0',flexShrink:0}}>
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
             <div>
-              <p style={{fontSize:11,color:'rgba(255,255,255,0.6)',marginBottom:3,textTransform:'uppercase',letterSpacing:'0.05em'}}>Facture émise</p>
+              <p style={{fontSize:11,color:'rgba(255,255,255,0.6)',marginBottom:3,textTransform:'uppercase',letterSpacing:'0.05em'}}>Facture Ã©mise</p>
               <h3 style={{fontSize:20,fontWeight:800,color:'#fff',fontFamily:'monospace'}}>{invoice.invoice_number}</h3>
             </div>
             <button onClick={onClose} style={{background:'rgba(255,255,255,0.12)',border:'none',borderRadius:8,padding:7,cursor:'pointer',color:'#fff',display:'flex'}}>{Ic.x}</button>
@@ -1021,15 +1021,15 @@ function OutgoingDrawer({ invoice, clients, projects, onClose, onEdit, onDelete,
         <div style={{flex:1,overflowY:'auto',padding:18}}>
           <div style={{background:C.bg,borderRadius:12,padding:14,marginBottom:14,border:`1px solid ${C.border}`}}>
             <p style={{...lbl,marginBottom:8}}>Client</p>
-            <p style={{fontWeight:700,color:C.text,fontSize:14}}>{cli?.name||invoice.client_name||'—'}</p>
+            <p style={{fontWeight:700,color:C.text,fontSize:14}}>{cli?.name||invoice.client_name||'â€”'}</p>
             {cli?.email&&<p style={{fontSize:12,color:C.slate,marginTop:3}}>{cli.email}</p>}
             {prj&&<p style={{fontSize:12,color:C.blue,marginTop:4,display:'flex',alignItems:'center',gap:5}}>{Ic.link}{prj.name}</p>}
           </div>
 
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
             {[
-              {l:'Émission',  v:fmtD(invoice.issue_date)},
-              {l:'Échéance',  v:fmtD(invoice.due_date)},
+              {l:'Ã‰mission',  v:fmtD(invoice.issue_date)},
+              {l:'Ã‰chÃ©ance',  v:fmtD(invoice.due_date)},
               {l:'HTVA',      v:fmt(subtotal)},
               {l:'TVA',       v:fmt(vat_amount)}
             ].map((d,i)=>(
@@ -1046,7 +1046,7 @@ function OutgoingDrawer({ invoice, clients, projects, onClose, onEdit, onDelete,
               <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',padding:'7px 0',borderBottom:i<safeLines.length-1?`1px solid ${C.border}`:'none'}}>
                 <div style={{flex:1,marginRight:8}}>
                   <p style={{fontSize:13,fontWeight:500,color:'#1e293b'}}>{l.description}</p>
-                  <p style={{fontSize:11,color:'#94a3b8',marginTop:2}}>{l.quantity} × {fmt(l.unit_price)} · TVA {l.vat_rate}%</p>
+                  <p style={{fontSize:11,color:'#94a3b8',marginTop:2}}>{l.quantity} Ã— {fmt(l.unit_price)} Â· TVA {l.vat_rate}%</p>
                 </div>
                 <p style={{fontSize:13,fontWeight:700,color:C.text,flexShrink:0}}>{fmt((Number(l.quantity)||0)*(Number(l.unit_price)||0))}</p>
               </div>
@@ -1068,7 +1068,7 @@ function OutgoingDrawer({ invoice, clients, projects, onClose, onEdit, onDelete,
 
         <div style={{padding:'14px 16px',borderTop:`1px solid ${C.border}`,display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,flexShrink:0}}>
           <button onClick={()=>generatePDF(invoice,cli,companyData)} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'9px 0',borderRadius:10,border:`1.5px solid ${C.primary}`,background:'#fff',color:C.primary,fontSize:13,fontWeight:600,cursor:'pointer'}}>
-            {Ic.pdf} Télécharger PDF
+            {Ic.pdf} TÃ©lÃ©charger PDF
           </button>
           <button onClick={onEdit} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'9px 0',borderRadius:10,border:'none',background:`linear-gradient(135deg,${C.primary},${C.blue})`,color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer'}}>
             {Ic.edit} Modifier
@@ -1082,7 +1082,7 @@ function OutgoingDrawer({ invoice, clients, projects, onClose, onEdit, onDelete,
   )
 }
 
-// ─── Drawer détail facture reçue ──────────────────────────────────────────────
+// â”€â”€â”€ Drawer dÃ©tail facture reÃ§ue â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function IncomingDrawer({ invoice, clients, projects, onClose, onDelete }:{
   invoice:ExternalInvoice|null; clients:Client[]; projects:Project[]
   onClose:()=>void; onDelete:()=>void
@@ -1120,7 +1120,7 @@ function IncomingDrawer({ invoice, clients, projects, onClose, onDelete }:{
                 <div style={{width:36,height:36,background:'#dbeafe',borderRadius:9,display:'flex',alignItems:'center',justifyContent:'center',color:C.blue,flexShrink:0}}>{Ic.attach}</div>
                 <div style={{flex:1,minWidth:0}}>
                   <p style={{fontSize:13,fontWeight:700,color:C.primary,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{invoice.file_name}</p>
-                  <p style={{fontSize:11,color:'#1d4ed8',marginTop:2}}>{invoice.file_url?'Document disponible en ligne':'Référence locale'}</p>
+                  <p style={{fontSize:11,color:'#1d4ed8',marginTop:2}}>{invoice.file_url?'Document disponible en ligne':'RÃ©fÃ©rence locale'}</p>
                 </div>
               </div>
               {invoice.file_url ? (
@@ -1130,7 +1130,7 @@ function IncomingDrawer({ invoice, clients, projects, onClose, onDelete }:{
                 </a>
               ) : (
                 <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'8px 0',borderRadius:9,background:'#dbeafe',color:'#1d4ed8',fontSize:12,fontWeight:500}}>
-                  {Ic.attach}<span>Fichier stocké localement</span>
+                  {Ic.attach}<span>Fichier stockÃ© localement</span>
                 </div>
               )}
             </div>
@@ -1150,14 +1150,14 @@ function IncomingDrawer({ invoice, clients, projects, onClose, onDelete }:{
           </div>
 
           <div style={{background:C.bg,borderRadius:12,padding:14,marginBottom:14,border:`1px solid ${C.border}`}}>
-            <p style={{...lbl,marginBottom:10}}>Détails</p>
+            <p style={{...lbl,marginBottom:10}}>DÃ©tails</p>
             {[
               {l:'Fournisseur',  v:invoice.supplier_name},
-              {l:'Catégorie',    v:invoice.category},
+              {l:'CatÃ©gorie',    v:invoice.category},
               {l:'Date facture', v:fmtD(invoice.issue_date)},
-              {l:'Échéance',     v:fmtD(invoice.due_date||'')},
-              {l:'Client lié',   v:cli?.name||'—'},
-              {l:'Projet lié',   v:prj?.name||'—'},
+              {l:'Ã‰chÃ©ance',     v:fmtD(invoice.due_date||'')},
+              {l:'Client liÃ©',   v:cli?.name||'â€”'},
+              {l:'Projet liÃ©',   v:prj?.name||'â€”'},
             ].map((r,i,arr)=>(
               <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:i<arr.length-1?`1px solid ${C.border}`:'none'}}>
                 <span style={{fontSize:12,color:'#94a3b8'}}>{r.l}</span>
@@ -1191,7 +1191,7 @@ function IncomingDrawer({ invoice, clients, projects, onClose, onDelete }:{
   )
 }
 
-// ─── PAGE PRINCIPALE ──────────────────────────────────────────────────────────
+// â”€â”€â”€ PAGE PRINCIPALE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function InvoicesPage() {
   const [tab,         setTab]         = useState<TabMode>('outgoing')
   const [invoices,    setInvoices]    = useState<Invoice[]>([])
@@ -1252,9 +1252,9 @@ export default function InvoicesPage() {
 
   useEffect(() => { load() }, [load])
 
-  // Charge les données de la société depuis les paramètres
+  // Charge les donnÃ©es de la sociÃ©tÃ© depuis les paramÃ¨tres
   useEffect(() => {
-    const sb = createClient(
+    const sb = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
@@ -1276,12 +1276,12 @@ export default function InvoicesPage() {
             bic:     d.bic          || COMPANY.bic,
           })
         }
-      } catch { /* ignore, utilise COMPANY par défaut */ }
+      } catch { /* ignore, utilise COMPANY par dÃ©faut */ }
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ── Filtres factures émises ──
+  // â”€â”€ Filtres factures Ã©mises â”€â”€
   const filteredOut = invoices.filter(inv => {
     const q   = search.toLowerCase()
     const hit = !q || inv.invoice_number?.toLowerCase().includes(q) || inv.client_name?.toLowerCase().includes(q) || inv.project_name?.toLowerCase().includes(q)
@@ -1289,7 +1289,7 @@ export default function InvoicesPage() {
     return hit && (statusF==='all'||inv.status===statusF) && (clientF==='all'||inv.client_id===clientF) && (projectF==='all'||inv.project_id===projectF) && dOk
   })
 
-  // ── Filtres factures reçues ──
+  // â”€â”€ Filtres factures reÃ§ues â”€â”€
   const availableSuppliers = [...new Set(extInvs.map(e => e.supplier_name).filter(Boolean))]
   const filteredIn = extInvs.filter(inv => {
     const q   = search.toLowerCase()
@@ -1298,7 +1298,7 @@ export default function InvoicesPage() {
     return hit && (statusF==='all'||inv.status===statusF) && (clientF==='all'||inv.client_id===clientF) && (projectF==='all'||inv.project_id===projectF) && (supplierF==='all'||inv.supplier_name===supplierF) && (categoryF==='all'||inv.category===categoryF) && dOk
   })
 
-  // ── KPIs factures émises ──
+  // â”€â”€ KPIs factures Ã©mises â”€â”€
   const kOut = {
     total:   invoices.length,
     paid:    invoices.filter(i=>i.status==='paid').length,
@@ -1307,7 +1307,7 @@ export default function InvoicesPage() {
     revenue: invoices.filter(i=>i.status==='paid').reduce((s,i)=>s+(i.total_amount||0),0),
     waiting: invoices.filter(i=>['sent','draft'].includes(i.status)).reduce((s,i)=>s+(i.total_amount||0),0),
   }
-  // ── KPIs factures reçues ──
+  // â”€â”€ KPIs factures reÃ§ues â”€â”€
   const kIn = {
     total:     extInvs.length,
     pending:   extInvs.filter(i=>i.status==='pending').length,
@@ -1373,14 +1373,14 @@ export default function InvoicesPage() {
   function exportCSV() {
     if (tab==='outgoing') {
       const rows=[
-        ['N° Facture','Client','Projet','Émission','Échéance','HTVA','TVA','TTC','Statut'],
+        ['NÂ° Facture','Client','Projet','Ã‰mission','Ã‰chÃ©ance','HTVA','TVA','TTC','Statut'],
         ...filteredOut.map(i=>[i.invoice_number,i.client_name||'',i.project_name||'',fmtD(i.issue_date),fmtD(i.due_date),i.subtotal,i.vat_amount,i.total_amount,STATUS_OUT[i.status]?.label||''])
       ]
       const csv=rows.map(r=>r.map(v=>`"${v||''}"`).join(',')).join('\n')
       const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='factures-emises.csv'; a.click()
     } else {
       const rows=[
-        ['Fournisseur','Fichier','Catégorie','Date','HTVA','TVA','TTC','Statut'],
+        ['Fournisseur','Fichier','CatÃ©gorie','Date','HTVA','TVA','TTC','Statut'],
         ...filteredIn.map(i=>[i.supplier_name,i.file_name,i.category,fmtD(i.issue_date),i.amount_ht,i.vat_amount,i.total_amount,STATUS_IN[i.status]?.label||''])
       ]
       const csv=rows.map(r=>r.map(v=>`"${v||''}"`).join(',')).join('\n')
@@ -1390,7 +1390,7 @@ export default function InvoicesPage() {
 
   const hasFilters = !!(search||statusF!=='all'||clientF!=='all'||projectF!=='all'||dateFrom||dateTo||supplierF!=='all'||categoryF!=='all')
 
-  // ── Badge statut ──
+  // â”€â”€ Badge statut â”€â”€
   function StatusBadge({ s, type }: { s:string; type:'out'|'in' }) {
     const st = type==='out' ? STATUS_OUT[s] : STATUS_IN[s]
     if (!st) return null
@@ -1416,7 +1416,7 @@ export default function InvoicesPage() {
         .tab-btn:hover { background:rgba(255,255,255,0.06); }
       `}</style>
 
-      {/* ── En-tête ── */}
+      {/* â”€â”€ En-tÃªte â”€â”€ */}
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:24,flexWrap:'wrap',gap:12}}>
         <div style={{display:'flex',alignItems:'center',gap:12}}>
           <div style={{width:42,height:42,borderRadius:12,background:`linear-gradient(135deg,${C.primary},${C.blue})`,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff'}}>
@@ -1425,7 +1425,7 @@ export default function InvoicesPage() {
           <div>
             <h1 style={{fontSize:21,fontWeight:800,color:C.text}}>Facturation</h1>
             <p style={{fontSize:12,color:'#94a3b8',marginTop:2}}>
-              {kOut.total} facture(s) émise(s) · {kIn.total} facture(s) fournisseur(s)
+              {kOut.total} facture(s) Ã©mise(s) Â· {kIn.total} facture(s) fournisseur(s)
             </p>
           </div>
         </div>
@@ -1442,7 +1442,7 @@ export default function InvoicesPage() {
         </div>
       </div>
 
-      {/* ── Onglets ── */}
+      {/* â”€â”€ Onglets â”€â”€ */}
       <div style={{display:'flex',gap:0,marginBottom:18,background:C.bg,borderRadius:14,padding:4,width:'fit-content',border:`1px solid ${C.border}`}}>
         {([
           {key:'outgoing',label:'Factures clients',     count:kOut.total, icon:Ic.fileOut},
@@ -1463,16 +1463,16 @@ export default function InvoicesPage() {
         ))}
       </div>
 
-      {/* ── KPIs ── */}
+      {/* â”€â”€ KPIs â”€â”€ */}
       {tab==='outgoing' ? (
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(155px,1fr))',gap:12,marginBottom:16}}>
           {[
             {l:'Total',       v:kOut.total,   isN:false, color:C.blue,  border:'#bfdbfe', bg:'#eff6ff'},
-            {l:'Payées',      v:kOut.paid,    isN:false, color:'#10b981',border:'#a7f3d0', bg:'#ecfdf5'},
+            {l:'PayÃ©es',      v:kOut.paid,    isN:false, color:'#10b981',border:'#a7f3d0', bg:'#ecfdf5'},
             {l:'En attente',  v:kOut.pending, isN:false, color:'#f59e0b',border:'#fde68a', bg:'#fffbeb'},
             {l:'En retard',   v:kOut.overdue, isN:false, color:'#ef4444',border:'#fecaca', bg:'#fef2f2'},
-            {l:'CA encaissé', v:kOut.revenue, isN:true,  color:'#10b981',border:'#a7f3d0', bg:'#ecfdf5'},
-            {l:'À encaisser', v:kOut.waiting, isN:true,  color:'#f59e0b',border:'#fde68a', bg:'#fffbeb'},
+            {l:'CA encaissÃ©', v:kOut.revenue, isN:true,  color:'#10b981',border:'#a7f3d0', bg:'#ecfdf5'},
+            {l:'Ã€ encaisser', v:kOut.waiting, isN:true,  color:'#f59e0b',border:'#fde68a', bg:'#fffbeb'},
           ].map((k,i)=>(
             <div key={i} style={{background:k.bg,borderRadius:13,border:`1.5px solid ${k.border}`,padding:'13px 15px'}}>
               <p style={{fontSize:10,fontWeight:700,color:C.slate,textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:5}}>{k.l}</p>
@@ -1483,9 +1483,9 @@ export default function InvoicesPage() {
       ) : (
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:12,marginBottom:16}}>
           {[
-            {l:'Total reçues', v:kIn.total,     isN:false, color:C.primary, border:'#bfdbfe', bg:'#eff6ff'},
+            {l:'Total reÃ§ues', v:kIn.total,     isN:false, color:C.primary, border:'#bfdbfe', bg:'#eff6ff'},
             {l:'En attente',   v:kIn.pending,   isN:false, color:'#f59e0b', border:'#fde68a', bg:'#fffbeb'},
-            {l:'Payées',       v:kIn.paid,      isN:false, color:'#10b981', border:'#a7f3d0', bg:'#ecfdf5'},
+            {l:'PayÃ©es',       v:kIn.paid,      isN:false, color:'#10b981', border:'#a7f3d0', bg:'#ecfdf5'},
             {l:'Total HT',     v:kIn.total_ht,  isN:true,  color:C.primary, border:'#bfdbfe', bg:'#eff6ff'},
             {l:'Total TTC',    v:kIn.total_ttc, isN:true,  color:C.blue,    border:'#bfdbfe', bg:'#eff6ff'},
           ].map((k,i)=>(
@@ -1497,13 +1497,13 @@ export default function InvoicesPage() {
         </div>
       )}
 
-      {/* ── Filtres ── */}
+      {/* â”€â”€ Filtres â”€â”€ */}
       <div style={{...card,padding:'14px 16px',marginBottom:16}}>
         <div style={{display:'flex',gap:10,flexWrap:'wrap',alignItems:'center',marginBottom:10}}>
           <div style={{flex:1,minWidth:200,position:'relative'}}>
             <span style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',color:'#94a3b8',pointerEvents:'none'}}>{Ic.search}</span>
             <input value={search} onChange={e=>setSearch(e.target.value)}
-              placeholder={tab==='outgoing'?'N° facture, client, projet…':'Fournisseur, fichier…'}
+              placeholder={tab==='outgoing'?'NÂ° facture, client, projetâ€¦':'Fournisseur, fichierâ€¦'}
               style={{...inp,paddingLeft:34}}/>
           </div>
           <select value={statusF} onChange={e=>setStatusF(e.target.value)} style={{...inp,width:'auto',minWidth:148}}>
@@ -1525,7 +1525,7 @@ export default function InvoicesPage() {
                 {availableSuppliers.map(s=><option key={s} value={s}>{s}</option>)}
               </select>
               <select value={categoryF} onChange={e=>setCategoryF(e.target.value)} style={{...inp,width:'auto',minWidth:148}}>
-                <option value="all">Toutes catégories</option>
+                <option value="all">Toutes catÃ©gories</option>
                 {EXT_CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
               </select>
             </>
@@ -1540,7 +1540,7 @@ export default function InvoicesPage() {
           </div>
           {hasFilters&&(
             <button onClick={resetFilters} style={{display:'flex',alignItems:'center',gap:6,padding:'7px 12px',borderRadius:8,border:'1.5px solid #fecaca',background:'#fef2f2',color:'#ef4444',fontSize:12,fontWeight:600,cursor:'pointer'}}>
-              {Ic.x} Réinitialiser les filtres
+              {Ic.x} RÃ©initialiser les filtres
             </button>
           )}
           <div style={{marginLeft:'auto',display:'flex',gap:6}}>
@@ -1558,12 +1558,12 @@ export default function InvoicesPage() {
         </div>
       </div>
 
-      {/* ── Contenu ── */}
+      {/* â”€â”€ Contenu â”€â”€ */}
       {loading ? (
         <div style={{display:'flex',alignItems:'center',justifyContent:'center',padding:'80px 0'}}>
           <div style={{textAlign:'center'}}>
             <div style={{width:36,height:36,border:`3px solid ${C.blue}`,borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite',margin:'0 auto 12px'}}/>
-            <p style={{fontSize:13,color:'#94a3b8'}}>Chargement des données…</p>
+            <p style={{fontSize:13,color:'#94a3b8'}}>Chargement des donnÃ©esâ€¦</p>
           </div>
         </div>
 
@@ -1571,15 +1571,15 @@ export default function InvoicesPage() {
         filteredOut.length===0 ? (
           <div style={{...card,padding:60,textAlign:'center'}}>
             <div style={{width:56,height:56,background:C.bg,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px',color:'#cbd5e1'}}>{Ic.invoice}</div>
-            <p style={{fontSize:15,fontWeight:700,color:'#475569'}}>Aucune facture trouvée</p>
-            <p style={{fontSize:13,color:'#94a3b8',marginTop:6}}>{hasFilters?'Essayez de modifier vos filtres.':'Créez votre première facture client.'}</p>
+            <p style={{fontSize:15,fontWeight:700,color:'#475569'}}>Aucune facture trouvÃ©e</p>
+            <p style={{fontSize:13,color:'#94a3b8',marginTop:6}}>{hasFilters?'Essayez de modifier vos filtres.':'CrÃ©ez votre premiÃ¨re facture client.'}</p>
           </div>
         ) : view==='list' ? (
           <div style={{...card,overflow:'hidden'}}>
             <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
               <thead>
                 <tr style={{background:C.bg,borderBottom:`2px solid ${C.border}`}}>
-                  {['N° Facture','Client','Projet','Émission','Échéance','HTVA','TTC','Statut','Actions'].map((h,i)=>(
+                  {['NÂ° Facture','Client','Projet','Ã‰mission','Ã‰chÃ©ance','HTVA','TTC','Statut','Actions'].map((h,i)=>(
                     <th key={h} style={{padding:'11px 14px',textAlign:i>=8?'center':'left',fontSize:10,fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>{h}</th>
                   ))}
                 </tr>
@@ -1592,10 +1592,10 @@ export default function InvoicesPage() {
                       <p style={{fontSize:10,color:'#94a3b8',marginTop:1}}>{new Date(inv.created_at).toLocaleDateString('fr-BE')}</p>
                     </td>
                     <td style={{padding:'12px 14px'}}>
-                      <p style={{fontWeight:600,color:'#1e293b',fontSize:13}}>{inv.client_name||'—'}</p>
+                      <p style={{fontWeight:600,color:'#1e293b',fontSize:13}}>{inv.client_name||'â€”'}</p>
                     </td>
                     <td style={{padding:'12px 14px'}}>
-                      <p style={{fontSize:12,color:C.blue}}>{inv.project_name||'—'}</p>
+                      <p style={{fontSize:12,color:C.blue}}>{inv.project_name||'â€”'}</p>
                     </td>
                     <td style={{padding:'12px 14px',color:C.slate,fontSize:12}}>{fmtD(inv.issue_date)}</td>
                     <td style={{padding:'12px 14px'}}>
@@ -1610,9 +1610,9 @@ export default function InvoicesPage() {
                     </td>
                     <td style={{padding:'12px 14px'}} onClick={e=>e.stopPropagation()}>
                       <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
-                        <AB onClick={()=>setViewOut(inv)} title="Voir le détail" icon={Ic.eye} hBg='#eff6ff' hCol={C.blue}/>
+                        <AB onClick={()=>setViewOut(inv)} title="Voir le dÃ©tail" icon={Ic.eye} hBg='#eff6ff' hCol={C.blue}/>
                         <AB onClick={()=>openEdit(inv)} title="Modifier" icon={Ic.edit} hBg='#fef9c3' hCol='#d97706'/>
-                        <AB onClick={()=>{const c=clients.find(x=>x.id===inv.client_id);generatePDF(inv,c,companyData)}} title="Télécharger PDF" icon={Ic.pdf} hBg='#ecfdf5' hCol='#10b981'/>
+                        <AB onClick={()=>{const c=clients.find(x=>x.id===inv.client_id);generatePDF(inv,c,companyData)}} title="TÃ©lÃ©charger PDF" icon={Ic.pdf} hBg='#ecfdf5' hCol='#10b981'/>
                         <AB onClick={()=>setDeleteId({id:inv.id,type:'out'})} title="Supprimer" icon={Ic.trash} hBg='#fef2f2' hCol='#ef4444'/>
                       </div>
                     </td>
@@ -1621,8 +1621,8 @@ export default function InvoicesPage() {
               </tbody>
             </table>
             <div style={{padding:'9px 16px',borderTop:`1px solid #f8fafc`,display:'flex',justifyContent:'space-between',background:'#fafafa',fontSize:12,color:'#94a3b8'}}>
-              <span>{filteredOut.length} résultat(s) sur {invoices.length}</span>
-              <span>Total TTC filtré : <strong style={{color:'#10b981'}}>{fmt(filteredOut.reduce((s,i)=>s+(i.total_amount||0),0))}</strong></span>
+              <span>{filteredOut.length} rÃ©sultat(s) sur {invoices.length}</span>
+              <span>Total TTC filtrÃ© : <strong style={{color:'#10b981'}}>{fmt(filteredOut.reduce((s,i)=>s+(i.total_amount||0),0))}</strong></span>
             </div>
           </div>
         ) : (
@@ -1644,7 +1644,7 @@ export default function InvoicesPage() {
                     <div style={{background:`linear-gradient(135deg,${C.primary},${C.blue})`,borderRadius:11,padding:'12px 14px',textAlign:'center',marginBottom:12}}>
                       <p style={{color:'rgba(255,255,255,0.65)',fontSize:11,marginBottom:3}}>Total TTC</p>
                       <p style={{color:'#fff',fontSize:20,fontWeight:800}}>{fmt(inv.total_amount||0)}</p>
-                      <p style={{color:'rgba(255,255,255,0.55)',fontSize:11,marginTop:2}}>Échéance : {fmtD(inv.due_date)}</p>
+                      <p style={{color:'rgba(255,255,255,0.55)',fontSize:11,marginTop:2}}>Ã‰chÃ©ance : {fmtD(inv.due_date)}</p>
                     </div>
                     <div style={{display:'flex',gap:5,paddingTop:10,borderTop:`1px solid ${C.border}`}}>
                       <AB onClick={()=>setViewOut(inv)} title="Voir" icon={Ic.eye} hBg='#eff6ff' hCol={C.blue}/>
@@ -1664,7 +1664,7 @@ export default function InvoicesPage() {
           <div style={{...card,padding:60,textAlign:'center'}}>
             <div style={{width:56,height:56,background:'#eff6ff',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px',color:C.blue}}>{Ic.fileIn}</div>
             <p style={{fontSize:15,fontWeight:700,color:'#475569'}}>Aucune facture fournisseur</p>
-            <p style={{fontSize:13,color:'#94a3b8',marginTop:6}}>{hasFilters?'Essayez de modifier vos filtres.':'Importez votre première facture fournisseur.'}</p>
+            <p style={{fontSize:13,color:'#94a3b8',marginTop:6}}>{hasFilters?'Essayez de modifier vos filtres.':'Importez votre premiÃ¨re facture fournisseur.'}</p>
             <button onClick={()=>setImpModal(true)} style={{marginTop:20,padding:'10px 24px',borderRadius:10,border:'none',background:`linear-gradient(135deg,${C.primary},${C.blue})`,color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:7}}>
               {Ic.fileIn} Importer une facture
             </button>
@@ -1674,7 +1674,7 @@ export default function InvoicesPage() {
             <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
               <thead>
                 <tr style={{background:C.bg,borderBottom:`2px solid ${C.border}`}}>
-                  {['Fournisseur','Document','Catégorie','Date','Client lié','Projet lié','HT','TTC','Statut','Actions'].map((h,i)=>(
+                  {['Fournisseur','Document','CatÃ©gorie','Date','Client liÃ©','Projet liÃ©','HT','TTC','Statut','Actions'].map((h,i)=>(
                     <th key={h} style={{padding:'11px 14px',textAlign:i>=9?'center':'left',fontSize:10,fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>{h}</th>
                   ))}
                 </tr>
@@ -1695,14 +1695,14 @@ export default function InvoicesPage() {
                             <span style={{color:C.blue}}>{Ic.attach}</span>
                             <span style={{fontSize:12,color:C.primary,maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{inv.file_name}</span>
                           </div>
-                        ):<span style={{fontSize:12,color:'#cbd5e1'}}>—</span>}
+                        ):<span style={{fontSize:12,color:'#cbd5e1'}}>â€”</span>}
                       </td>
                       <td style={{padding:'12px 14px'}}>
                         <span style={{fontSize:11,background:'#eff6ff',color:C.blue,padding:'3px 8px',borderRadius:6,fontWeight:600}}>{inv.category}</span>
                       </td>
                       <td style={{padding:'12px 14px',color:C.slate,fontSize:12}}>{fmtD(inv.issue_date)}</td>
-                      <td style={{padding:'12px 14px',fontSize:12,color:'#475569'}}>{cli?.name||'—'}</td>
-                      <td style={{padding:'12px 14px',fontSize:12,color:C.blue}}>{prj?.name||'—'}</td>
+                      <td style={{padding:'12px 14px',fontSize:12,color:'#475569'}}>{cli?.name||'â€”'}</td>
+                      <td style={{padding:'12px 14px',fontSize:12,color:C.blue}}>{prj?.name||'â€”'}</td>
                       <td style={{padding:'12px 14px',fontSize:12,color:C.slate}}>{fmt(inv.amount_ht||0)}</td>
                       <td style={{padding:'12px 14px'}}>
                         <p style={{fontWeight:800,color:C.primary,fontSize:14}}>{fmt(inv.total_amount||0)}</p>
@@ -1712,7 +1712,7 @@ export default function InvoicesPage() {
                       </td>
                       <td style={{padding:'12px 14px'}} onClick={e=>e.stopPropagation()}>
                         <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
-                          <AB onClick={()=>setViewIn(inv)} title="Voir le détail" icon={Ic.eye} hBg='#eff6ff' hCol={C.blue}/>
+                          <AB onClick={()=>setViewIn(inv)} title="Voir le dÃ©tail" icon={Ic.eye} hBg='#eff6ff' hCol={C.blue}/>
                           <AB onClick={()=>setDeleteId({id:inv.id,type:'in'})} title="Supprimer" icon={Ic.trash} hBg='#fef2f2' hCol='#ef4444'/>
                         </div>
                       </td>
@@ -1722,8 +1722,8 @@ export default function InvoicesPage() {
               </tbody>
             </table>
             <div style={{padding:'9px 16px',borderTop:`1px solid #f8fafc`,display:'flex',justifyContent:'space-between',background:'#fafafa',fontSize:12,color:'#94a3b8'}}>
-              <span>{filteredIn.length} résultat(s) sur {extInvs.length}</span>
-              <span>Total TTC filtré : <strong style={{color:C.primary}}>{fmt(filteredIn.reduce((s,i)=>s+(i.total_amount||0),0))}</strong></span>
+              <span>{filteredIn.length} rÃ©sultat(s) sur {extInvs.length}</span>
+              <span>Total TTC filtrÃ© : <strong style={{color:C.primary}}>{fmt(filteredIn.reduce((s,i)=>s+(i.total_amount||0),0))}</strong></span>
             </div>
           </div>
         ) : (
@@ -1750,7 +1750,7 @@ export default function InvoicesPage() {
                     </div>
                     {cli&&<p style={{fontSize:12,color:C.slate,marginBottom:10,display:'flex',alignItems:'center',gap:5}}>{Ic.link}{cli.name}</p>}
                     <div style={{display:'flex',gap:5,paddingTop:10,borderTop:`1px solid ${C.border}`}}>
-                      <AB onClick={()=>setViewIn(inv)} title="Voir le détail" icon={Ic.eye} hBg='#eff6ff' hCol={C.blue}/>
+                      <AB onClick={()=>setViewIn(inv)} title="Voir le dÃ©tail" icon={Ic.eye} hBg='#eff6ff' hCol={C.blue}/>
                       <AB onClick={()=>setDeleteId({id:inv.id,type:'in'})} title="Supprimer" icon={Ic.trash} hBg='#fef2f2' hCol='#ef4444'/>
                     </div>
                   </div>
@@ -1761,14 +1761,14 @@ export default function InvoicesPage() {
         )
       )}
 
-      {/* ── Modal suppression ── */}
+      {/* â”€â”€ Modal suppression â”€â”€ */}
       {deleteId&&(
         <div style={{position:'fixed',inset:0,zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
           <div style={{position:'absolute',inset:0,background:'rgba(15,23,42,0.5)',backdropFilter:'blur(6px)'}} onClick={()=>setDeleteId(null)}/>
           <div style={{...card,position:'relative',width:'100%',maxWidth:380,padding:28,textAlign:'center',zIndex:1}}>
             <div style={{width:52,height:52,background:'#fef2f2',border:'2px solid #fecaca',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px',color:'#ef4444'}}>{Ic.trash}</div>
             <h3 style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:8}}>Supprimer cette facture ?</h3>
-            <p style={{fontSize:13,color:'#94a3b8',marginBottom:22,lineHeight:1.6}}>Cette action est définitive et irréversible.</p>
+            <p style={{fontSize:13,color:'#94a3b8',marginBottom:22,lineHeight:1.6}}>Cette action est dÃ©finitive et irrÃ©versible.</p>
             <div style={{display:'flex',gap:10}}>
               <button onClick={()=>setDeleteId(null)} style={{flex:1,padding:'10px 0',borderRadius:10,border:`1.5px solid ${C.border}`,background:'#fff',fontSize:13,fontWeight:600,color:C.slate,cursor:'pointer'}}>Annuler</button>
               <button onClick={()=>deleteId.type==='out'?delOut(deleteId.id):delIn(deleteId.id)} style={{flex:1,padding:'10px 0',borderRadius:10,border:'none',background:'#ef4444',fontSize:13,fontWeight:700,color:'#fff',cursor:'pointer'}}>Supprimer</button>
@@ -1777,7 +1777,7 @@ export default function InvoicesPage() {
         </div>
       )}
 
-      {/* ── Modals & Drawers ── */}
+      {/* â”€â”€ Modals & Drawers â”€â”€ */}
       <OutgoingModal
         open={outModal} onClose={()=>{setOutModal(false);setEditInv(null)}}
         onSave={saveOut} initial={editInv} clients={clients} projects={projects}

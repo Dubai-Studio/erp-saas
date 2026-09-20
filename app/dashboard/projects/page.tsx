@@ -1,14 +1,14 @@
-'use client'
+﻿'use client'
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback } from 'react'
 import React from 'react'
 
-// ─── Auth helper ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Auth helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function getUserId(): Promise<string | null> {
   try {
-    const { createClient } = await import('@supabase/supabase-js')
-    const sb = createClient(
+    const { createBrowserClient } = await import('@supabase/ssr')
+    const sb = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
@@ -17,7 +17,7 @@ async function getUserId(): Promise<string | null> {
   } catch { return null }
 }
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 interface Client { id: string; name: string }
 interface Project {
   id: string; name: string; description: string; client_id: string; client_name?: string
@@ -27,18 +27,18 @@ interface Project {
   progress: number; manager: string; tags?: string; created_at: string
 }
 
-// ─── Constantes ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ Constantes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const STATUS: Record<string,{label:string;color:string;bg:string;border:string;dot:string}> = {
   planning:  {label:'Planification',color:'#1d4ed8',bg:'#eff6ff',border:'#bfdbfe',dot:'#3b82f6'},
   active:    {label:'En cours',     color:'#15803d',bg:'#f0fdf4',border:'#bbf7d0',dot:'#22c55e'},
   on_hold:   {label:'En pause',     color:'#92400e',bg:'#fffbeb',border:'#fde68a',dot:'#f59e0b'},
-  completed: {label:'Terminé',      color:'#6b21a8',bg:'#faf5ff',border:'#e9d5ff',dot:'#a855f7'},
-  cancelled: {label:'Annulé',       color:'#991b1b',bg:'#fef2f2',border:'#fecaca',dot:'#ef4444'},
+  completed: {label:'TerminÃ©',      color:'#6b21a8',bg:'#faf5ff',border:'#e9d5ff',dot:'#a855f7'},
+  cancelled: {label:'AnnulÃ©',       color:'#991b1b',bg:'#fef2f2',border:'#fecaca',dot:'#ef4444'},
 }
 const PRIORITY: Record<string,{label:string;color:string;bg:string;border:string}> = {
   low:      {label:'Faible',   color:'#64748b',bg:'#f8fafc',border:'#e2e8f0'},
   medium:   {label:'Moyen',    color:'#1d4ed8',bg:'#eff6ff',border:'#bfdbfe'},
-  high:     {label:'Élevé',    color:'#92400e',bg:'#fffbeb',border:'#fde68a'},
+  high:     {label:'Ã‰levÃ©',    color:'#92400e',bg:'#fffbeb',border:'#fde68a'},
   critical: {label:'Critique', color:'#991b1b',bg:'#fef2f2',border:'#fecaca'},
 }
 
@@ -47,7 +47,7 @@ const EMPTY: Omit<Project,'id'|'created_at'|'client_name'> = {
   start_date:'', end_date:'', budget:0, spent:0, progress:0, manager:'', tags:'',
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const card: React.CSSProperties = {
   background:'#fff', borderRadius:16,
   boxShadow:'0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)',
@@ -63,9 +63,9 @@ const lbl: React.CSSProperties = {
   marginBottom:5, textTransform:'uppercase', letterSpacing:'0.04em',
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const fmt  = (n:number) => new Intl.NumberFormat('fr-BE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n||0)
-const fmtD = (d:string) => d ? new Date(d).toLocaleDateString('fr-BE',{day:'2-digit',month:'short',year:'numeric'}) : '—'
+const fmtD = (d:string) => d ? new Date(d).toLocaleDateString('fr-BE',{day:'2-digit',month:'short',year:'numeric'}) : 'â€”'
 const today = () => new Date().toISOString().split('T')[0]
 
 function daysLeft(end:string): number|null {
@@ -84,7 +84,7 @@ function budgetColor(spent:number, budget:number) {
   return '#10b981'
 }
 
-// ─── Icons ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Icons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const I = {
   plus:     <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
   edit:     <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
@@ -113,7 +113,7 @@ const I = {
   sort:     <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>,
 }
 
-// ─── StatusBadge ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ StatusBadge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function StatusBadge({status}:{status:string}) {
   const s = STATUS[status]||STATUS.planning
   return (
@@ -124,7 +124,7 @@ function StatusBadge({status}:{status:string}) {
   )
 }
 
-// ─── PriorityBadge ────────────────────────────────────────────────────────────
+// â”€â”€â”€ PriorityBadge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function PriorityBadge({priority}:{priority:string}) {
   const p = PRIORITY[priority]||PRIORITY.medium
   return (
@@ -134,7 +134,7 @@ function PriorityBadge({priority}:{priority:string}) {
   )
 }
 
-// ─── ProgressBar ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ ProgressBar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function ProgressBar({value,color,height=8}:{value:number;color:string;height?:number}) {
   return (
     <div style={{width:'100%',height,background:'#f1f5f9',borderRadius:height,overflow:'hidden'}}>
@@ -143,7 +143,7 @@ function ProgressBar({value,color,height=8}:{value:number;color:string;height?:n
   )
 }
 
-// ─── DaysLeftChip ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ DaysLeftChip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function DaysLeftChip({end_date,status}:{end_date:string;status:string}) {
   if(!end_date||status==='completed'||status==='cancelled') return null
   const d = daysLeft(end_date)
@@ -160,7 +160,7 @@ function DaysLeftChip({end_date,status}:{end_date:string;status:string}) {
   )
 }
 
-// ─── MODAL Projet ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ MODAL Projet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function ProjectModal({ open, onClose, onSave, initial, clients }:{
   open:boolean; onClose:()=>void
   onSave:(d:typeof EMPTY)=>Promise<void>
@@ -218,9 +218,9 @@ function ProjectModal({ open, onClose, onSave, initial, clients }:{
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
             <div>
               <h2 style={{fontSize:18,fontWeight:800,color:'#fff'}}>
-                {initial ? `Modifier — ${initial.name}` : 'Nouveau projet'}
+                {initial ? `Modifier â€” ${initial.name}` : 'Nouveau projet'}
               </h2>
-              <p style={{fontSize:12,color:'rgba(255,255,255,0.65)',marginTop:3}}>Gestion de projet · Next-ERP</p>
+              <p style={{fontSize:12,color:'rgba(255,255,255,0.65)',marginTop:3}}>Gestion de projet Â· Next-ERP</p>
             </div>
             <button onClick={onClose} style={{background:'rgba(255,255,255,0.15)',border:'none',borderRadius:8,padding:8,cursor:'pointer',color:'#fff',display:'flex'}}>{I.x}</button>
           </div>
@@ -249,7 +249,7 @@ function ProjectModal({ open, onClose, onSave, initial, clients }:{
               <div>
                 <label style={lbl}>Client</label>
                 <select style={{...inp,width:'100%'}} value={form.client_id} onChange={e=>f('client_id',e.target.value)}>
-                  <option value="">— Aucun client —</option>
+                  <option value="">â€” Aucun client â€”</option>
                   {clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
@@ -264,17 +264,17 @@ function ProjectModal({ open, onClose, onSave, initial, clients }:{
                 </select>
               </div>
               <div>
-                <label style={lbl}>Priorité</label>
+                <label style={lbl}>PrioritÃ©</label>
                 <select style={{...inp,width:'100%'}} value={form.priority} onChange={e=>f('priority',e.target.value as Project['priority'])}>
                   {Object.entries(PRIORITY).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
                 </select>
               </div>
               <div>
-                <label style={lbl}>Date de début</label>
+                <label style={lbl}>Date de dÃ©but</label>
                 <input style={inp} type="date" value={form.start_date} onChange={e=>f('start_date',e.target.value)}/>
               </div>
               <div>
-                <label style={lbl}>Date de fin prévue</label>
+                <label style={lbl}>Date de fin prÃ©vue</label>
                 <input style={inp} type="date" value={form.end_date} onChange={e=>f('end_date',e.target.value)}/>
               </div>
               <div style={{gridColumn:'1/-1'}}>
@@ -291,21 +291,21 @@ function ProjectModal({ open, onClose, onSave, initial, clients }:{
             <div style={{padding:24,display:'flex',flexDirection:'column',gap:14}}>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
                 <div>
-                  <label style={lbl}>Budget total (€)</label>
+                  <label style={lbl}>Budget total (â‚¬)</label>
                   <input style={{...inp,fontWeight:700}} type="number" min="0" step="100" value={form.budget||''} onChange={e=>f('budget',+e.target.value)} placeholder="0"/>
                 </div>
                 <div>
-                  <label style={lbl}>Montant dépensé (€)</label>
+                  <label style={lbl}>Montant dÃ©pensÃ© (â‚¬)</label>
                   <input style={{...inp,fontWeight:700,color:form.spent>(form.budget||0)?'#ef4444':'#1e293b'}} type="number" min="0" step="100" value={form.spent||''} onChange={e=>f('spent',+e.target.value)} placeholder="0"/>
                 </div>
               </div>
               {(form.budget||0)>0&&(
                 <div style={{background:'#f8fafc',borderRadius:14,padding:18,border:'1px solid #f1f5f9'}}>
-                  <p style={{fontSize:11,fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:14}}>Répartition budgétaire</p>
+                  <p style={{fontSize:11,fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:14}}>RÃ©partition budgÃ©taire</p>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:16}}>
                     {[
                       {l:'Budget total', v:fmt(form.budget||0),  c:'#6366f1'},
-                      {l:'Dépensé',      v:fmt(form.spent||0),   c:(form.spent||0)>(form.budget||0)?'#ef4444':'#f59e0b'},
+                      {l:'DÃ©pensÃ©',      v:fmt(form.spent||0),   c:(form.spent||0)>(form.budget||0)?'#ef4444':'#f59e0b'},
                       {l:'Disponible',   v:fmt(Math.max(budgetLeft,0)), c:'#10b981'},
                     ].map((b,i)=>(
                       <div key={i} style={{textAlign:'center',padding:'10px 0',background:'#fff',borderRadius:10,border:'1px solid #e2e8f0'}}>
@@ -316,15 +316,15 @@ function ProjectModal({ open, onClose, onSave, initial, clients }:{
                   </div>
                   <ProgressBar value={budgetPct(form.spent||0,form.budget||0)} color={budgetColor(form.spent||0,form.budget||0)} height={10}/>
                   <div style={{display:'flex',justifyContent:'space-between',marginTop:6,fontSize:11,color:'#94a3b8'}}>
-                    <span>Consommé : <strong style={{color:'#0f172a'}}>{budgetPct(form.spent||0,form.budget||0)}%</strong></span>
-                    {budgetLeft<0&&<span style={{color:'#ef4444',fontWeight:700}}>Dépassement : {fmt(Math.abs(budgetLeft))}</span>}
+                    <span>ConsommÃ© : <strong style={{color:'#0f172a'}}>{budgetPct(form.spent||0,form.budget||0)}%</strong></span>
+                    {budgetLeft<0&&<span style={{color:'#ef4444',fontWeight:700}}>DÃ©passement : {fmt(Math.abs(budgetLeft))}</span>}
                   </div>
                 </div>
               )}
               <div style={{background:'#eef2ff',borderRadius:12,padding:14,border:'1.5px solid #c7d2fe',fontSize:13,color:'#4338ca'}}>
                 <p style={{fontWeight:700,marginBottom:4,display:'flex',alignItems:'center',gap:6}}>{I.trending} Impact comptable</p>
                 <p style={{fontSize:12,color:'#6366f1',lineHeight:1.6}}>
-                  Les montants budget et dépensé sont automatiquement remontés dans le tableau de bord financier et la comptabilité analytique.
+                  Les montants budget et dÃ©pensÃ© sont automatiquement remontÃ©s dans le tableau de bord financier et la comptabilitÃ© analytique.
                 </p>
               </div>
             </div>
@@ -335,12 +335,12 @@ function ProjectModal({ open, onClose, onSave, initial, clients }:{
               <div>
                 <label style={lbl}>Description / Notes</label>
                 <textarea style={{...inp,minHeight:130,resize:'vertical',fontFamily:'inherit',lineHeight:1.6}}
-                  placeholder="Objectifs, livrables, contraintes, remarques…"
+                  placeholder="Objectifs, livrables, contraintes, remarquesâ€¦"
                   value={form.description} onChange={e=>f('description',e.target.value)}/>
               </div>
               <div>
-                <label style={lbl}>Tags (séparés par des virgules)</label>
-                <input style={inp} value={form.tags||''} onChange={e=>f('tags',e.target.value)} placeholder="design, dev, urgence, client-vip…"/>
+                <label style={lbl}>Tags (sÃ©parÃ©s par des virgules)</label>
+                <input style={inp} value={form.tags||''} onChange={e=>f('tags',e.target.value)} placeholder="design, dev, urgence, client-vipâ€¦"/>
                 {form.tags&&(
                   <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:8}}>
                     {form.tags.split(',').map(t=>t.trim()).filter(Boolean).map((t,i)=>(
@@ -356,8 +356,8 @@ function ProjectModal({ open, onClose, onSave, initial, clients }:{
             <button type="button" onClick={onClose} style={{flex:1,padding:'10px 0',borderRadius:10,border:'1.5px solid #e2e8f0',background:'#fff',fontSize:13,fontWeight:600,color:'#64748b',cursor:'pointer'}}>Annuler</button>
             <button type="submit" disabled={saving} style={{flex:2,padding:'10px 0',borderRadius:10,border:'none',background:saving?'#a5b4fc':'linear-gradient(135deg,#4f46e5,#7c3aed)',fontSize:13,fontWeight:700,color:'#fff',cursor:saving?'not-allowed':'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
               {saving
-                ? <><div style={{width:14,height:14,border:'2px solid #fff',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/> Enregistrement…</>
-                : <>{I.check} {initial?'Mettre à jour':'Créer le projet'}</>
+                ? <><div style={{width:14,height:14,border:'2px solid #fff',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/> Enregistrementâ€¦</>
+                : <>{I.check} {initial?'Mettre Ã  jour':'CrÃ©er le projet'}</>
               }
             </button>
           </div>
@@ -367,7 +367,7 @@ function ProjectModal({ open, onClose, onSave, initial, clients }:{
   )
 }
 
-// ─── DRAWER Détail Projet ─────────────────────────────────────────────────────
+// â”€â”€â”€ DRAWER DÃ©tail Projet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function ProjectDrawer({ project, clients, onClose, onEdit, onDelete, onStatusChange, onProgressChange }:{
   project:Project|null; clients:Client[]
   onClose:()=>void; onEdit:()=>void; onDelete:()=>void
@@ -389,7 +389,7 @@ function ProjectDrawer({ project, clients, onClose, onEdit, onDelete, onStatusCh
         <div style={{background:'linear-gradient(135deg,#4f46e5,#7c3aed)',padding:'20px 20px 22px',borderRadius:'20px 0 0 0',flexShrink:0}}>
           <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:12}}>
             <div style={{flex:1,marginRight:10}}>
-              <p style={{fontSize:11,color:'rgba(255,255,255,0.6)',marginBottom:4}}>Détail projet</p>
+              <p style={{fontSize:11,color:'rgba(255,255,255,0.6)',marginBottom:4}}>DÃ©tail projet</p>
               <h3 style={{fontSize:18,fontWeight:800,color:'#fff',lineHeight:1.3}}>{project.name}</h3>
               {cli&&<p style={{fontSize:12,color:'rgba(255,255,255,0.7)',marginTop:4,display:'flex',alignItems:'center',gap:4}}>{I.building} {cli.name}</p>}
             </div>
@@ -426,7 +426,7 @@ function ProjectDrawer({ project, clients, onClose, onEdit, onDelete, onStatusCh
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:12}}>
                 {[
                   {l:'Total',   v:fmt(project.budget||0),  c:'#6366f1'},
-                  {l:'Dépensé', v:fmt(project.spent||0),   c:bPct>=100?'#ef4444':'#f59e0b'},
+                  {l:'DÃ©pensÃ©', v:fmt(project.spent||0),   c:bPct>=100?'#ef4444':'#f59e0b'},
                   {l:'Restant', v:fmt(Math.max((project.budget||0)-(project.spent||0),0)), c:'#10b981'},
                 ].map((b,i)=>(
                   <div key={i} style={{textAlign:'center',padding:'10px 6px',background:'#fff',borderRadius:10,border:'1px solid #e2e8f0'}}>
@@ -436,10 +436,10 @@ function ProjectDrawer({ project, clients, onClose, onEdit, onDelete, onStatusCh
                 ))}
               </div>
               <ProgressBar value={bPct} color={bCol} height={10}/>
-              <p style={{fontSize:11,color:'#94a3b8',marginTop:6,textAlign:'right'}}>{bPct}% consommé</p>
+              <p style={{fontSize:11,color:'#94a3b8',marginTop:6,textAlign:'right'}}>{bPct}% consommÃ©</p>
               {(project.spent||0)>(project.budget||0)&&(
                 <div style={{marginTop:8,padding:'8px 12px',background:'#fef2f2',borderRadius:9,border:'1px solid #fecaca',fontSize:12,color:'#dc2626',fontWeight:600,display:'flex',alignItems:'center',gap:6}}>
-                  {I.alert} Dépassement de {fmt((project.spent||0)-(project.budget||0))}
+                  {I.alert} DÃ©passement de {fmt((project.spent||0)-(project.budget||0))}
                 </div>
               )}
             </div>
@@ -448,10 +448,10 @@ function ProjectDrawer({ project, clients, onClose, onEdit, onDelete, onStatusCh
           <div style={{background:'#f8fafc',borderRadius:14,padding:16,border:'1px solid #f1f5f9'}}>
             <p style={{fontSize:11,fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:12}}>Informations</p>
             {[
-              {l:'Responsable', v:project.manager||'—',     i:I.user},
-              {l:'Début',       v:fmtD(project.start_date), i:I.calendar},
-              {l:'Fin prévue',  v:fmtD(project.end_date),   i:I.calendar},
-              {l:'Créé le',     v:fmtD(project.created_at), i:I.clock},
+              {l:'Responsable', v:project.manager||'â€”',     i:I.user},
+              {l:'DÃ©but',       v:fmtD(project.start_date), i:I.calendar},
+              {l:'Fin prÃ©vue',  v:fmtD(project.end_date),   i:I.calendar},
+              {l:'CrÃ©Ã© le',     v:fmtD(project.created_at), i:I.clock},
             ].map((r,i,arr)=>(
               <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:i<arr.length-1?'1px solid #f1f5f9':'none'}}>
                 <span style={{fontSize:12,color:'#94a3b8',display:'flex',alignItems:'center',gap:5}}>{r.i}{r.l}</span>
@@ -504,7 +504,7 @@ function ProjectDrawer({ project, clients, onClose, onEdit, onDelete, onStatusCh
   )
 }
 
-// ─── PAGE PRINCIPALE ──────────────────────────────────────────────────────────
+// â”€â”€â”€ PAGE PRINCIPALE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function ProjectsPage() {
   const [projects,  setProjects]  = useState<Project[]>([])
   const [clients,   setClients]   = useState<Client[]>([])
@@ -537,7 +537,7 @@ export default function ProjectsPage() {
       const [pd, cd] = await Promise.all([fetchSafe('/api/projects'), fetchSafe('/api/clients')])
       const list = (Array.isArray(pd) ? pd : pd.data ?? []).map((p:Project)=>({
         ...p,
-        client_name: (Array.isArray(cd) ? cd : cd.data ?? []).find((c:Client)=>c.id===p.client_id)?.name||'—',
+        client_name: (Array.isArray(cd) ? cd : cd.data ?? []).find((c:Client)=>c.id===p.client_id)?.name||'â€”',
       }))
       setProjects(list)
       setClients(Array.isArray(cd) ? cd : cd.data ?? [])
@@ -587,7 +587,7 @@ export default function ProjectsPage() {
 
   function exportCSV() {
     const rows = [
-      ['Projet','Client','Responsable','Statut','Priorité','Début','Fin','Budget','Dépensé','Progression'],
+      ['Projet','Client','Responsable','Statut','PrioritÃ©','DÃ©but','Fin','Budget','DÃ©pensÃ©','Progression'],
       ...filtered.map(p=>[
         p.name, p.client_name||'', p.manager||'',
         STATUS[p.status]?.label||'', PRIORITY[p.priority||'medium']?.label||'',
@@ -645,7 +645,7 @@ export default function ProjectsPage() {
           <h1 style={{fontSize:22,fontWeight:800,color:'#0f172a',display:'flex',alignItems:'center',gap:9}}>
             <span style={{color:'#7c3aed'}}>{I.proj}</span> Projets
           </h1>
-          <p style={{fontSize:12,color:'#94a3b8',marginTop:3}}>{kpi.total} projet(s) · Progression moyenne : <strong style={{color:'#7c3aed'}}>{kpi.avgProgress}%</strong></p>
+          <p style={{fontSize:12,color:'#94a3b8',marginTop:3}}>{kpi.total} projet(s) Â· Progression moyenne : <strong style={{color:'#7c3aed'}}>{kpi.avgProgress}%</strong></p>
         </div>
         <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
           <button onClick={exportCSV} style={{display:'flex',alignItems:'center',gap:7,padding:'9px 14px',borderRadius:10,border:'1.5px solid #e2e8f0',background:'#fff',fontSize:13,fontWeight:600,color:'#64748b',cursor:'pointer'}}>
@@ -665,11 +665,11 @@ export default function ProjectsPage() {
         {[
           {l:'Total',          v:kpi.total,          color:'#7c3aed', border:'#e9d5ff', bg:'#faf5ff'},
           {l:'En cours',       v:kpi.active,         color:'#10b981', border:'#a7f3d0', bg:'#ecfdf5'},
-          {l:'Terminés',       v:kpi.completed,      color:'#6366f1', border:'#c7d2fe', bg:'#eef2ff'},
+          {l:'TerminÃ©s',       v:kpi.completed,      color:'#6366f1', border:'#c7d2fe', bg:'#eef2ff'},
           {l:'En pause',       v:kpi.onHold,         color:'#f59e0b', border:'#fde68a', bg:'#fffbeb'},
           {l:'En retard',      v:kpi.overdue,        color:'#ef4444', border:'#fecaca', bg:'#fef2f2'},
           {l:'Budget total',   v:fmt(kpi.budgetTotal),  color:'#0f172a', border:'#e2e8f0', bg:'#f8fafc', isText:true},
-          {l:'Total dépensé',  v:fmt(kpi.budgetSpent),  color:'#f59e0b', border:'#fde68a', bg:'#fffbeb', isText:true},
+          {l:'Total dÃ©pensÃ©',  v:fmt(kpi.budgetSpent),  color:'#f59e0b', border:'#fde68a', bg:'#fffbeb', isText:true},
           {l:'Progression moy',v:`${kpi.avgProgress}%`, color:'#7c3aed', border:'#e9d5ff', bg:'#faf5ff', isText:true},
         ].map((k,i)=>(
           <div key={i} style={{background:k.bg,borderRadius:13,border:`1.5px solid ${k.border}`,padding:'12px 14px'}}>
@@ -683,8 +683,8 @@ export default function ProjectsPage() {
       {kpi.budgetTotal>0&&(
         <div style={{...card,padding:'14px 18px',marginBottom:18}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-            <span style={{fontSize:12,fontWeight:700,color:'#64748b',display:'flex',alignItems:'center',gap:6}}>{I.euro} Budget global consolidé</span>
-            <span style={{fontSize:12,color:'#94a3b8'}}>{fmt(kpi.budgetSpent)} / {fmt(kpi.budgetTotal)} · <strong style={{color:budgetColor(kpi.budgetSpent,kpi.budgetTotal)}}>{budgetPct(kpi.budgetSpent,kpi.budgetTotal)}%</strong></span>
+            <span style={{fontSize:12,fontWeight:700,color:'#64748b',display:'flex',alignItems:'center',gap:6}}>{I.euro} Budget global consolidÃ©</span>
+            <span style={{fontSize:12,color:'#94a3b8'}}>{fmt(kpi.budgetSpent)} / {fmt(kpi.budgetTotal)} Â· <strong style={{color:budgetColor(kpi.budgetSpent,kpi.budgetTotal)}}>{budgetPct(kpi.budgetSpent,kpi.budgetTotal)}%</strong></span>
           </div>
           <ProgressBar value={budgetPct(kpi.budgetSpent,kpi.budgetTotal)} color={budgetColor(kpi.budgetSpent,kpi.budgetTotal)} height={10}/>
         </div>
@@ -695,14 +695,14 @@ export default function ProjectsPage() {
         <div style={{display:'flex',gap:10,flexWrap:'wrap',alignItems:'center',marginBottom:10}}>
           <div style={{flex:1,minWidth:200,position:'relative'}}>
             <span style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',color:'#94a3b8',pointerEvents:'none'}}>{I.search}</span>
-            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Projet, client, responsable, tag…" style={{...inp,paddingLeft:34}}/>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Projet, client, responsable, tagâ€¦" style={{...inp,paddingLeft:34}}/>
           </div>
           <select value={statusF} onChange={e=>setStatusF(e.target.value)} style={{...inp,width:'auto',minWidth:150}}>
             <option value="all">Tous les statuts</option>
             {Object.entries(STATUS).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
           </select>
           <select value={priorityF} onChange={e=>setPriorityF(e.target.value)} style={{...inp,width:'auto',minWidth:140}}>
-            <option value="all">Toutes priorités</option>
+            <option value="all">Toutes prioritÃ©s</option>
             {Object.entries(PRIORITY).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
           </select>
           <select value={clientF} onChange={e=>setClientF(e.target.value)} style={{...inp,width:'auto',minWidth:160}}>
@@ -713,17 +713,17 @@ export default function ProjectsPage() {
             <option value="name">Trier : Nom</option>
             <option value="budget">Trier : Budget</option>
             <option value="progress">Trier : Progression</option>
-            <option value="end_date">Trier : Échéance</option>
+            <option value="end_date">Trier : Ã‰chÃ©ance</option>
           </select>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
           {hasFilters&&(
             <button onClick={()=>{setSearch('');setStatusF('all');setPriorityF('all');setClientF('all')}}
               style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:'1.5px solid #fecaca',background:'#fef2f2',color:'#ef4444',fontSize:12,fontWeight:600,cursor:'pointer'}}>
-              {I.x} Réinitialiser
+              {I.x} RÃ©initialiser
             </button>
           )}
-          <span style={{fontSize:12,color:'#94a3b8',marginLeft:4}}>{filtered.length} résultat(s)</span>
+          <span style={{fontSize:12,color:'#94a3b8',marginLeft:4}}>{filtered.length} rÃ©sultat(s)</span>
           <div style={{marginLeft:'auto',display:'flex',gap:3,background:'#f1f5f9',padding:4,borderRadius:10}}>
             {(['list','grid'] as const).map(v=>(
               <button key={v} onClick={()=>setView(v)}
@@ -740,14 +740,14 @@ export default function ProjectsPage() {
         <div style={{display:'flex',alignItems:'center',justifyContent:'center',padding:'80px 0'}}>
           <div style={{textAlign:'center'}}>
             <div style={{width:36,height:36,border:'3px solid #7c3aed',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite',margin:'0 auto 12px'}}/>
-            <p style={{fontSize:13,color:'#94a3b8'}}>Chargement…</p>
+            <p style={{fontSize:13,color:'#94a3b8'}}>Chargementâ€¦</p>
           </div>
         </div>
       ) : filtered.length===0 ? (
         <div style={{...card,padding:60,textAlign:'center'}}>
           <div style={{width:56,height:56,background:'#faf5ff',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px',color:'#a855f7'}}>{I.proj}</div>
-          <p style={{fontSize:15,fontWeight:700,color:'#475569'}}>Aucun projet trouvé</p>
-          <p style={{fontSize:13,color:'#94a3b8',marginTop:6}}>{hasFilters?'Modifiez vos filtres':'Créez votre premier projet'}</p>
+          <p style={{fontSize:15,fontWeight:700,color:'#475569'}}>Aucun projet trouvÃ©</p>
+          <p style={{fontSize:13,color:'#94a3b8',marginTop:6}}>{hasFilters?'Modifiez vos filtres':'CrÃ©ez votre premier projet'}</p>
           {!hasFilters&&(
             <button onClick={()=>setModal(true)} style={{marginTop:20,padding:'10px 24px',borderRadius:10,border:'none',background:'linear-gradient(135deg,#4f46e5,#7c3aed)',color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:7}}>
               {I.plus} Nouveau projet
@@ -759,7 +759,7 @@ export default function ProjectsPage() {
           <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
             <thead>
               <tr style={{background:'#f8fafc',borderBottom:'2px solid #f1f5f9'}}>
-                {['Projet','Client','Responsable','Priorité','Budget / Dépensé','Progression','Échéance','Statut','Actions'].map((h,i)=>(
+                {['Projet','Client','Responsable','PrioritÃ©','Budget / DÃ©pensÃ©','Progression','Ã‰chÃ©ance','Statut','Actions'].map((h,i)=>(
                   <th key={h} style={{padding:'11px 14px',textAlign:i===8?'center':'left',fontSize:10,fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>{h}</th>
                 ))}
               </tr>
@@ -773,11 +773,11 @@ export default function ProjectsPage() {
                   <tr key={p.id} className="rh" style={{borderBottom:'1px solid #f8fafc',cursor:'pointer'}} onClick={()=>setViewP(p)}>
                     <td style={{padding:'12px 14px'}}>
                       <p style={{fontWeight:700,color:'#0f172a',fontSize:13}}>{p.name}</p>
-                      {p.tags&&<p style={{fontSize:10,color:'#a855f7',marginTop:2}}>{p.tags.split(',').slice(0,2).map(t=>t.trim()).join(' · ')}</p>}
+                      {p.tags&&<p style={{fontSize:10,color:'#a855f7',marginTop:2}}>{p.tags.split(',').slice(0,2).map(t=>t.trim()).join(' Â· ')}</p>}
                     </td>
                     <td style={{padding:'12px 14px',color:'#64748b',fontSize:12}}>{p.client_name}</td>
                     <td style={{padding:'12px 14px'}}>
-                      <p style={{display:'flex',alignItems:'center',gap:4,color:'#64748b',fontSize:12}}>{I.user}{p.manager||'—'}</p>
+                      <p style={{display:'flex',alignItems:'center',gap:4,color:'#64748b',fontSize:12}}>{I.user}{p.manager||'â€”'}</p>
                     </td>
                     <td style={{padding:'12px 14px'}}><PriorityBadge priority={p.priority||'medium'}/></td>
                     <td style={{padding:'12px 14px',minWidth:160}}>
@@ -788,9 +788,9 @@ export default function ProjectsPage() {
                             <span style={{color:bPct>=100?'#ef4444':'#64748b'}}>{fmt(p.spent||0)}</span>
                           </div>
                           <ProgressBar value={bPct} color={bCol} height={5}/>
-                          <p style={{fontSize:10,color:'#94a3b8',marginTop:3,textAlign:'right'}}>{bPct}% consommé</p>
+                          <p style={{fontSize:10,color:'#94a3b8',marginTop:3,textAlign:'right'}}>{bPct}% consommÃ©</p>
                         </>
-                      ):<span style={{fontSize:12,color:'#cbd5e1'}}>—</span>}
+                      ):<span style={{fontSize:12,color:'#cbd5e1'}}>â€”</span>}
                     </td>
                     <td style={{padding:'12px 14px',minWidth:140}}>
                       <div style={{display:'flex',alignItems:'center',gap:8}}>
@@ -822,8 +822,8 @@ export default function ProjectsPage() {
             </tbody>
           </table>
           <div style={{padding:'9px 16px',borderTop:'1px solid #f8fafc',display:'flex',justifyContent:'space-between',background:'#fafafa',fontSize:12,color:'#94a3b8'}}>
-            <span>{filtered.length} résultat(s) sur {projects.length}</span>
-            <span>Budget filtré : <strong style={{color:'#7c3aed'}}>{fmt(filtered.reduce((s,p)=>s+(p.budget||0),0))}</strong></span>
+            <span>{filtered.length} rÃ©sultat(s) sur {projects.length}</span>
+            <span>Budget filtrÃ© : <strong style={{color:'#7c3aed'}}>{fmt(filtered.reduce((s,p)=>s+(p.budget||0),0))}</strong></span>
           </div>
         </div>
       ) : (
@@ -853,7 +853,7 @@ export default function ProjectsPage() {
                     <DaysLeftChip end_date={p.end_date} status={p.status}/>
                   </div>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:12}}>
-                    {p.client_name!=='—'&&(
+                    {p.client_name!=='â€”'&&(
                       <div style={{background:'#f8fafc',borderRadius:9,padding:'8px 10px'}}>
                         <p style={{fontSize:9,color:'#94a3b8',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.04em',marginBottom:2}}>Client</p>
                         <p style={{fontSize:12,fontWeight:600,color:'#475569',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.client_name}</p>
@@ -908,7 +908,7 @@ export default function ProjectsPage() {
           <div style={{...card,position:'relative',width:'100%',maxWidth:380,padding:28,textAlign:'center',zIndex:1}}>
             <div style={{width:52,height:52,background:'#fef2f2',border:'2px solid #fecaca',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px',color:'#ef4444'}}>{I.trash}</div>
             <h3 style={{fontSize:16,fontWeight:700,color:'#0f172a',marginBottom:8}}>Supprimer ce projet ?</h3>
-            <p style={{fontSize:13,color:'#94a3b8',marginBottom:22,lineHeight:1.6}}>Cette action est irréversible.</p>
+            <p style={{fontSize:13,color:'#94a3b8',marginBottom:22,lineHeight:1.6}}>Cette action est irrÃ©versible.</p>
             <div style={{display:'flex',gap:10}}>
               <button onClick={()=>setDeleteId(null)} style={{flex:1,padding:'10px 0',borderRadius:10,border:'1.5px solid #e2e8f0',background:'#fff',fontSize:13,fontWeight:600,color:'#64748b',cursor:'pointer'}}>Annuler</button>
               <button onClick={()=>del(deleteId)} style={{flex:1,padding:'10px 0',borderRadius:10,border:'none',background:'#ef4444',fontSize:13,fontWeight:700,color:'#fff',cursor:'pointer'}}>Supprimer</button>

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback } from 'react';
@@ -6,9 +6,9 @@ import React from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    TYPES
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 interface Employee {
   id: string; first_name: string; last_name: string; email: string; phone: string;
   position: string; department: string; salary: number; hire_date: string;
@@ -64,13 +64,13 @@ interface CompanySettings {
   vat_number: string; email: string; phone: string; iban: string; bic?: string; logo_url?: string;
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    CONSTANTES
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const STATUS: Record<string, { label: string; color: string; bg: string; border: string; dot: string }> = {
   active:   { label: 'Actif',    color: '#15803d', bg: '#f0fdf4', border: '#bbf7d0', dot: '#22c55e' },
   inactive: { label: 'Inactif',  color: '#64748b', bg: '#f8fafc', border: '#e2e8f0', dot: '#94a3b8' },
-  on_leave: { label: 'En congé', color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe', dot: '#3b82f6' },
+  on_leave: { label: 'En congÃ©', color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe', dot: '#3b82f6' },
 };
 
 const ADJ_TYPES: Record<string, { label: string; color: string; bg: string; sign: 1 | -1 }> = {
@@ -83,7 +83,7 @@ const ADJ_TYPES: Record<string, { label: string; color: string; bg: string; sign
   deduction:  { label: 'Retenue',    color: '#dc2626', bg: '#fef2f2',  sign: -1 },
   retenue:    { label: 'Retenue',    color: '#dc2626', bg: '#fef2f2',  sign: -1 },
   correction: { label: 'Correction', color: '#7c3aed', bg: '#faf5ff',  sign: +1 },
-  indemnite:  { label: 'Indemnité',  color: '#0891b2', bg: '#ecfeff',  sign: +1 },
+  indemnite:  { label: 'IndemnitÃ©',  color: '#0891b2', bg: '#ecfeff',  sign: +1 },
 };
 
 const ADJ_TYPE_OPTIONS = [
@@ -93,28 +93,28 @@ const ADJ_TYPE_OPTIONS = [
   { value: 'acompte',    label: 'Acompte' },
   { value: 'deduction',  label: 'Retenue' },
   { value: 'correction', label: 'Correction' },
-  { value: 'indemnite',  label: 'Indemnité' },
+  { value: 'indemnite',  label: 'IndemnitÃ©' },
 ];
 
 const ENTRY_TYPES: Record<string, { label: string; color: string; bg: string }> = {
   normal:   { label: 'Normal',     color: '#1d4ed8', bg: '#eff6ff' },
   overtime: { label: 'Heures sup', color: '#d97706', bg: '#fffbeb' },
   weekend:  { label: 'Weekend',    color: '#7c3aed', bg: '#faf5ff' },
-  holiday:  { label: 'Férié',      color: '#dc2626', bg: '#fef2f2' },
+  holiday:  { label: 'FÃ©riÃ©',      color: '#dc2626', bg: '#fef2f2' },
   night:    { label: 'Nuit',       color: '#0891b2', bg: '#ecfeff' },
 };
 
 const ENTRY_STATUS: Record<string, { label: string; color: string; bg: string }> = {
   draft:     { label: 'Brouillon', color: '#64748b', bg: '#f8fafc' },
-  validated: { label: 'Validé',    color: '#1d4ed8', bg: '#eff6ff' },
-  paid:      { label: 'Payé',      color: '#15803d', bg: '#f0fdf4' },
+  validated: { label: 'ValidÃ©',    color: '#1d4ed8', bg: '#eff6ff' },
+  paid:      { label: 'PayÃ©',      color: '#15803d', bg: '#f0fdf4' },
 };
 
 const RATE_PRESETS = [0, 25, 50, 100, 150, 200];
 
 const DEPARTMENTS    = ['Direction','Commercial','Technique','Finance','RH','Marketing','Logistique','Autre'];
-const CONTRACT_TYPES = ['CDI','CDD','Intérimaire','Freelance','Apprentissage','Stage'];
-const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+const CONTRACT_TYPES = ['CDI','CDD','IntÃ©rimaire','Freelance','Apprentissage','Stage'];
+const MONTHS = ['Janvier','FÃ©vrier','Mars','Avril','Mai','Juin','Juillet','AoÃ»t','Septembre','Octobre','Novembre','DÃ©cembre'];
 
 const EMPTY_EMP = {
   first_name: '', last_name: '', email: '', phone: '', position: '', department: '',
@@ -127,9 +127,9 @@ const EMPTY_EMP = {
 
 const EMPTY_ADJ = { type: 'bonus' as PayAdjustment['type'], amount: 0, reason: '', month: '', project_id: '' };
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    STYLES
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const card: React.CSSProperties = {
   background: '#fff', borderRadius: 16,
   boxShadow: '0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)',
@@ -145,12 +145,12 @@ const lbl: React.CSSProperties = {
   marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.04em',
 };
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    HELPERS
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const fmt  = (n: number) => new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(n || 0);
 const fmtP = (n: number): string => { const abs = Math.abs(n || 0); const int = Math.floor(abs).toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."); const dec = abs.toFixed(2).split(".")[1]; return (n < 0 ? "-" : "") + int + "," + dec + " EUR"; };
-const fmtD = (d: string) => d ? new Date(d).toLocaleDateString("fr-BE", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+const fmtD = (d: string) => d ? new Date(d).toLocaleDateString("fr-BE", { day: "2-digit", month: "short", year: "numeric" }) : "â€”";
 function currentMonth() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; }
 
 function calcHours(start: string, end: string, breakMin: number): number {
@@ -166,7 +166,7 @@ function calcAmount(hours: number, hourlyRate: number, ratePercent: number): num
 }
 
 function seniority(hire_date: string): string {
-  if (!hire_date) return '—';
+  if (!hire_date) return 'â€”';
   const diff  = Date.now() - new Date(hire_date).getTime();
   const years = Math.floor(diff / (365.25 * 86400000));
   const months= Math.floor((diff % (365.25 * 86400000)) / (30.44 * 86400000));
@@ -197,9 +197,9 @@ async function fetchSafe(url: string, options?: RequestInit): Promise<unknown> {
   } catch { return []; }
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    ICONS
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const I = {
   plus:      <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
   edit:      <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
@@ -234,19 +234,19 @@ const I = {
   project:   <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>,
 };
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    PDF FICHE DE SALAIRE
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function generatePaySlip(data: PaySlipData, company: CompanySettings) {
   const { employee: e, month, year, gross, adjustments, totalAdj, net } = data;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const W = 210, M = 15;
   const companyName    = company.company_name || 'Mon Entreprise';
-  const companyAddress = [company.address, company.city, company.country].filter(Boolean).join(', ') || '—';
-  const companyEmail   = company.email      || '—';
-  const companyPhone   = company.phone      || '—';
-  const companyVat     = company.vat_number || '—';
-  const companyIban    = company.iban       || '—';
+  const companyAddress = [company.address, company.city, company.country].filter(Boolean).join(', ') || 'â€”';
+  const companyEmail   = company.email      || 'â€”';
+  const companyPhone   = company.phone      || 'â€”';
+  const companyVat     = company.vat_number || 'â€”';
+  const companyIban    = company.iban       || 'â€”';
 
   doc.setFillColor(245, 158, 11); doc.rect(0, 0, W, 48, 'F');
   doc.setFillColor(234, 140, 0);  doc.rect(0, 42, W, 6, 'F');
@@ -267,7 +267,7 @@ function generatePaySlip(data: PaySlipData, company: CompanySettings) {
   doc.setTextColor(15,23,42); doc.setFontSize(12); doc.setFont('helvetica','bold');
   doc.text(`${e.first_name} ${e.last_name}`, M + 5, 73);
   doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(71,85,105);
-  const empLines = [e.position||'', e.department||'', `Contrat : ${e.contract_type||'—'}`, e.national_id?`N° national : ${e.national_id}`:'', `Embauche le : ${fmtD(e.hire_date)}`].filter(Boolean);
+  const empLines = [e.position||'', e.department||'', `Contrat : ${e.contract_type||'â€”'}`, e.national_id?`NÂ° national : ${e.national_id}`:'', `Embauche le : ${fmtD(e.hire_date)}`].filter(Boolean);
   doc.text(empLines, M + 5, 80, { lineHeightFactor: 1.7 });
 
   doc.setFillColor(255,251,235); doc.setDrawColor(253,230,138);
@@ -281,7 +281,7 @@ function generatePaySlip(data: PaySlipData, company: CompanySettings) {
   adjustments.forEach(adj => {
     const t = ADJ_TYPES[adj.type] ?? { label: adj.type, sign: 1 };
     const sign = t.sign > 0 ? '+' : '-';
-    tableBody.push([`${t.label} — ${adj.reason}`,'1',`${sign} ${fmtP(Math.abs(adj.amount))}`,`${sign} ${fmtP(Math.abs(adj.amount))}`]);
+    tableBody.push([`${t.label} â€” ${adj.reason}`,'1',`${sign} ${fmtP(Math.abs(adj.amount))}`,`${sign} ${fmtP(Math.abs(adj.amount))}`]);
   });
 
   autoTable(doc, {
@@ -321,7 +321,7 @@ function generatePaySlip(data: PaySlipData, company: CompanySettings) {
   doc.setTextColor(146,64,14); doc.setFont('helvetica','bold'); doc.setFontSize(8);
   doc.text('Virement bancaire', M+5, bY+7);
   doc.setFont('helvetica','normal'); doc.setTextColor(120,53,15);
-  doc.text(`IBAN : ${e.iban||companyIban}  •  Communication : SALAIRE ${MONTHS[parseInt(month.split('-')[1])-1].toUpperCase()} ${year}`, M+5, bY+13);
+  doc.text(`IBAN : ${e.iban||companyIban}  â€¢  Communication : SALAIRE ${MONTHS[parseInt(month.split('-')[1])-1].toUpperCase()} ${year}`, M+5, bY+13);
 
   const sY = Math.min(bY+26, 238);
   doc.setDrawColor(226,232,240); doc.setLineWidth(0.3);
@@ -332,13 +332,13 @@ function generatePaySlip(data: PaySlipData, company: CompanySettings) {
 
   doc.setFillColor(245,158,11); doc.rect(0, 282, W, 15, 'F');
   doc.setTextColor(255,255,255); doc.setFontSize(7.5); doc.setFont('helvetica','normal');
-  doc.text(`${companyName}  •  ${companyVat}  •  ${companyEmail}  •  Document genere le ${new Date().toLocaleDateString('fr-BE')}`, W/2, 290.5, { align:'center' });
+  doc.text(`${companyName}  â€¢  ${companyVat}  â€¢  ${companyEmail}  â€¢  Document genere le ${new Date().toLocaleDateString('fr-BE')}`, W/2, 290.5, { align:'center' });
   doc.save(`Fiche-Salaire-${e.last_name}-${month}.pdf`);
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    COMPOSANT SELECTEUR DE PROJET
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function ProjectSelect({ value, onChange, projects }: {
   value: string;
   onChange: (v: string) => void;
@@ -376,9 +376,9 @@ function ProjectSelect({ value, onChange, projects }: {
   );
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    MODAL POINTAGE
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function TimeEntryModal({ open, onClose, onSave, employee, initial, projects }: {
   open: boolean; onClose: () => void;
   onSave: (d: Partial<TimeEntry> & { employee_id: string }) => Promise<void>;
@@ -449,7 +449,7 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial, projects }: 
     e.preventDefault();
     if (!employee) return;
     if (!form.date) { setError('Date obligatoire.'); return; }
-    if (form.hours_worked <= 0) { setError('Heures travaillées doivent être > 0.'); return; }
+    if (form.hours_worked <= 0) { setError('Heures travaillÃ©es doivent Ãªtre > 0.'); return; }
     setSaving(true); setError('');
     try {
       await onSave({
@@ -475,7 +475,7 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial, projects }: 
               <h2 style={{ fontSize:17, fontWeight:800, color:'#fff', display:'flex', alignItems:'center', gap:8 }}>
                 {I.time} {initial ? 'Modifier le pointage' : 'Nouveau pointage'}
               </h2>
-              <p style={{ fontSize:12, color:'rgba(255,255,255,0.7)', marginTop:3 }}>{employee.first_name} {employee.last_name} · {hourlyRate > 0 ? `${fmt(hourlyRate)}/h` : 'Taux horaire non défini'}</p>
+              <p style={{ fontSize:12, color:'rgba(255,255,255,0.7)', marginTop:3 }}>{employee.first_name} {employee.last_name} Â· {hourlyRate > 0 ? `${fmt(hourlyRate)}/h` : 'Taux horaire non dÃ©fini'}</p>
             </div>
             <button onClick={onClose} style={{ background:'rgba(255,255,255,0.15)', border:'none', borderRadius:8, padding:8, cursor:'pointer', color:'#fff', display:'flex' }}>{I.x}</button>
           </div>
@@ -488,7 +488,7 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial, projects }: 
             </div>
           )}
 
-          {/* Sélecteur de projet */}
+          {/* SÃ©lecteur de projet */}
           <ProjectSelect
             value={form.project_id}
             onChange={v => setForm(p => ({ ...p, project_id: v }))}
@@ -508,7 +508,7 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial, projects }: 
 
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
             <div>
-              <label style={lbl}>Heure début</label>
+              <label style={lbl}>Heure dÃ©but</label>
               <input style={inp} type="time" value={form.start_time} onChange={e => setField('start_time', e.target.value)} />
             </div>
             <div>
@@ -524,7 +524,7 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial, projects }: 
           <div style={{ background:'#f0f9ff', borderRadius:12, padding:'12px 16px', border:'1.5px solid #bae6fd', display:'flex', alignItems:'center', gap:12 }}>
             <span style={{ color:'#0891b2' }}>{I.timer}</span>
             <div style={{ flex:1 }}>
-              <p style={{ fontSize:11, color:'#0369a1', fontWeight:700, textTransform:'uppercase', marginBottom:2 }}>Heures calculées automatiquement</p>
+              <p style={{ fontSize:11, color:'#0369a1', fontWeight:700, textTransform:'uppercase', marginBottom:2 }}>Heures calculÃ©es automatiquement</p>
               <p style={{ fontSize:20, fontWeight:800, color:'#0891b2' }}>{form.hours_worked}h</p>
             </div>
             <div style={{ textAlign:'right' }}>
@@ -535,7 +535,7 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial, projects }: 
           </div>
 
           <div>
-            <label style={lbl}>Type de journée</label>
+            <label style={lbl}>Type de journÃ©e</label>
             <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
               {Object.entries(ENTRY_TYPES).map(([k, v]) => (
                 <button key={k} type="button" onClick={() => applyTypeDefault(k as TimeEntry['entry_type'])}
@@ -547,7 +547,7 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial, projects }: 
           </div>
 
           <div>
-            <label style={lbl}>Majoration (%) — <span style={{ fontWeight:400, textTransform:'none' }}>choisissez un preset ou saisissez librement</span></label>
+            <label style={lbl}>Majoration (%) â€” <span style={{ fontWeight:400, textTransform:'none' }}>choisissez un preset ou saisissez librement</span></label>
             <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:10 }}>
               {RATE_PRESETS.map(r => (
                 <button key={r} type="button" onClick={() => applyRatePreset(r)}
@@ -564,7 +564,7 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial, projects }: 
               </div>
               {form.rate_applied > 0 && (
                 <div style={{ padding:'6px 12px', background:'#e0f2fe', borderRadius:8, border:'1px solid #bae6fd', whiteSpace:'nowrap' }}>
-                  <span style={{ fontSize:12, color:'#0369a1', fontWeight:700 }}>×{(1 + form.rate_applied/100).toFixed(2)}</span>
+                  <span style={{ fontSize:12, color:'#0369a1', fontWeight:700 }}>Ã—{(1 + form.rate_applied/100).toFixed(2)}</span>
                 </div>
               )}
             </div>
@@ -586,14 +586,14 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial, projects }: 
                 ))}
               </div>
               <div style={{ marginTop:10, padding:'10px 14px', background:'linear-gradient(135deg,#15803d,#16a34a)', borderRadius:10, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <span style={{ fontSize:13, fontWeight:700, color:'#fff' }}>Montant à payer</span>
+                <span style={{ fontSize:13, fontWeight:700, color:'#fff' }}>Montant Ã  payer</span>
                 <span style={{ fontSize:18, fontWeight:800, color:'#fff' }}>{fmt(totalPreview)}</span>
               </div>
             </div>
           )}
 
           <div>
-            <label style={lbl}>Montant (EUR) — <span style={{ fontWeight:400, textTransform:'none' }}>modifiable manuellement</span></label>
+            <label style={lbl}>Montant (EUR) â€” <span style={{ fontWeight:400, textTransform:'none' }}>modifiable manuellement</span></label>
             <input style={{ ...inp, fontWeight:700, fontSize:15 }} type="number" min="0" step="0.01"
               value={form.amount || ''} onChange={e => setForm(p => ({ ...p, amount: +e.target.value }))} placeholder="0.00" />
           </div>
@@ -615,7 +615,7 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial, projects }: 
             <button type="button" onClick={onClose} style={{ flex:1, padding:'10px 0', borderRadius:10, border:'1.5px solid #e2e8f0', background:'#fff', fontSize:13, fontWeight:600, color:'#64748b', cursor:'pointer' }}>Annuler</button>
             <button type="submit" disabled={saving} style={{ flex:2, padding:'10px 0', borderRadius:10, border:'none', background:'linear-gradient(135deg,#0891b2,#06b6d4)', fontSize:13, fontWeight:700, color:'#fff', cursor:saving?'not-allowed':'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
               {saving ? (
-                <><div style={{ width:14, height:14, border:'2px solid #fff', borderTopColor:'transparent', borderRadius:'50%', animation:'spin 0.8s linear infinite' }} />Enregistrement…</>
+                <><div style={{ width:14, height:14, border:'2px solid #fff', borderTopColor:'transparent', borderRadius:'50%', animation:'spin 0.8s linear infinite' }} />Enregistrementâ€¦</>
               ) : (
                 <>{I.check} {initial?'Modifier':'Enregistrer le pointage'}</>
               )}
@@ -627,9 +627,9 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial, projects }: 
   );
 }
 
-/* ─────────────────────────────────────────────
-   MODAL EMPLOYÉ
-───────────────────────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   MODAL EMPLOYÃ‰
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function EmployeeModal({ open, onClose, onSave, initial }: {
   open: boolean; onClose: () => void;
   onSave: (d: typeof EMPTY_EMP) => Promise<void>;
@@ -692,7 +692,7 @@ function EmployeeModal({ open, onClose, onSave, initial }: {
           <div style={{ display:'flex', gap:2, overflowX:'auto' }}>
             {(['info','contract','horaire','extra'] as const).map(t => (
               <button key={t} style={TS(t)} onClick={() => setTab(t)}>
-                {t==='info'?'Informations':t==='contract'?'Contrat & Salaire':t==='horaire'?'Taux horaires':'Données RH'}
+                {t==='info'?'Informations':t==='contract'?'Contrat & Salaire':t==='horaire'?'Taux horaires':'DonnÃ©es RH'}
               </button>
             ))}
           </div>
@@ -711,7 +711,7 @@ function EmployeeModal({ open, onClose, onSave, initial }: {
               <div>
                 <label style={lbl}>Departement</label>
                 <select style={{ ...inp, width:'100%' }} value={form.department} onChange={e=>f('department',e.target.value)}>
-                  <option value="">— Selectionner —</option>
+                  <option value="">â€” Selectionner â€”</option>
                   {DEPARTMENTS.map(d=><option key={d}>{d}</option>)}
                 </select>
               </div>
@@ -736,7 +736,7 @@ function EmployeeModal({ open, onClose, onSave, initial }: {
               <div style={{ gridColumn:'1/-1' }}>
                 <label style={lbl}>Type de travailleur</label>
                 <div style={{ display:'flex', gap:8 }}>
-                  {[{v:'salarie',l:'Salarié mensuel'},{v:'horaire',l:'Ouvrier horaire'}].map(opt=>(
+                  {[{v:'salarie',l:'SalariÃ© mensuel'},{v:'horaire',l:'Ouvrier horaire'}].map(opt=>(
                     <button key={opt.v} type="button" onClick={()=>f('worker_type',opt.v)}
                       style={{ flex:1, padding:'10px 0', borderRadius:10, border:`1.5px solid ${form.worker_type===opt.v?'#f59e0b':'#e2e8f0'}`, background:form.worker_type===opt.v?'#fffbeb':'#fff', color:form.worker_type===opt.v?'#d97706':'#64748b', fontWeight:700, fontSize:13, cursor:'pointer' }}>
                       {opt.l}
@@ -783,14 +783,14 @@ function EmployeeModal({ open, onClose, onSave, initial }: {
             <div style={{ padding:24, display:'flex', flexDirection:'column', gap:16 }}>
               <div style={{ background:'#f0f9ff', borderRadius:12, padding:14, border:'1.5px solid #bae6fd' }}>
                 <p style={{ fontSize:12, fontWeight:700, color:'#0369a1', marginBottom:4, display:'flex', alignItems:'center', gap:6 }}>{I.time} Configuration des taux horaires</p>
-                <p style={{ fontSize:12, color:'#0284c7', lineHeight:1.6 }}>Définissez le taux de base et les majorations. Ces valeurs seront proposées automatiquement lors du pointage.</p>
+                <p style={{ fontSize:12, color:'#0284c7', lineHeight:1.6 }}>DÃ©finissez le taux de base et les majorations. Ces valeurs seront proposÃ©es automatiquement lors du pointage.</p>
               </div>
               <div>
                 <label style={lbl}>Taux horaire de base (EUR/heure) <span style={{ color:'#ef4444' }}>*</span></label>
                 <input style={{ ...inp, fontWeight:700, fontSize:15 }} type="number" min="0" step="0.25" value={form.hourly_rate||''} onChange={e=>f('hourly_rate',+e.target.value)} placeholder="0.00" />
                 {(form.hourly_rate||0)>0 && (
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginTop:10 }}>
-                    {[{l:'Journée 8h',v:fmt((form.hourly_rate||0)*8)},{l:'Semaine 40h',v:fmt((form.hourly_rate||0)*40)},{l:'Mois 160h',v:fmt((form.hourly_rate||0)*160)}].map((k,i)=>(
+                    {[{l:'JournÃ©e 8h',v:fmt((form.hourly_rate||0)*8)},{l:'Semaine 40h',v:fmt((form.hourly_rate||0)*40)},{l:'Mois 160h',v:fmt((form.hourly_rate||0)*160)}].map((k,i)=>(
                       <div key={i} style={{ textAlign:'center', padding:'10px 0', background:'#e0f2fe', borderRadius:10, border:'1px solid #bae6fd' }}>
                         <p style={{ fontSize:10, color:'#0369a1', marginBottom:3 }}>{k.l}</p>
                         <p style={{ fontSize:13, fontWeight:800, color:'#0891b2' }}>{k.v}</p>
@@ -801,9 +801,9 @@ function EmployeeModal({ open, onClose, onSave, initial }: {
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
                 {[
-                  { k:'overtime_rate' as keyof typeof EMPTY_EMP, l:'Heures supplémentaires (%)', placeholder:'Ex: 50', color:'#d97706' },
+                  { k:'overtime_rate' as keyof typeof EMPTY_EMP, l:'Heures supplÃ©mentaires (%)', placeholder:'Ex: 50', color:'#d97706' },
                   { k:'weekend_rate'  as keyof typeof EMPTY_EMP, l:'Weekend (%)',                  placeholder:'Ex: 100', color:'#7c3aed' },
-                  { k:'holiday_rate'  as keyof typeof EMPTY_EMP, l:'Jours fériés (%)',             placeholder:'Ex: 100', color:'#dc2626' },
+                  { k:'holiday_rate'  as keyof typeof EMPTY_EMP, l:'Jours fÃ©riÃ©s (%)',             placeholder:'Ex: 100', color:'#dc2626' },
                   { k:'night_rate'    as keyof typeof EMPTY_EMP, l:'Heures de nuit (%)',           placeholder:'Ex: 25',  color:'#0891b2' },
                 ].map(({k,l,placeholder,color})=>(
                   <div key={k}>
@@ -826,15 +826,15 @@ function EmployeeModal({ open, onClose, onSave, initial }: {
 
           {tab==='extra' && (
             <div style={{ padding:24, display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
-              <div><label style={lbl}>N° national / Matricule</label><input style={inp} value={form.national_id||''} onChange={e=>f('national_id',e.target.value)} placeholder="XX.XX.XX-XXX.XX" /></div>
-              <div><label style={lbl}>Contact d&apos;urgence</label><input style={inp} value={form.emergency_contact||''} onChange={e=>f('emergency_contact',e.target.value)} placeholder="Nom · +32 470 00 00 00" /></div>
+              <div><label style={lbl}>NÂ° national / Matricule</label><input style={inp} value={form.national_id||''} onChange={e=>f('national_id',e.target.value)} placeholder="XX.XX.XX-XXX.XX" /></div>
+              <div><label style={lbl}>Contact d&apos;urgence</label><input style={inp} value={form.emergency_contact||''} onChange={e=>f('emergency_contact',e.target.value)} placeholder="Nom Â· +32 470 00 00 00" /></div>
             </div>
           )}
 
           <div style={{ padding:'14px 24px', borderTop:'1px solid #f1f5f9', display:'flex', gap:10, flexShrink:0 }}>
             <button type="button" onClick={onClose} style={{ flex:1, padding:'10px 0', borderRadius:10, border:'1.5px solid #e2e8f0', background:'#fff', fontSize:13, fontWeight:600, color:'#64748b', cursor:'pointer' }}>Annuler</button>
             <button type="submit" disabled={saving} style={{ flex:2, padding:'10px 0', borderRadius:10, border:'none', background:saving?'#fcd34d':'linear-gradient(135deg,#d97706,#f59e0b)', fontSize:13, fontWeight:700, color:'#fff', cursor:saving?'not-allowed':'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
-              {saving?<><div style={{ width:14, height:14, border:'2px solid #fff', borderTopColor:'transparent', borderRadius:'50%', animation:'spin 0.8s linear infinite' }} />Enregistrement…</>:<>{I.check} {initial?'Mettre a jour':'Creer'}</>}
+              {saving?<><div style={{ width:14, height:14, border:'2px solid #fff', borderTopColor:'transparent', borderRadius:'50%', animation:'spin 0.8s linear infinite' }} />Enregistrementâ€¦</>:<>{I.check} {initial?'Mettre a jour':'Creer'}</>}
             </button>
           </div>
         </form>
@@ -843,9 +843,9 @@ function EmployeeModal({ open, onClose, onSave, initial }: {
   );
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    MODAL AJUSTEMENT
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function AdjustmentModal({ open, onClose, onSave, employee, defaultType, projects }: {
   open: boolean; onClose: () => void;
   onSave: (d: typeof EMPTY_ADJ & { employee_id: string }) => Promise<void>;
@@ -903,7 +903,7 @@ function AdjustmentModal({ open, onClose, onSave, employee, defaultType, project
             </div>
           )}
 
-          {/* Sélecteur de projet */}
+          {/* SÃ©lecteur de projet */}
           <ProjectSelect
             value={form.project_id}
             onChange={v => setForm(p => ({ ...p, project_id: v }))}
@@ -950,7 +950,7 @@ function AdjustmentModal({ open, onClose, onSave, employee, defaultType, project
           <div style={{ display:'flex', gap:10, marginTop:4 }}>
             <button type="button" onClick={onClose} style={{ flex:1, padding:'10px 0', borderRadius:10, border:'1.5px solid #e2e8f0', background:'#fff', fontSize:13, fontWeight:600, color:'#64748b', cursor:'pointer' }}>Annuler</button>
             <button type="submit" disabled={saving} style={{ flex:2, padding:'10px 0', borderRadius:10, border:'none', background:isSalaire?'linear-gradient(135deg,#0f172a,#1e293b)':'linear-gradient(135deg,#4f46e5,#7c3aed)', fontSize:13, fontWeight:700, color:'#fff', cursor:saving?'not-allowed':'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
-              {saving?<><div style={{ width:14, height:14, border:'2px solid #fff', borderTopColor:'transparent', borderRadius:'50%', animation:'spin 0.8s linear infinite' }} />Enregistrement…</>:<>{I.check} {isSalaire?'Confirmer le paiement':'Enregistrer'}</>}
+              {saving?<><div style={{ width:14, height:14, border:'2px solid #fff', borderTopColor:'transparent', borderRadius:'50%', animation:'spin 0.8s linear infinite' }} />Enregistrementâ€¦</>:<>{I.check} {isSalaire?'Confirmer le paiement':'Enregistrer'}</>}
             </button>
           </div>
         </form>
@@ -959,9 +959,9 @@ function AdjustmentModal({ open, onClose, onSave, employee, defaultType, project
   );
 }
 
-/* ─────────────────────────────────────────────
-   DRAWER DÉTAIL EMPLOYÉ
-───────────────────────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   DRAWER DÃ‰TAIL EMPLOYÃ‰
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function EmployeeDrawer({ employee, adjustments, timeEntries, projects, onClose, onEdit, onDelete, onAdjust, onPaySalary, onPaySlip, onAddTime, onEditTime, onDeleteTime }: {
   employee: Employee|null; adjustments: PayAdjustment[]; timeEntries: TimeEntry[];
   projects: Project[];
@@ -1009,7 +1009,7 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, projects, onClose,
               </div>
               <div>
                 <h3 style={{ fontSize:18, fontWeight:800, color:'#fff' }}>{employee.first_name} {employee.last_name}</h3>
-                <p style={{ fontSize:12, color:'rgba(255,255,255,0.75)', marginTop:2 }}>{employee.position||'—'}</p>
+                <p style={{ fontSize:12, color:'rgba(255,255,255,0.75)', marginTop:2 }}>{employee.position||'â€”'}</p>
                 {isHoraire && <p style={{ fontSize:11, color:'rgba(255,255,255,0.9)', marginTop:2, fontWeight:700 }}>{I.time} {fmt(employee.hourly_rate||0)}/h</p>}
               </div>
             </div>
@@ -1021,7 +1021,7 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, projects, onClose,
               <span style={{ fontSize:12, fontWeight:600, color:'#fff' }}>{st.label}</span>
             </div>
             <span style={{ fontSize:11, color:'rgba(255,255,255,0.7)', background:'rgba(255,255,255,0.15)', padding:'3px 10px', borderRadius:20 }}>{employee.contract_type}</span>
-            <span style={{ fontSize:11, color:'rgba(255,255,255,0.7)', background:'rgba(255,255,255,0.15)', padding:'3px 10px', borderRadius:20 }}>{employee.department||'—'}</span>
+            <span style={{ fontSize:11, color:'rgba(255,255,255,0.7)', background:'rgba(255,255,255,0.15)', padding:'3px 10px', borderRadius:20 }}>{employee.department||'â€”'}</span>
             {isHoraire && <span style={{ fontSize:11, color:'rgba(255,255,255,0.9)', background:'rgba(255,255,255,0.25)', padding:'3px 10px', borderRadius:20, fontWeight:700 }}>Ouvrier horaire</span>}
           </div>
           <div style={{ display:'flex', borderTop:'1px solid rgba(255,255,255,0.2)' }}>
@@ -1047,8 +1047,8 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, projects, onClose,
                     {[
                       { l:'Taux horaire',   v:fmt(employee.hourly_rate||0),                      c:'#92400e' },
                       { l:'Heures ce mois', v:`${totalHours}h`,                                  c:'#0891b2' },
-                      { l:'Brut calculé',   v:fmt(totalEarned),                                  c:'#15803d' },
-                      { l:'Déjà payé',      v:fmt(paidEntries.reduce((s,t)=>s+(t.amount||0),0)), c:'#64748b' },
+                      { l:'Brut calculÃ©',   v:fmt(totalEarned),                                  c:'#15803d' },
+                      { l:'DÃ©jÃ  payÃ©',      v:fmt(paidEntries.reduce((s,t)=>s+(t.amount||0),0)), c:'#64748b' },
                     ].map((k,i) => (
                       <div key={i} style={{ textAlign:'center', padding:'10px 6px', background:'#fff', borderRadius:10, border:'1px solid #fde68a' }}>
                         <p style={{ fontSize:9, color:'#94a3b8', marginBottom:3, textTransform:'uppercase' }}>{k.l}</p>
@@ -1077,9 +1077,9 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, projects, onClose,
                 <div style={{ background:'#fff7ed', borderRadius:14, padding:16, border:'1.5px solid #fed7aa' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                     <div>
-                      <p style={{ fontSize:11, fontWeight:700, color:'#c2410c', textTransform:'uppercase', marginBottom:4 }}>Solde à payer</p>
+                      <p style={{ fontSize:11, fontWeight:700, color:'#c2410c', textTransform:'uppercase', marginBottom:4 }}>Solde Ã  payer</p>
                       <p style={{ fontSize:22, fontWeight:800, color:'#ea580c' }}>{fmt(pendingAmount)}</p>
-                      <p style={{ fontSize:11, color:'#9a3412', marginTop:2 }}>{myEntries.filter(t=>t.status!=='paid').length} entrée(s) non payée(s)</p>
+                      <p style={{ fontSize:11, color:'#9a3412', marginTop:2 }}>{myEntries.filter(t=>t.status!=='paid').length} entrÃ©e(s) non payÃ©e(s)</p>
                     </div>
                     <button onClick={onAdjust} style={{ padding:'10px 16px', borderRadius:10, border:'none', background:'linear-gradient(135deg,#ea580c,#f97316)', color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>
                       {I.wallet} Payer
@@ -1095,13 +1095,13 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, projects, onClose,
                     <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                       <div style={{ width:32, height:32, background:'#dcfce7', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', color:'#15803d', flexShrink:0 }}>{I.check}</div>
                       <div>
-                        <p style={{ fontSize:13, fontWeight:700, color:'#15803d' }}>Salaire verse — {fmt(salaireThisMonth.amount)}</p>
+                        <p style={{ fontSize:13, fontWeight:700, color:'#15803d' }}>Salaire verse â€” {fmt(salaireThisMonth.amount)}</p>
                         <p style={{ fontSize:11, color:'#166534' }}>Enregistre le {fmtD(salaireThisMonth.created_at)}</p>
                       </div>
                     </div>
                   ) : (
                     <button onClick={onPaySalary} style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:8, padding:'11px 0', borderRadius:10, border:'none', background:'linear-gradient(135deg,#0f172a,#334155)', color:'#fff', fontSize:13, fontWeight:700, cursor:'pointer' }}>
-                      {I.wallet} Payer le salaire de {MONTHS[parseInt(currentMonth().split('-')[1])-1]} — {fmt(employee.salary||0)}
+                      {I.wallet} Payer le salaire de {MONTHS[parseInt(currentMonth().split('-')[1])-1]} â€” {fmt(employee.salary||0)}
                     </button>
                   )}
                 </div>
@@ -1110,7 +1110,7 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, projects, onClose,
               <div style={{ background:'#f8fafc', borderRadius:14, padding:16, border:'1px solid #f1f5f9' }}>
                 <p style={{ fontSize:11, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:10 }}>Fiche de salaire</p>
                 <button onClick={() => onPaySlip(selMonth)} style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'9px 14px', borderRadius:9, border:'none', background:'linear-gradient(135deg,#d97706,#f59e0b)', color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer' }}>
-                  {I.pdf} Générer PDF — {MONTHS[parseInt(selMonth.split('-')[1])-1]} {selMonth.split('-')[0]}
+                  {I.pdf} GÃ©nÃ©rer PDF â€” {MONTHS[parseInt(selMonth.split('-')[1])-1]} {selMonth.split('-')[0]}
                 </button>
                 {!isHoraire && (
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginTop:10 }}>
@@ -1131,7 +1131,7 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, projects, onClose,
               {myAdj.length > 0 && (
                 <div style={{ background:'#f8fafc', borderRadius:14, padding:16, border:'1px solid #f1f5f9' }}>
                   <p style={{ fontSize:11, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:10 }}>
-                    Ajustements — {MONTHS[parseInt(selMonth.split('-')[1])-1]} {selMonth.split('-')[0]}
+                    Ajustements â€” {MONTHS[parseInt(selMonth.split('-')[1])-1]} {selMonth.split('-')[0]}
                   </p>
                   {myAdj.map((a,i) => {
                     const t = ADJ_TYPES[a.type]??{ label:a.type, color:'#64748b', bg:'#f8fafc', sign:1 as 1|-1 };
@@ -1158,14 +1158,14 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, projects, onClose,
               <div style={{ background:'#f8fafc', borderRadius:14, padding:16, border:'1px solid #f1f5f9' }}>
                 <p style={{ fontSize:11, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:10 }}>Informations</p>
                 {[
-                  { l:'Email',           v:employee.email||'—',             i:I.mail },
-                  { l:'Telephone',       v:employee.phone||'—',             i:I.phone },
-                  { l:'Adresse',         v:employee.address||'—',           i:I.location },
-                  { l:'IBAN',            v:employee.iban||'—',              i:I.euro },
-                  { l:'N° national',     v:employee.national_id||'—',       i:I.id },
+                  { l:'Email',           v:employee.email||'â€”',             i:I.mail },
+                  { l:'Telephone',       v:employee.phone||'â€”',             i:I.phone },
+                  { l:'Adresse',         v:employee.address||'â€”',           i:I.location },
+                  { l:'IBAN',            v:employee.iban||'â€”',              i:I.euro },
+                  { l:'NÂ° national',     v:employee.national_id||'â€”',       i:I.id },
                   { l:'Embauche le',     v:fmtD(employee.hire_date),        i:I.calendar },
                   { l:'Anciennete',      v:seniority(employee.hire_date),   i:I.clock },
-                  { l:'Contact urgence', v:employee.emergency_contact||'—', i:I.phone },
+                  { l:'Contact urgence', v:employee.emergency_contact||'â€”', i:I.phone },
                 ].map((r,i,arr) => (
                   <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 0', borderBottom:i<arr.length-1?'1px solid #f1f5f9':'none' }}>
                     <span style={{ fontSize:12, color:'#94a3b8', display:'flex', alignItems:'center', gap:5, flexShrink:0 }}>{r.i}{r.l}</span>
@@ -1179,12 +1179,12 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, projects, onClose,
           {drawerTab==='pointage' && (
             <>
               <div style={{ background:'linear-gradient(135deg,#0891b2,#06b6d4)', borderRadius:14, padding:16 }}>
-                <p style={{ fontSize:11, fontWeight:700, color:'rgba(255,255,255,0.8)', textTransform:'uppercase', marginBottom:10 }}>Résumé — {MONTHS[parseInt(selMonth.split('-')[1])-1]} {selMonth.split('-')[0]}</p>
+                <p style={{ fontSize:11, fontWeight:700, color:'rgba(255,255,255,0.8)', textTransform:'uppercase', marginBottom:10 }}>RÃ©sumÃ© â€” {MONTHS[parseInt(selMonth.split('-')[1])-1]} {selMonth.split('-')[0]}</p>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
                   {[
                     { l:'Total heures',  v:`${totalHours}h`,  c:'#fff' },
-                    { l:'Brut calculé',  v:fmt(totalEarned),  c:'#fff' },
-                    { l:'Reste à payer', v:fmt(pendingAmount),c:pendingAmount>0?'#fde68a':'#fff' },
+                    { l:'Brut calculÃ©',  v:fmt(totalEarned),  c:'#fff' },
+                    { l:'Reste Ã  payer', v:fmt(pendingAmount),c:pendingAmount>0?'#fde68a':'#fff' },
                   ].map((k,i) => (
                     <div key={i} style={{ textAlign:'center', padding:'10px 4px', background:'rgba(255,255,255,0.15)', borderRadius:10 }}>
                       <p style={{ fontSize:9, color:'rgba(255,255,255,0.7)', marginBottom:3 }}>{k.l}</p>
@@ -1226,11 +1226,11 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, projects, onClose,
                           </div>
                           <div style={{ textAlign:'right' }}>
                             <p style={{ fontSize:15, fontWeight:800, color:'#0f172a' }}>{fmt(entry.amount)}</p>
-                            <p style={{ fontSize:11, color:'#94a3b8' }}>{entry.hours_worked}h{entry.rate_applied>0?` · +${entry.rate_applied}%`:''}</p>
+                            <p style={{ fontSize:11, color:'#94a3b8' }}>{entry.hours_worked}h{entry.rate_applied>0?` Â· +${entry.rate_applied}%`:''}</p>
                           </div>
                         </div>
                         {(entry.start_time||entry.end_time) && (
-                          <p style={{ fontSize:11, color:'#64748b', marginBottom:6, display:'flex', alignItems:'center', gap:4 }}>{I.clock}{entry.start_time||'—'} → {entry.end_time||'—'}{entry.break_minutes>0?` (pause ${entry.break_minutes}min)`:''}</p>
+                          <p style={{ fontSize:11, color:'#64748b', marginBottom:6, display:'flex', alignItems:'center', gap:4 }}>{I.clock}{entry.start_time||'â€”'} â†’ {entry.end_time||'â€”'}{entry.break_minutes>0?` (pause ${entry.break_minutes}min)`:''}</p>
                         )}
                         {entry.notes && <p style={{ fontSize:11, color:'#94a3b8', marginBottom:8 }}>{entry.notes}</p>}
                         <div style={{ display:'flex', gap:6, paddingTop:8, borderTop:'1px solid #f8fafc' }}>
@@ -1264,9 +1264,9 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, projects, onClose,
   );
 }
 
-/* ─────────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    PAGE PRINCIPALE
-───────────────────────────────────────────── */
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 export default function EmployeesPage() {
   const [employees,      setEmployees]      = useState<Employee[]>([]);
   const [adjustments,    setAdjustments]    = useState<PayAdjustment[]>([]);
@@ -1294,8 +1294,8 @@ export default function EmployeesPage() {
 
   useEffect(() => {
     (async () => {
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(
+      const { createBrowserClient } = await import('@supabase/ssr');
+      const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
       );
@@ -1444,7 +1444,7 @@ export default function EmployeesPage() {
     const myAdj    = (Array.isArray(adjustments)?adjustments:[]).filter(a=>a.employee_id===employee.id&&a.month===month);
     const totalAdj = myAdj.reduce((s,a) => { const t=ADJ_TYPES[a.type]??{sign:1}; return s+t.sign*a.amount; }, 0);
     const [yr]     = month.split('-');
-    const companyData: CompanySettings = company??{ company_name:'Mon Entreprise', address:'—', vat_number:'—', email:'—', phone:'—', iban:'—' };
+    const companyData: CompanySettings = company??{ company_name:'Mon Entreprise', address:'â€”', vat_number:'â€”', email:'â€”', phone:'â€”', iban:'â€”' };
     generatePaySlip({ employee, month, year:parseInt(yr), gross:Number(employee.salary)||0, adjustments:myAdj, totalAdj, net:(Number(employee.salary)||0)+totalAdj }, companyData);
   }
 
@@ -1459,7 +1459,7 @@ export default function EmployeesPage() {
     a.download = 'employes.csv'; a.click();
   }
 
-  /* ════════════ RENDER ════════════ */
+  /* â•â•â•â•â•â•â•â•â•â•â•â• RENDER â•â•â•â•â•â•â•â•â•â•â•â• */
   return (
     <div style={{ padding:24, maxWidth:1600, margin:'0 auto' }}>
       <style>{`
@@ -1481,9 +1481,9 @@ export default function EmployeesPage() {
             <span style={{ color:'#f59e0b' }}>{I.hr}</span> Ressources Humaines
           </h1>
           <p style={{ fontSize:12, color:'#94a3b8', marginTop:3 }}>
-            {kpi.total} employe(s) · Masse salariale : <strong style={{ color:'#f59e0b' }}>{fmt(kpi.masse)}/mois</strong>
-            {kpi.salairesPaies>0 && <> · Salaires verses : <strong style={{ color:'#15803d' }}>{fmt(kpi.salairesPaies)}</strong></>}
-            {kpi.totalHeures>0 && <> · {kpi.totalHeures}h pointées : <strong style={{ color:'#0891b2' }}>{fmt(kpi.totalHoraire)}</strong></>}
+            {kpi.total} employe(s) Â· Masse salariale : <strong style={{ color:'#f59e0b' }}>{fmt(kpi.masse)}/mois</strong>
+            {kpi.salairesPaies>0 && <> Â· Salaires verses : <strong style={{ color:'#15803d' }}>{fmt(kpi.salairesPaies)}</strong></>}
+            {kpi.totalHeures>0 && <> Â· {kpi.totalHeures}h pointÃ©es : <strong style={{ color:'#0891b2' }}>{fmt(kpi.totalHoraire)}</strong></>}
           </p>
         </div>
         <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
@@ -1521,7 +1521,7 @@ export default function EmployeesPage() {
         <div style={{ display:'flex', gap:10, flexWrap:'wrap', alignItems:'center', marginBottom:10 }}>
           <div style={{ flex:1, minWidth:200, position:'relative' }}>
             <span style={{ position:'absolute', left:11, top:'50%', transform:'translateY(-50%)', color:'#94a3b8', pointerEvents:'none' }}>{I.search}</span>
-            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Nom, email, poste…" style={{ ...inp, paddingLeft:34 }} />
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Nom, email, posteâ€¦" style={{ ...inp, paddingLeft:34 }} />
           </div>
           <select value={statusF}   onChange={e=>setStatusF(e.target.value)}   style={{ ...inp, width:'auto', minWidth:145 }}>
             <option value="all">Tous les statuts</option>
@@ -1565,7 +1565,7 @@ export default function EmployeesPage() {
         <div style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:'80px 0' }}>
           <div style={{ textAlign:'center' }}>
             <div style={{ width:36, height:36, border:'3px solid #f59e0b', borderTopColor:'transparent', borderRadius:'50%', animation:'spin 0.8s linear infinite', margin:'0 auto 12px' }} />
-            <p style={{ fontSize:13, color:'#94a3b8' }}>Chargement…</p>
+            <p style={{ fontSize:13, color:'#94a3b8' }}>Chargementâ€¦</p>
           </div>
         </div>
       ) : filtered.length===0 ? (
@@ -1597,7 +1597,7 @@ export default function EmployeesPage() {
                         <div style={{ width:38, height:38, borderRadius:10, background:col, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:13, fontWeight:800, flexShrink:0 }}>{initials(e.first_name,e.last_name)}</div>
                         <div>
                           <p style={{ fontWeight:700, color:'#0f172a', fontSize:13 }}>{e.first_name} {e.last_name}</p>
-                          <span style={{ fontSize:9, padding:'1px 6px', borderRadius:10, background:isH?'#e0f2fe':'#f1f5f9', color:isH?'#0891b2':'#64748b', fontWeight:700 }}>{isH?'Horaire':'Salarié'}</span>
+                          <span style={{ fontSize:9, padding:'1px 6px', borderRadius:10, background:isH?'#e0f2fe':'#f1f5f9', color:isH?'#0891b2':'#64748b', fontWeight:700 }}>{isH?'Horaire':'SalariÃ©'}</span>
                         </div>
                       </div>
                     </td>
@@ -1606,17 +1606,17 @@ export default function EmployeesPage() {
                       {e.phone && <p style={{ display:'flex', alignItems:'center', gap:4, color:'#64748b', fontSize:12 }}>{I.phone}{e.phone}</p>}
                     </td>
                     <td style={{ padding:'12px 14px' }}>
-                      <p style={{ fontWeight:600, color:'#1e293b', fontSize:13 }}>{e.position||'—'}</p>
+                      <p style={{ fontWeight:600, color:'#1e293b', fontSize:13 }}>{e.position||'â€”'}</p>
                       {e.department && <p style={{ fontSize:11, color:'#94a3b8', marginTop:2 }}>{e.department}</p>}
                     </td>
                     <td style={{ padding:'12px 14px' }}>
-                      <span style={{ padding:'3px 10px', background:'#f1f5f9', borderRadius:20, fontSize:11, fontWeight:700, color:'#475569' }}>{e.contract_type||'—'}</span>
+                      <span style={{ padding:'3px 10px', background:'#f1f5f9', borderRadius:20, fontSize:11, fontWeight:700, color:'#475569' }}>{e.contract_type||'â€”'}</span>
                     </td>
                     <td style={{ padding:'12px 14px' }}>
                       {isH ? (
                         <><p style={{ fontWeight:800, color:'#0891b2', fontSize:13 }}>{fmt(e.hourly_rate||0)}/h</p><p style={{ fontSize:10, color:'#94a3b8', marginTop:1 }}>Taux horaire</p></>
                       ) : (
-                        <><p style={{ fontWeight:800, color:'#0f172a', fontSize:13 }}>{e.salary?fmt(e.salary):'—'}</p>{e.salary>0&&<p style={{ fontSize:10, color:'#94a3b8', marginTop:1 }}>≈{fmt(e.salary*0.75)} net</p>}</>
+                        <><p style={{ fontWeight:800, color:'#0f172a', fontSize:13 }}>{e.salary?fmt(e.salary):'â€”'}</p>{e.salary>0&&<p style={{ fontSize:10, color:'#94a3b8', marginTop:1 }}>â‰ˆ{fmt(e.salary*0.75)} net</p>}</>
                       )}
                     </td>
                     <td style={{ padding:'12px 14px' }}>
@@ -1677,13 +1677,13 @@ export default function EmployeesPage() {
                     <div style={{ width:50, height:50, borderRadius:14, background:col, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:18, fontWeight:800, flexShrink:0 }}>{initials(e.first_name,e.last_name)}</div>
                     <div style={{ flex:1, minWidth:0 }}>
                       <p style={{ fontWeight:800, color:'#0f172a', fontSize:14 }}>{e.first_name} {e.last_name}</p>
-                      <p style={{ fontSize:12, color:'#64748b', marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{e.position||'—'}</p>
+                      <p style={{ fontSize:12, color:'#64748b', marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{e.position||'â€”'}</p>
                       <div style={{ display:'flex', gap:5, marginTop:6, flexWrap:'wrap' }}>
                         <div style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'2px 8px', borderRadius:20, background:st.bg, border:`1px solid ${st.border}` }}>
                           <span style={{ width:5, height:5, borderRadius:'50%', background:st.dot }} />
                           <span style={{ fontSize:10, fontWeight:700, color:st.color }}>{st.label}</span>
                         </div>
-                        <span style={{ padding:'2px 8px', background:isH?'#e0f2fe':'#f1f5f9', borderRadius:20, fontSize:10, fontWeight:700, color:isH?'#0891b2':'#475569' }}>{isH?'Horaire':'Salarié'}</span>
+                        <span style={{ padding:'2px 8px', background:isH?'#e0f2fe':'#f1f5f9', borderRadius:20, fontSize:10, fontWeight:700, color:isH?'#0891b2':'#475569' }}>{isH?'Horaire':'SalariÃ©'}</span>
                         {salaireVerse && !isH && (
                           <span style={{ padding:'2px 8px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:20, fontSize:10, fontWeight:700, color:'#15803d', display:'flex', alignItems:'center', gap:3 }}>{I.check} Verse</span>
                         )}

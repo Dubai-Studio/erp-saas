@@ -1,11 +1,11 @@
-'use client'
+﻿'use client'
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
 
 function getSupabase() {
-  return createClient(
+  return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
@@ -114,30 +114,30 @@ export default function SettingsPage() {
   return (
     <div style={{ padding: '28px 32px', maxWidth: 780, margin: '0 auto' }}>
 
-      {/* En-tête */}
+      {/* En-tÃªte */}
       <div style={{ marginBottom: 28 }}>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>
-          Paramètres de la société
+          ParamÃ¨tres de la sociÃ©tÃ©
         </h1>
         <p style={{ color: '#64748b', fontSize: 14, marginTop: 6 }}>
-          Ces informations apparaîtront sur toutes vos factures et documents générés.
+          Ces informations apparaÃ®tront sur toutes vos factures et documents gÃ©nÃ©rÃ©s.
         </p>
       </div>
 
       <form onSubmit={handleSave}>
 
-        {/* Identité */}
+        {/* IdentitÃ© */}
         <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: '24px 28px', marginBottom: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
           <h2 style={{ fontSize: 15, fontWeight: 700, color: '#1e3a5f', margin: '0 0 18px' }}>
-            🏢 Identité de la société
+            ðŸ¢ IdentitÃ© de la sociÃ©tÃ©
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 20px' }}>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={lbl}>Nom de la société *</label>
-              <input style={inp} value={form.company_name} onChange={set('company_name')} required placeholder="Ma Société SPRL" />
+              <label style={lbl}>Nom de la sociÃ©tÃ© *</label>
+              <input style={inp} value={form.company_name} onChange={set('company_name')} required placeholder="Ma SociÃ©tÃ© SPRL" />
             </div>
             <div>
-              <label style={lbl}>Numéro de TVA</label>
+              <label style={lbl}>NumÃ©ro de TVA</label>
               <input style={inp} value={form.vat_number} onChange={set('vat_number')} placeholder="BE 0000.000.000" />
             </div>
             <div>
@@ -145,7 +145,7 @@ export default function SettingsPage() {
               <input style={inp} type="email" value={form.email} onChange={set('email')} placeholder="contact@masociete.be" />
             </div>
             <div>
-              <label style={lbl}>Téléphone</label>
+              <label style={lbl}>TÃ©lÃ©phone</label>
               <input style={inp} value={form.phone} onChange={set('phone')} placeholder="+32 2 000 00 00" />
             </div>
           </div>
@@ -154,11 +154,11 @@ export default function SettingsPage() {
         {/* Adresse */}
         <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: '24px 28px', marginBottom: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
           <h2 style={{ fontSize: 15, fontWeight: 700, color: '#1e3a5f', margin: '0 0 18px' }}>
-            📍 Adresse
+            ðŸ“ Adresse
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 20px' }}>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={lbl}>Adresse (rue + numéro)</label>
+              <label style={lbl}>Adresse (rue + numÃ©ro)</label>
               <input style={inp} value={form.address} onChange={set('address')} placeholder="Rue de la Loi 1" />
             </div>
             <div>
@@ -172,10 +172,10 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Coordonnées bancaires */}
+        {/* CoordonnÃ©es bancaires */}
         <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: '24px 28px', marginBottom: 28, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
           <h2 style={{ fontSize: 15, fontWeight: 700, color: '#1e3a5f', margin: '0 0 18px' }}>
-            🏦 Coordonnées bancaires
+            ðŸ¦ CoordonnÃ©es bancaires
           </h2>
           <p style={{ fontSize: 13, color: '#64748b', marginBottom: 16, marginTop: -8 }}>
             Apparaissent en bas de chaque facture.
@@ -200,7 +200,7 @@ export default function SettingsPage() {
         )}
         {saved && (
           <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 9, padding: '12px 16px', marginBottom: 16, color: '#16a34a', fontSize: 14, fontWeight: 600 }}>
-            ✅ Paramètres sauvegardés avec succès !
+            âœ… ParamÃ¨tres sauvegardÃ©s avec succÃ¨s !
           </div>
         )}
 
@@ -210,7 +210,7 @@ export default function SettingsPage() {
           fontSize: 14, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer',
           transition: 'background 0.15s',
         }}>
-          {saving ? 'Sauvegarde...' : 'Sauvegarder les paramètres'}
+          {saving ? 'Sauvegarde...' : 'Sauvegarder les paramÃ¨tres'}
         </button>
 
       </form>

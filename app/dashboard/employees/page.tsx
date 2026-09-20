@@ -70,7 +70,7 @@ interface CompanySettings {
 const STATUS: Record<string, { label: string; color: string; bg: string; border: string; dot: string }> = {
   active:   { label: 'Actif',    color: '#15803d', bg: '#f0fdf4', border: '#bbf7d0', dot: '#22c55e' },
   inactive: { label: 'Inactif',  color: '#64748b', bg: '#f8fafc', border: '#e2e8f0', dot: '#94a3b8' },
-  on_leave: { label: 'En congÃ©', color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe', dot: '#3b82f6' },
+  on_leave: { label: 'En congé', color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe', dot: '#3b82f6' },
 };
 
 const ADJ_TYPES: Record<string, { label: string; color: string; bg: string; sign: 1 | -1 }> = {
@@ -83,7 +83,7 @@ const ADJ_TYPES: Record<string, { label: string; color: string; bg: string; sign
   deduction:  { label: 'Retenue',    color: '#dc2626', bg: '#fef2f2',  sign: -1 },
   retenue:    { label: 'Retenue',    color: '#dc2626', bg: '#fef2f2',  sign: -1 },
   correction: { label: 'Correction', color: '#7c3aed', bg: '#faf5ff',  sign: +1 },
-  indemnite:  { label: 'IndemnitÃ©',  color: '#0891b2', bg: '#ecfeff',  sign: +1 },
+  indemnite:  { label: 'Indemnité',  color: '#0891b2', bg: '#ecfeff',  sign: +1 },
 };
 
 const ADJ_TYPE_OPTIONS = [
@@ -93,28 +93,28 @@ const ADJ_TYPE_OPTIONS = [
   { value: 'acompte',    label: 'Acompte' },
   { value: 'deduction',  label: 'Retenue' },
   { value: 'correction', label: 'Correction' },
-  { value: 'indemnite',  label: 'IndemnitÃ©' },
+  { value: 'indemnite',  label: 'Indemnité' },
 ];
 
 const ENTRY_TYPES: Record<string, { label: string; color: string; bg: string }> = {
   normal:   { label: 'Normal',     color: '#1d4ed8', bg: '#eff6ff' },
   overtime: { label: 'Heures sup', color: '#d97706', bg: '#fffbeb' },
   weekend:  { label: 'Weekend',    color: '#7c3aed', bg: '#faf5ff' },
-  holiday:  { label: 'FÃ©riÃ©',      color: '#dc2626', bg: '#fef2f2' },
+  holiday:  { label: 'Férié',      color: '#dc2626', bg: '#fef2f2' },
   night:    { label: 'Nuit',       color: '#0891b2', bg: '#ecfeff' },
 };
 
 const ENTRY_STATUS: Record<string, { label: string; color: string; bg: string }> = {
   draft:     { label: 'Brouillon', color: '#64748b', bg: '#f8fafc' },
-  validated: { label: 'ValidÃ©',    color: '#1d4ed8', bg: '#eff6ff' },
-  paid:      { label: 'PayÃ©',      color: '#15803d', bg: '#f0fdf4' },
+  validated: { label: 'Validé',    color: '#1d4ed8', bg: '#eff6ff' },
+  paid:      { label: 'Payé',      color: '#15803d', bg: '#f0fdf4' },
 };
 
 const RATE_PRESETS = [0, 25, 50, 100, 150, 200];
 
 const DEPARTMENTS    = ['Direction','Commercial','Technique','Finance','RH','Marketing','Logistique','Autre'];
-const CONTRACT_TYPES = ['CDI','CDD','IntÃ©rimaire','Freelance','Apprentissage','Stage'];
-const MONTHS = ['Janvier','FÃ©vrier','Mars','Avril','Mai','Juin','Juillet','AoÃ»t','Septembre','Octobre','Novembre','DÃ©cembre'];
+const CONTRACT_TYPES = ['CDI','CDD','Intérimaire','Freelance','Apprentissage','Stage'];
+const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 
 const EMPTY_EMP = {
   first_name: '', last_name: '', email: '', phone: '', position: '', department: '',
@@ -449,7 +449,7 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial, projects }: 
     e.preventDefault();
     if (!employee) return;
     if (!form.date) { setError('Date obligatoire.'); return; }
-    if (form.hours_worked <= 0) { setError('Heures travaillÃ©es doivent Ãªtre > 0.'); return; }
+    if (form.hours_worked <= 0) { setError('Heures travaillées doivent être > 0.'); return; }
     setSaving(true); setError('');
     try {
       await onSave({
@@ -475,7 +475,7 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial, projects }: 
               <h2 style={{ fontSize:17, fontWeight:800, color:'#fff', display:'flex', alignItems:'center', gap:8 }}>
                 {I.time} {initial ? 'Modifier le pointage' : 'Nouveau pointage'}
               </h2>
-              <p style={{ fontSize:12, color:'rgba(255,255,255,0.7)', marginTop:3 }}>{employee.first_name} {employee.last_name} Â· {hourlyRate > 0 ? `${fmt(hourlyRate)}/h` : 'Taux horaire non dÃ©fini'}</p>
+              <p style={{ fontSize:12, color:'rgba(255,255,255,0.7)', marginTop:3 }}>{employee.first_name} {employee.last_name} Â· {hourlyRate > 0 ? `${fmt(hourlyRate)}/h` : 'Taux horaire non défini'}</p>
             </div>
             <button onClick={onClose} style={{ background:'rgba(255,255,255,0.15)', border:'none', borderRadius:8, padding:8, cursor:'pointer', color:'#fff', display:'flex' }}>{I.x}</button>
           </div>
@@ -488,7 +488,7 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial, projects }: 
             </div>
           )}
 
-          {/* SÃ©lecteur de projet */}
+          {/* Sélecteur de projet */}
           <ProjectSelect
             value={form.project_id}
             onChange={v => setForm(p => ({ ...p, project_id: v }))}
@@ -508,7 +508,7 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial, projects }: 
 
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
             <div>
-              <label style={lbl}>Heure dÃ©but</label>
+              <label style={lbl}>Heure début</label>
               <input style={inp} type="time" value={form.start_time} onChange={e => setField('start_time', e.target.value)} />
             </div>
             <div>
@@ -524,7 +524,7 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial, projects }: 
           <div style={{ background:'#f0f9ff', borderRadius:12, padding:'12px 16px', border:'1.5px solid #bae6fd', display:'flex', alignItems:'center', gap:12 }}>
             <span style={{ color:'#0891b2' }}>{I.timer}</span>
             <div style={{ flex:1 }}>
-              <p style={{ fontSize:11, color:'#0369a1', fontWeight:700, textTransform:'uppercase', marginBottom:2 }}>Heures calculÃ©es automatiquement</p>
+              <p style={{ fontSize:11, color:'#0369a1', fontWeight:700, textTransform:'uppercase', marginBottom:2 }}>Heures calculées automatiquement</p>
               <p style={{ fontSize:20, fontWeight:800, color:'#0891b2' }}>{form.hours_worked}h</p>
             </div>
             <div style={{ textAlign:'right' }}>
@@ -535,7 +535,7 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial, projects }: 
           </div>
 
           <div>
-            <label style={lbl}>Type de journÃ©e</label>
+            <label style={lbl}>Type de journée</label>
             <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
               {Object.entries(ENTRY_TYPES).map(([k, v]) => (
                 <button key={k} type="button" onClick={() => applyTypeDefault(k as TimeEntry['entry_type'])}
@@ -564,7 +564,7 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial, projects }: 
               </div>
               {form.rate_applied > 0 && (
                 <div style={{ padding:'6px 12px', background:'#e0f2fe', borderRadius:8, border:'1px solid #bae6fd', whiteSpace:'nowrap' }}>
-                  <span style={{ fontSize:12, color:'#0369a1', fontWeight:700 }}>Ã—{(1 + form.rate_applied/100).toFixed(2)}</span>
+                  <span style={{ fontSize:12, color:'#0369a1', fontWeight:700 }}>×{(1 + form.rate_applied/100).toFixed(2)}</span>
                 </div>
               )}
             </div>
@@ -586,7 +586,7 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial, projects }: 
                 ))}
               </div>
               <div style={{ marginTop:10, padding:'10px 14px', background:'linear-gradient(135deg,#15803d,#16a34a)', borderRadius:10, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <span style={{ fontSize:13, fontWeight:700, color:'#fff' }}>Montant Ã  payer</span>
+                <span style={{ fontSize:13, fontWeight:700, color:'#fff' }}>Montant à payer</span>
                 <span style={{ fontSize:18, fontWeight:800, color:'#fff' }}>{fmt(totalPreview)}</span>
               </div>
             </div>
@@ -628,7 +628,7 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial, projects }: 
 }
 
 /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-   MODAL EMPLOYÃ‰
+   MODAL EMPLOYÉ
 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function EmployeeModal({ open, onClose, onSave, initial }: {
   open: boolean; onClose: () => void;
@@ -692,7 +692,7 @@ function EmployeeModal({ open, onClose, onSave, initial }: {
           <div style={{ display:'flex', gap:2, overflowX:'auto' }}>
             {(['info','contract','horaire','extra'] as const).map(t => (
               <button key={t} style={TS(t)} onClick={() => setTab(t)}>
-                {t==='info'?'Informations':t==='contract'?'Contrat & Salaire':t==='horaire'?'Taux horaires':'DonnÃ©es RH'}
+                {t==='info'?'Informations':t==='contract'?'Contrat & Salaire':t==='horaire'?'Taux horaires':'Données RH'}
               </button>
             ))}
           </div>
@@ -736,7 +736,7 @@ function EmployeeModal({ open, onClose, onSave, initial }: {
               <div style={{ gridColumn:'1/-1' }}>
                 <label style={lbl}>Type de travailleur</label>
                 <div style={{ display:'flex', gap:8 }}>
-                  {[{v:'salarie',l:'SalariÃ© mensuel'},{v:'horaire',l:'Ouvrier horaire'}].map(opt=>(
+                  {[{v:'salarie',l:'Salarié mensuel'},{v:'horaire',l:'Ouvrier horaire'}].map(opt=>(
                     <button key={opt.v} type="button" onClick={()=>f('worker_type',opt.v)}
                       style={{ flex:1, padding:'10px 0', borderRadius:10, border:`1.5px solid ${form.worker_type===opt.v?'#f59e0b':'#e2e8f0'}`, background:form.worker_type===opt.v?'#fffbeb':'#fff', color:form.worker_type===opt.v?'#d97706':'#64748b', fontWeight:700, fontSize:13, cursor:'pointer' }}>
                       {opt.l}
@@ -783,14 +783,14 @@ function EmployeeModal({ open, onClose, onSave, initial }: {
             <div style={{ padding:24, display:'flex', flexDirection:'column', gap:16 }}>
               <div style={{ background:'#f0f9ff', borderRadius:12, padding:14, border:'1.5px solid #bae6fd' }}>
                 <p style={{ fontSize:12, fontWeight:700, color:'#0369a1', marginBottom:4, display:'flex', alignItems:'center', gap:6 }}>{I.time} Configuration des taux horaires</p>
-                <p style={{ fontSize:12, color:'#0284c7', lineHeight:1.6 }}>DÃ©finissez le taux de base et les majorations. Ces valeurs seront proposÃ©es automatiquement lors du pointage.</p>
+                <p style={{ fontSize:12, color:'#0284c7', lineHeight:1.6 }}>Définissez le taux de base et les majorations. Ces valeurs seront proposées automatiquement lors du pointage.</p>
               </div>
               <div>
                 <label style={lbl}>Taux horaire de base (EUR/heure) <span style={{ color:'#ef4444' }}>*</span></label>
                 <input style={{ ...inp, fontWeight:700, fontSize:15 }} type="number" min="0" step="0.25" value={form.hourly_rate||''} onChange={e=>f('hourly_rate',+e.target.value)} placeholder="0.00" />
                 {(form.hourly_rate||0)>0 && (
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginTop:10 }}>
-                    {[{l:'JournÃ©e 8h',v:fmt((form.hourly_rate||0)*8)},{l:'Semaine 40h',v:fmt((form.hourly_rate||0)*40)},{l:'Mois 160h',v:fmt((form.hourly_rate||0)*160)}].map((k,i)=>(
+                    {[{l:'Journée 8h',v:fmt((form.hourly_rate||0)*8)},{l:'Semaine 40h',v:fmt((form.hourly_rate||0)*40)},{l:'Mois 160h',v:fmt((form.hourly_rate||0)*160)}].map((k,i)=>(
                       <div key={i} style={{ textAlign:'center', padding:'10px 0', background:'#e0f2fe', borderRadius:10, border:'1px solid #bae6fd' }}>
                         <p style={{ fontSize:10, color:'#0369a1', marginBottom:3 }}>{k.l}</p>
                         <p style={{ fontSize:13, fontWeight:800, color:'#0891b2' }}>{k.v}</p>
@@ -801,9 +801,9 @@ function EmployeeModal({ open, onClose, onSave, initial }: {
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
                 {[
-                  { k:'overtime_rate' as keyof typeof EMPTY_EMP, l:'Heures supplÃ©mentaires (%)', placeholder:'Ex: 50', color:'#d97706' },
+                  { k:'overtime_rate' as keyof typeof EMPTY_EMP, l:'Heures supplémentaires (%)', placeholder:'Ex: 50', color:'#d97706' },
                   { k:'weekend_rate'  as keyof typeof EMPTY_EMP, l:'Weekend (%)',                  placeholder:'Ex: 100', color:'#7c3aed' },
-                  { k:'holiday_rate'  as keyof typeof EMPTY_EMP, l:'Jours fÃ©riÃ©s (%)',             placeholder:'Ex: 100', color:'#dc2626' },
+                  { k:'holiday_rate'  as keyof typeof EMPTY_EMP, l:'Jours fériés (%)',             placeholder:'Ex: 100', color:'#dc2626' },
                   { k:'night_rate'    as keyof typeof EMPTY_EMP, l:'Heures de nuit (%)',           placeholder:'Ex: 25',  color:'#0891b2' },
                 ].map(({k,l,placeholder,color})=>(
                   <div key={k}>
@@ -903,7 +903,7 @@ function AdjustmentModal({ open, onClose, onSave, employee, defaultType, project
             </div>
           )}
 
-          {/* SÃ©lecteur de projet */}
+          {/* Sélecteur de projet */}
           <ProjectSelect
             value={form.project_id}
             onChange={v => setForm(p => ({ ...p, project_id: v }))}
@@ -960,7 +960,7 @@ function AdjustmentModal({ open, onClose, onSave, employee, defaultType, project
 }
 
 /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-   DRAWER DÃ‰TAIL EMPLOYÃ‰
+   DRAWER DÉTAIL EMPLOYÉ
 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function EmployeeDrawer({ employee, adjustments, timeEntries, projects, onClose, onEdit, onDelete, onAdjust, onPaySalary, onPaySlip, onAddTime, onEditTime, onDeleteTime }: {
   employee: Employee|null; adjustments: PayAdjustment[]; timeEntries: TimeEntry[];
@@ -1047,8 +1047,8 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, projects, onClose,
                     {[
                       { l:'Taux horaire',   v:fmt(employee.hourly_rate||0),                      c:'#92400e' },
                       { l:'Heures ce mois', v:`${totalHours}h`,                                  c:'#0891b2' },
-                      { l:'Brut calculÃ©',   v:fmt(totalEarned),                                  c:'#15803d' },
-                      { l:'DÃ©jÃ  payÃ©',      v:fmt(paidEntries.reduce((s,t)=>s+(t.amount||0),0)), c:'#64748b' },
+                      { l:'Brut calculé',   v:fmt(totalEarned),                                  c:'#15803d' },
+                      { l:'Déjà payé',      v:fmt(paidEntries.reduce((s,t)=>s+(t.amount||0),0)), c:'#64748b' },
                     ].map((k,i) => (
                       <div key={i} style={{ textAlign:'center', padding:'10px 6px', background:'#fff', borderRadius:10, border:'1px solid #fde68a' }}>
                         <p style={{ fontSize:9, color:'#94a3b8', marginBottom:3, textTransform:'uppercase' }}>{k.l}</p>
@@ -1077,9 +1077,9 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, projects, onClose,
                 <div style={{ background:'#fff7ed', borderRadius:14, padding:16, border:'1.5px solid #fed7aa' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                     <div>
-                      <p style={{ fontSize:11, fontWeight:700, color:'#c2410c', textTransform:'uppercase', marginBottom:4 }}>Solde Ã  payer</p>
+                      <p style={{ fontSize:11, fontWeight:700, color:'#c2410c', textTransform:'uppercase', marginBottom:4 }}>Solde à payer</p>
                       <p style={{ fontSize:22, fontWeight:800, color:'#ea580c' }}>{fmt(pendingAmount)}</p>
-                      <p style={{ fontSize:11, color:'#9a3412', marginTop:2 }}>{myEntries.filter(t=>t.status!=='paid').length} entrÃ©e(s) non payÃ©e(s)</p>
+                      <p style={{ fontSize:11, color:'#9a3412', marginTop:2 }}>{myEntries.filter(t=>t.status!=='paid').length} entrée(s) non payée(s)</p>
                     </div>
                     <button onClick={onAdjust} style={{ padding:'10px 16px', borderRadius:10, border:'none', background:'linear-gradient(135deg,#ea580c,#f97316)', color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>
                       {I.wallet} Payer
@@ -1110,7 +1110,7 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, projects, onClose,
               <div style={{ background:'#f8fafc', borderRadius:14, padding:16, border:'1px solid #f1f5f9' }}>
                 <p style={{ fontSize:11, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:10 }}>Fiche de salaire</p>
                 <button onClick={() => onPaySlip(selMonth)} style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'9px 14px', borderRadius:9, border:'none', background:'linear-gradient(135deg,#d97706,#f59e0b)', color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer' }}>
-                  {I.pdf} GÃ©nÃ©rer PDF â€” {MONTHS[parseInt(selMonth.split('-')[1])-1]} {selMonth.split('-')[0]}
+                  {I.pdf} Générer PDF â€” {MONTHS[parseInt(selMonth.split('-')[1])-1]} {selMonth.split('-')[0]}
                 </button>
                 {!isHoraire && (
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginTop:10 }}>
@@ -1179,12 +1179,12 @@ function EmployeeDrawer({ employee, adjustments, timeEntries, projects, onClose,
           {drawerTab==='pointage' && (
             <>
               <div style={{ background:'linear-gradient(135deg,#0891b2,#06b6d4)', borderRadius:14, padding:16 }}>
-                <p style={{ fontSize:11, fontWeight:700, color:'rgba(255,255,255,0.8)', textTransform:'uppercase', marginBottom:10 }}>RÃ©sumÃ© â€” {MONTHS[parseInt(selMonth.split('-')[1])-1]} {selMonth.split('-')[0]}</p>
+                <p style={{ fontSize:11, fontWeight:700, color:'rgba(255,255,255,0.8)', textTransform:'uppercase', marginBottom:10 }}>Résumé â€” {MONTHS[parseInt(selMonth.split('-')[1])-1]} {selMonth.split('-')[0]}</p>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
                   {[
                     { l:'Total heures',  v:`${totalHours}h`,  c:'#fff' },
-                    { l:'Brut calculÃ©',  v:fmt(totalEarned),  c:'#fff' },
-                    { l:'Reste Ã  payer', v:fmt(pendingAmount),c:pendingAmount>0?'#fde68a':'#fff' },
+                    { l:'Brut calculé',  v:fmt(totalEarned),  c:'#fff' },
+                    { l:'Reste à payer', v:fmt(pendingAmount),c:pendingAmount>0?'#fde68a':'#fff' },
                   ].map((k,i) => (
                     <div key={i} style={{ textAlign:'center', padding:'10px 4px', background:'rgba(255,255,255,0.15)', borderRadius:10 }}>
                       <p style={{ fontSize:9, color:'rgba(255,255,255,0.7)', marginBottom:3 }}>{k.l}</p>
@@ -1483,7 +1483,7 @@ export default function EmployeesPage() {
           <p style={{ fontSize:12, color:'#94a3b8', marginTop:3 }}>
             {kpi.total} employe(s) Â· Masse salariale : <strong style={{ color:'#f59e0b' }}>{fmt(kpi.masse)}/mois</strong>
             {kpi.salairesPaies>0 && <> Â· Salaires verses : <strong style={{ color:'#15803d' }}>{fmt(kpi.salairesPaies)}</strong></>}
-            {kpi.totalHeures>0 && <> Â· {kpi.totalHeures}h pointÃ©es : <strong style={{ color:'#0891b2' }}>{fmt(kpi.totalHoraire)}</strong></>}
+            {kpi.totalHeures>0 && <> Â· {kpi.totalHeures}h pointées : <strong style={{ color:'#0891b2' }}>{fmt(kpi.totalHoraire)}</strong></>}
           </p>
         </div>
         <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
@@ -1597,7 +1597,7 @@ export default function EmployeesPage() {
                         <div style={{ width:38, height:38, borderRadius:10, background:col, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:13, fontWeight:800, flexShrink:0 }}>{initials(e.first_name,e.last_name)}</div>
                         <div>
                           <p style={{ fontWeight:700, color:'#0f172a', fontSize:13 }}>{e.first_name} {e.last_name}</p>
-                          <span style={{ fontSize:9, padding:'1px 6px', borderRadius:10, background:isH?'#e0f2fe':'#f1f5f9', color:isH?'#0891b2':'#64748b', fontWeight:700 }}>{isH?'Horaire':'SalariÃ©'}</span>
+                          <span style={{ fontSize:9, padding:'1px 6px', borderRadius:10, background:isH?'#e0f2fe':'#f1f5f9', color:isH?'#0891b2':'#64748b', fontWeight:700 }}>{isH?'Horaire':'Salarié'}</span>
                         </div>
                       </div>
                     </td>
@@ -1683,7 +1683,7 @@ export default function EmployeesPage() {
                           <span style={{ width:5, height:5, borderRadius:'50%', background:st.dot }} />
                           <span style={{ fontSize:10, fontWeight:700, color:st.color }}>{st.label}</span>
                         </div>
-                        <span style={{ padding:'2px 8px', background:isH?'#e0f2fe':'#f1f5f9', borderRadius:20, fontSize:10, fontWeight:700, color:isH?'#0891b2':'#475569' }}>{isH?'Horaire':'SalariÃ©'}</span>
+                        <span style={{ padding:'2px 8px', background:isH?'#e0f2fe':'#f1f5f9', borderRadius:20, fontSize:10, fontWeight:700, color:isH?'#0891b2':'#475569' }}>{isH?'Horaire':'Salarié'}</span>
                         {salaireVerse && !isH && (
                           <span style={{ padding:'2px 8px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:20, fontSize:10, fontWeight:700, color:'#15803d', display:'flex', alignItems:'center', gap:3 }}>{I.check} Verse</span>
                         )}

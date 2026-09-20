@@ -114,30 +114,30 @@ export default function SettingsPage() {
   return (
     <div style={{ padding: '28px 32px', maxWidth: 780, margin: '0 auto' }}>
 
-      {/* En-tÃªte */}
+      {/* En-tête */}
       <div style={{ marginBottom: 28 }}>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>
-          ParamÃ¨tres de la sociÃ©tÃ©
+          Paramètres de la société
         </h1>
         <p style={{ color: '#64748b', fontSize: 14, marginTop: 6 }}>
-          Ces informations apparaÃ®tront sur toutes vos factures et documents gÃ©nÃ©rÃ©s.
+          Ces informations apparaîtront sur toutes vos factures et documents générés.
         </p>
       </div>
 
       <form onSubmit={handleSave}>
 
-        {/* IdentitÃ© */}
+        {/* Identité */}
         <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: '24px 28px', marginBottom: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
           <h2 style={{ fontSize: 15, fontWeight: 700, color: '#1e3a5f', margin: '0 0 18px' }}>
-            ðŸ¢ IdentitÃ© de la sociÃ©tÃ©
+            ðŸ¢ Identité de la société
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 20px' }}>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={lbl}>Nom de la sociÃ©tÃ© *</label>
-              <input style={inp} value={form.company_name} onChange={set('company_name')} required placeholder="Ma SociÃ©tÃ© SPRL" />
+              <label style={lbl}>Nom de la société *</label>
+              <input style={inp} value={form.company_name} onChange={set('company_name')} required placeholder="Ma Société SPRL" />
             </div>
             <div>
-              <label style={lbl}>NumÃ©ro de TVA</label>
+              <label style={lbl}>Numéro de TVA</label>
               <input style={inp} value={form.vat_number} onChange={set('vat_number')} placeholder="BE 0000.000.000" />
             </div>
             <div>
@@ -145,7 +145,7 @@ export default function SettingsPage() {
               <input style={inp} type="email" value={form.email} onChange={set('email')} placeholder="contact@masociete.be" />
             </div>
             <div>
-              <label style={lbl}>TÃ©lÃ©phone</label>
+              <label style={lbl}>Téléphone</label>
               <input style={inp} value={form.phone} onChange={set('phone')} placeholder="+32 2 000 00 00" />
             </div>
           </div>
@@ -158,7 +158,7 @@ export default function SettingsPage() {
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 20px' }}>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={lbl}>Adresse (rue + numÃ©ro)</label>
+              <label style={lbl}>Adresse (rue + numéro)</label>
               <input style={inp} value={form.address} onChange={set('address')} placeholder="Rue de la Loi 1" />
             </div>
             <div>
@@ -172,10 +172,10 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* CoordonnÃ©es bancaires */}
+        {/* Coordonnées bancaires */}
         <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: '24px 28px', marginBottom: 28, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
           <h2 style={{ fontSize: 15, fontWeight: 700, color: '#1e3a5f', margin: '0 0 18px' }}>
-            ðŸ¦ CoordonnÃ©es bancaires
+            ðŸ¦ Coordonnées bancaires
           </h2>
           <p style={{ fontSize: 13, color: '#64748b', marginBottom: 16, marginTop: -8 }}>
             Apparaissent en bas de chaque facture.
@@ -200,7 +200,7 @@ export default function SettingsPage() {
         )}
         {saved && (
           <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 9, padding: '12px 16px', marginBottom: 16, color: '#16a34a', fontSize: 14, fontWeight: 600 }}>
-            âœ… ParamÃ¨tres sauvegardÃ©s avec succÃ¨s !
+            âœ… Paramètres sauvegardés avec succès !
           </div>
         )}
 
@@ -210,7 +210,7 @@ export default function SettingsPage() {
           fontSize: 14, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer',
           transition: 'background 0.15s',
         }}>
-          {saving ? 'Sauvegarde...' : 'Sauvegarder les paramÃ¨tres'}
+          {saving ? 'Sauvegarde...' : 'Sauvegarder les paramètres'}
         </button>
 
       </form>

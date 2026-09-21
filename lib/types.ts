@@ -82,6 +82,8 @@ export interface CompanySettings {
   logo_url:         string | null
   default_vat:      number
   default_currency: string
+  peppol_id?:       string | null
+  footer_notes?:    string | null
   updated_at:       string
 }
 

@@ -1524,10 +1524,19 @@ export default function InvoicesPage() {
   async function saveOut(data: Partial<Invoice>) {
     const url    = editInv ? `/api/invoices/${editInv.id}` : '/api/invoices'
     const method = editInv ? 'PATCH' : 'POST'
-    const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) })
+    const res = await fetch(url, { method, credentials: 'include', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) })
     if (!res.ok) {
       let msg = `Erreur ${res.status}`
-      try { const j = await res.json(); msg = j?.error ?? msg } catch { /* ignore */ }
+      try {
+        const j = await res.json()
+        msg = j?.error ?? msg
+        if (j?.details?.fieldErrors) {
+          const details = Object.entries(j.details.fieldErrors)
+            .map(([k, v]: [string, any]) => `${k}: ${(v as string[]).join(', ')}`)
+            .join(' ; ')
+          msg += ` — ${details}`
+        }
+      } catch { /* ignore */ }
       throw new Error(msg)
     }
     setOutModal(false); setEditInv(null); load()
@@ -1544,16 +1553,30 @@ export default function InvoicesPage() {
       file_name:   data.file_name   && data.file_name.trim()   !== '' ? data.file_name   : null,
       due_date:    data.due_date    && data.due_date.trim()    !== '' ? data.due_date    : null,
       notes:       data.notes       && data.notes.trim()       !== '' ? data.notes       : null,
+      // Garantir que le type est correct (le serveur l'écrase mais on évite le bruit)
+      type: 'incoming',
     }
     const res = await fetch('/api/external-invoices', {
       method: 'POST',
+      credentials: 'include',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify(payload),
     })
     if (!res.ok) {
       let msg = `Erreur ${res.status}`
-      try { const j = await res.json(); msg = j?.error ?? msg } catch { /* ignore */ }
-      throw new Error(msg)
+      let details = ''
+      try {
+        const j = await res.json()
+        msg = j?.error ?? msg
+        // Afficher les détails champ par champ si présents
+        if (j?.details?.fieldErrors) {
+          const fields = j.details.fieldErrors
+          details = ' — ' + Object.entries(fields)
+            .map(([k, v]: [string, any]) => `${k}: ${(v as string[]).join(', ')}`)
+            .join(' ; ')
+        }
+      } catch { /* ignore */ }
+      throw new Error(msg + details)
     }
     setImpModal(false); load()
   }

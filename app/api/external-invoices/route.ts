@@ -24,6 +24,7 @@ export const POST = withAuth(async ({ supabase, body }) => {
   const parsed = ExternalInvoiceCreate.parse(body)
   const { data, error } = await supabase.from('external_invoices').insert({
     ...parsed,
+    // Migration 05 a élargi le CHECK : 'incoming','supplier_invoice','facture_fournisseur','expense'
     type: 'incoming',
     issue_date: parsed.issue_date || new Date().toISOString().split('T')[0],
   }).select().single()

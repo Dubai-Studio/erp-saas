@@ -197,8 +197,11 @@ function ProjectModal({ open, onClose, onSave, initial, clients }:{
     e.preventDefault()
     if(!form.name.trim()){ setError('Le nom est obligatoire.'); return }
     setSaving(true); setError('')
-    try { await onSave(form) }
-    catch { setError('Erreur lors de la sauvegarde.') }
+    try {
+      await onSave(form)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde.')
+    }
     setSaving(false)
   }
 
@@ -519,6 +522,7 @@ export default function ProjectsPage() {
   const [editP,     setEditP]     = useState<Project|null>(null)
   const [viewP,     setViewP]     = useState<Project|null>(null)
   const [deleteId,  setDeleteId]  = useState<string|null>(null)
+  const [error,     setError]     = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -553,11 +557,23 @@ export default function ProjectsPage() {
   async function save(form: typeof EMPTY) {
     const uid = await getUserId()
     const headers = { 'Content-Type': 'application/json' }
-    if(editP) {
-      // PATCH doit cibler /api/projects/[id] — le handler [id] est la seule route qui exporte PATCH
-      await fetch(`/api/projects/${editP.id}`, { method:'PATCH', headers, body: JSON.stringify(form) })
-    } else {
-      await fetch('/api/projects', { method:'POST', headers, body: JSON.stringify(form) })
+    let url = '/api/projects'
+    let method: 'POST' | 'PATCH' = 'POST'
+    if (editP) {
+      url = `/api/projects/${editP.id}`
+      method = 'PATCH'
+    }
+    const res = await fetch(url, { method, headers, credentials: 'include', body: JSON.stringify(form) })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      let msg = j?.error ?? `Erreur ${res.status}`
+      if (j?.details?.fieldErrors) {
+        const details = Object.entries(j.details.fieldErrors)
+          .map(([k, v]: [string, any]) => `${k}: ${(v as string[]).join(', ')}`)
+          .join(' ; ')
+        msg += ` — ${details}`
+      }
+      throw new Error(msg)
     }
     setModal(false); setEditP(null); load()
   }

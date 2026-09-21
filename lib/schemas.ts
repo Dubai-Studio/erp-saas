@@ -270,8 +270,11 @@ export const ProjectCreate = z.object({
   end_date:    isoDate.nullish(),
   budget:      nonNegativeNum.default(0),
   spent:       nonNegativeNum.default(0),
-  status:      z.enum(['active', 'paused', 'completed', 'cancelled']).default('active'),
-  priority:    z.enum(['low', 'normale', 'high', 'urgent']).default('normale'),
+  // CHECK DB (migration 02) : 'planning','active','on_hold','completed','cancelled','paused'
+  // Le form envoie souvent 'planning'/'medium'/'medium' par défaut — élargir.
+  status:      z.enum(['planning','active','paused','on_hold','completed','cancelled']).default('planning'),
+  // CHECK DB : 'low','medium','high','critical','normale','urgent'
+  priority:    z.enum(['low','medium','high','critical','normale','urgent']).default('medium'),
   progress:    z.number().min(0).max(100).default(0),
   manager:     optionalString,
   tags:        z.array(z.string().max(40)).nullish(),
@@ -376,19 +379,21 @@ const BIC_REGEX  = /^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/
 const VAT_REGEX  = /^[A-Z]{0,2}[A-Z0-9]{2,15}$/
 
 export const CompanySettingsUpsert = z.object({
-  company_name: z.string().trim().min(1).max(200),
-  address:      z.string().max(300).nullish(),
-  city:         z.string().max(100).nullish(),
-  zip_code:     z.string().max(20).nullish(),
-  country:      z.string().max(100).default('Belgique'),
-  vat_number:   z.string().max(20).regex(VAT_REGEX, 'Numéro TVA invalide').nullish().or(z.literal('')),
-  email:        z.string().email().nullish().or(z.literal('')),
-  phone:        z.string().max(40).nullish(),
-  iban:         z.string().regex(IBAN_REGEX, 'IBAN invalide').nullish().or(z.literal('')),
-  bic:          z.string().regex(BIC_REGEX, 'BIC invalide').nullish().or(z.literal('')),
-  logo_url:     z.string().url().nullish().or(z.literal('')),
-  default_vat:  vatRate.default(20),
+  company_name:     z.string().trim().min(1).max(200),
+  address:          z.string().max(300).nullish(),
+  city:             z.string().max(100).nullish(),
+  zip_code:         z.string().max(20).nullish(),
+  country:          z.string().max(100).default('Belgique'),
+  vat_number:       z.string().max(20).regex(VAT_REGEX, 'Numéro TVA invalide').nullish().or(z.literal('')),
+  email:            z.string().email().nullish().or(z.literal('')),
+  phone:            z.string().max(40).nullish(),
+  iban:             z.string().regex(IBAN_REGEX, 'IBAN invalide').nullish().or(z.literal('')),
+  bic:              z.string().regex(BIC_REGEX, 'BIC invalide').nullish().or(z.literal('')),
+  logo_url:         z.string().url().nullish().or(z.literal('')),
+  default_vat:      vatRate.default(21),
   default_currency: z.string().length(3).default('EUR'),
+  peppol_id:        z.string().max(100).nullish().or(z.literal('')),
+  footer_notes:     z.string().max(2000).nullish().or(z.literal('')),
 })
 
 // ─────────────────────────────────────────────────────────────────────────────

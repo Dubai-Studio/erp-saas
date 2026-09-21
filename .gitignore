@@ -40,3 +40,13 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .open-next/
+# Local Python scratch (mojibake fix helpers, debug probes)
+__pycache__/
+*.pyc
+*.pyo
+fix_mojibake*.py
+run_fix.py
+_test_*.py
+_debug.py
+_mojibake_probe.py
+_*.tsx

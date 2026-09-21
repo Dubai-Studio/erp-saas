@@ -804,14 +804,19 @@ export default function StockPage() {
     // /api/stock/[id] n'exporte que PATCH (pas PUT) — utiliser PATCH pour la mise à jour
     const method = data.id ? 'PATCH' : 'POST'
     const url    = data.id ? `/api/stock/${data.id}` : '/api/stock'
-    const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+    const res    = await fetch(url, {
+      method,
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
     if (!res.ok) throw new Error('Erreur sauvegarde')
     setShowModal(false); setEditItem(null); load()
   }
 
 const saveMovement = async (data: Omit<StockMovement, 'id' | 'created_at'>) => {
     const payload = {
-      product_id: data.stock_item_id,
+      stock_item_id: data.stock_item_id,
       type:       data.type,
       quantity:   data.quantity,
       unit_price: data.unit_price,
@@ -820,6 +825,7 @@ const saveMovement = async (data: Omit<StockMovement, 'id' | 'created_at'>) => {
     }
     const res = await fetch('/api/stock-movements', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     })
@@ -829,7 +835,7 @@ const saveMovement = async (data: Omit<StockMovement, 'id' | 'created_at'>) => {
 
 
   const del = async (id: string) => {
-    await fetch(`/api/stock/${id}`, { method: 'DELETE' })
+    await fetch(`/api/stock/${id}`, { method: 'DELETE', credentials: 'include' })
     setDelTarget(null); load()
   }
 

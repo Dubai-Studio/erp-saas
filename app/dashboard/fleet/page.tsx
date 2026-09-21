@@ -151,7 +151,7 @@ const depreciation = (purchase: number, current: number) =>
 
 async function fetchSafe<T>(url: string): Promise<T[]> {
   try {
-    const r = await fetch(url)
+    const r = await fetch(url, { credentials: 'include' })
     if (!r.ok) return []
     const j = await r.json()
     return Array.isArray(j) ? j : j.data ?? j.items ?? []
@@ -918,7 +918,7 @@ export default function FleetPage() {
   const saveVehicle = async (data: Partial<Vehicle>) => {
     const method = data.id ? 'PATCH' : 'POST'
     const url    = data.id ? `/api/fleet/${data.id}` : '/api/fleet'
-    const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+    const res    = await fetch(url, { method, credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
     if (!res.ok) throw new Error('Erreur sauvegarde')
     setShowVModal(false); setEditVehicle(null); load()
   }
@@ -926,7 +926,7 @@ export default function FleetPage() {
   const saveExpense = async (data: Omit<VehicleExpense, 'id' | 'created_at' | 'vehicle_name' | 'plate'>) => {
     const v   = vehicles.find(x => x.id === data.vehicle_id)
     const res = await fetch('/api/fleet-expenses', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...data, vehicle_name: v ? `${v.brand} ${v.model}` : '', plate: v?.plate ?? '' }),
     })
     if (!res.ok) throw new Error('Erreur dépense')
@@ -935,12 +935,12 @@ export default function FleetPage() {
 
   // ── NEW: suppression d'une dépense ──
   const delExpense = async (id: string) => {
-    await fetch(`/api/fleet-expenses/${id}`, { method: 'DELETE' })
+    await fetch(`/api/fleet-expenses/${id}`, { method: 'DELETE', credentials: 'include' })
     setDelExpTarget(null); setViewExpense(null); load()
   }
 
   const del = async (id: string) => {
-    await fetch(`/api/fleet/${id}`, { method: 'DELETE' })
+    await fetch(`/api/fleet/${id}`, { method: 'DELETE', credentials: 'include' })
     setDelTarget(null); load()
   }
 

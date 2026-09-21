@@ -528,10 +528,9 @@ export default function ProjectsPage() {
     setLoading(true)
     try {
       const uid = await getUserId()
-      const headers: HeadersInit = { credentials: 'include' }
       const fetchSafe = async (url: string) => {
         try {
-          const r = await fetch(url, { headers })
+          const r = await fetch(url, { credentials: 'include' })
           if(!r.ok) return []
           const t = await r.text()
           if(!t||t.trim()==='') return []

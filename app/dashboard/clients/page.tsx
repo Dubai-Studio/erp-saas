@@ -462,7 +462,7 @@ export default function ClientsPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const r = await fetch('/api/clients')
+      const r = await fetch('/api/clients', { credentials: 'include' })
       const d = await r.json()
       setClients(Array.isArray(d) ? d : d.data ?? [])
     } catch { setClients([]) }
@@ -502,15 +502,15 @@ export default function ClientsPage() {
   // ── CRUD ───────────────────────────────────────────────────────────────────
   async function save(form: typeof EMPTY) {
     if (editC) {
-      await fetch(`/api/clients/${editC.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(form) })
+      await fetch(`/api/clients/${editC.id}`, { method:'PATCH', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify(form) })
     } else {
-      await fetch('/api/clients', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(form) })
+      await fetch('/api/clients', { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify(form) })
     }
     setModal(false); setEditC(null); load()
   }
 
   async function del(id: string) {
-    await fetch(`/api/clients/${id}`, { method:'DELETE' })
+    await fetch(`/api/clients/${id}`, { method:'DELETE', credentials:'include' })
     setDeleteId(null); setViewC(null); load()
   }
 

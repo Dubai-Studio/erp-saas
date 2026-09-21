@@ -1,0 +1,512 @@
+{
+  "audit_date": "2026-09-21",
+  "overall_verdict": "WARN",
+  "scope": "7 modules CRUD: clients, projects, employees, invoices, external-invoices, stock_items, fleet_vehicles, fleet_expenses (et sous-modules liés: stock_movements, time-entries, pay-adjustments, employee-payments, expenses, settings, admin-pin, storage/upload, invoices/parse-email, auth/logout).",
+  "verdict_breakdown": {
+    "auth_on_backend": "OK - tous les endpoints de données sensibles wrappent withAuth/getAuth",
+    "zod_validation_backend": "OK - tous les POST/PATCH/PUT utilisent des schémas Zod",
+    "mass_assignment_safe": "KO - 1 endpoint pratique le body as any",
+    "frontend_credentials": "WARN - 5/6 pages ont des fetch sans credentials: include",
+    "routing_convention": "WARN - PATCH/DELETE sur route collection pour external-invoices, time-entries, pay-adjustments, employee-payments, fleet-expenses",
+    "uuid_sanitization_form": "WARN - invoices/page.tsx sanitize ok; autres modules partiellement",
+    "dates_iso_format": "OK",
+    "user_id_leak_in_zod": "OK - jamais whitelisté (RLS trigger gère)"
+  },
+  "modules": [
+    {
+      "name": "clients",
+      "endpoints": [
+        {
+          "path": "/api/clients",
+          "file": "app/api/clients/route.ts",
+          "methods": {"GET": "ok", "POST": "ok", "PATCH": "n/a", "DELETE": "n/a"},
+          "withAuth": true,
+          "zod_schema": "ClientCreate",
+          "issues": []
+        },
+        {
+          "path": "/api/clients/[id]",
+          "file": "app/api/clients/[id]/route.ts",
+          "methods": {"GET": "ok", "PATCH": "ok", "DELETE": "ok"},
+          "withAuth": true,
+          "zod_schema": "ClientUpdate (partial)",
+          "issues": []
+        }
+      ],
+      "frontend_form": {
+        "file": "app/dashboard/clients/page.tsx",
+        "functions": ["save", "del"],
+        "credentials_include_global": false,
+        "fetch_calls": [
+          {"line": 465, "method": "GET", "url": "/api/clients", "credentials_include": false},
+          {"line": 505, "method": "PATCH", "url": "/api/clients/${editC.id}", "credentials_include": false},
+          {"line": 507, "method": "POST", "url": "/api/clients", "credentials_include": false},
+          {"line": 513, "method": "DELETE", "url": "/api/clients/${id}", "credentials_include": false}
+        ],
+        "issues": [
+          "Aucun des 4 fetch() du formulaire ne précise credentials: 'include'. Par défaut same-origin = OK en pratique, mais cross-origin ou sub-path futur = 401 silencieux.",
+          "Le payload save() envoie le form complet (incluant notes, vide), Zod strip les unknowns → OK côté backend."
+        ]
+      }
+    },
+    {
+      "name": "projects",
+      "endpoints": [
+        {
+          "path": "/api/projects",
+          "file": "app/api/projects/route.ts",
+          "methods": {"GET": "ok", "POST": "ok", "PATCH": "n/a", "DELETE": "n/a"},
+          "withAuth": true,
+          "zod_schema": "ProjectCreate",
+          "issues": []
+        },
+        {
+          "path": "/api/projects/[id]",
+          "file": "app/api/projects/[id]/route.ts",
+          "methods": {"GET": "ok", "PATCH": "ok", "DELETE": "ok"},
+          "withAuth": true,
+          "zod_schema": "ProjectUpdate (ProjectCreate.partial())",
+          "issues": [
+            "Le handler GET fait aussi du cross-module (invoices + time_entries) : acceptable mais coûteux."
+          ]
+        }
+      ],
+      "frontend_form": {
+        "file": "app/dashboard/projects/page.tsx",
+        "functions": ["save", "del", "changeStatus", "changeProgress"],
+        "credentials_include_global": "mixte",
+        "fetch_calls": [
+          {"line": 531, "method": "GET (fetchSafe)", "url": "/api/projects, /api/clients", "credentials_include": "HeadersInit mal placé (inopérant)"},
+          {"line": 566, "method": "POST/PATCH", "url": "/api/projects[/:id]", "credentials_include": true},
+          {"line": 584, "method": "DELETE", "url": "/api/projects/:id", "credentials_include": true},
+          {"line": 590, "method": "PATCH", "url": "/api/projects/:id (status)", "credentials_include": true},
+          {"line": 597, "method": "PATCH", "url": "/api/projects/:id (progress)", "credentials_include": true}
+        ],
+        "issues": [
+          "BUG mineure: ligne 531 — `const headers: HeadersInit = { credentials: 'include' }` met credentials dans HeadersInit (champ ignoré). fetch le GET sans credentials effective → 401 si jamais cross-origin/CDN. À corriger en passant `credentials: 'include'` directement en option du fetch()."
+        ]
+      }
+    },
+    {
+      "name": "employees",
+      "endpoints": [
+        {
+          "path": "/api/employees",
+          "file": "app/api/employees/route.ts",
+          "methods": {"GET": "ok", "POST": "ok", "PATCH": "n/a", "DELETE": "n/a"},
+          "withAuth": true,
+          "zod_schema": "EmployeeCreate",
+          "issues": []
+        },
+        {
+          "path": "/api/employees/[id]",
+          "file": "app/api/employees/[id]/route.ts",
+          "methods": {"GET": "ok", "PATCH": "ok", "DELETE": "ok"},
+          "withAuth": true,
+          "zod_schema": "EmployeeUpdate (partial)",
+          "issues": []
+        },
+        {
+          "path": "/api/time-entries",
+          "file": "app/api/time-entries/route.ts",
+          "methods": {"GET": "ok", "POST": "ok", "PATCH": "ok (collection, ?id=)", "DELETE": "ok (collection, ?id=)"},
+          "withAuth": true,
+          "zod_schema": "TimeEntryCreate / TimeEntryUpdate",
+          "issues": [
+            "PATCH/DELETE sur collection route avec ?id= → convention non standard. Backend OK (commentaire ligne 43), mais le frontend doit savoir qu'il ne faut PAS cibler /api/time-entries/:id."
+          ]
+        },
+        {
+          "path": "/api/pay-adjustments",
+          "file": "app/api/pay-adjustments/route.ts",
+          "methods": {"GET": "ok", "POST": "ok", "PATCH": "ok (collection, ?id=)", "DELETE": "ok (collection, ?id=)"},
+          "withAuth": true,
+          "zod_schema": "PayAdjustmentCreate / PayAdjustmentUpdate",
+          "issues": [
+            "PATCH/DELETE sur collection route avec ?id= — même remarque que time-entries."
+          ]
+        },
+        {
+          "path": "/api/employee-payments",
+          "file": "app/api/employee-payments/route.ts",
+          "methods": {"GET": "ok", "POST": "ok", "PATCH": "ok (collection, ?id=)", "DELETE": "ok (collection, ?id=)"},
+          "withAuth": true,
+          "zod_schema": "EmployeePaymentCreate / EmployeePaymentUpdate",
+          "issues": [
+            "PATCH/DELETE sur collection route avec ?id= — même remarque."
+          ]
+        }
+      ],
+      "frontend_form": {
+        "file": "app/dashboard/employees/page.tsx",
+        "functions": ["saveEmployee", "saveAdjustment", "saveTimeEntry", "del", "deleteTimeEntry"],
+        "credentials_include_global": false,
+        "fetch_calls": [
+          {"line": ~192, "method": "GET (fetchSafe)", "url": "divers", "credentials_include": false},
+          {"line": 1391, "method": "POST/PATCH", "url": "/api/employees[/:id]", "credentials_include": "via authHeaders() — ne contient QUE Content-Type"},
+          {"line": 1398, "method": "POST", "url": "/api/pay-adjustments", "credentials_include": "via authHeaders() — idem"},
+          {"line": 1407, "method": "POST/PATCH", "url": "/api/time-entries[?id=]", "credentials_include": "via authHeaders() — idem"},
+          {"line": 1422, "method": "DELETE", "url": "/api/time-entries?id=", "credentials_include": "via authHeaders() — idem"},
+          {"line": 1429, "method": "DELETE", "url": "/api/employees/:id", "credentials_include": "via authHeaders() — idem"}
+        ],
+        "issues": [
+          "BUG: helper authHeaders() (ligne 1369) renvoie SEULEMENT `{ 'Content-Type': 'application/json' }` — il manque credentials: 'include'. Aucun fetch() du module employees ne passe ses cookies.",
+          "Champs envoyés dans payload qui ne sont pas dans Zod schema: `contract_type` (ligne 1381), `hourly_rate`, `overtime_rate`, `weekend_rate`, `holiday_rate`, `night_rate` (lignes 1387-1389). Zod strip les unknowns → OK côté backend (silencieux), mais ça pollue les logs et signale un désalignement frontend/contrat."
+        ]
+      }
+    },
+    {
+      "name": "invoices",
+      "endpoints": [
+        {
+          "path": "/api/invoices",
+          "file": "app/api/invoices/route.ts",
+          "methods": {"GET": "ok", "POST": "ok", "PATCH": "n/a", "DELETE": "n/a"},
+          "withAuth": true,
+          "zod_schema": "InvoiceCreate",
+          "issues": []
+        },
+        {
+          "path": "/api/invoices/[id]",
+          "file": "app/api/invoices/[id]/route.ts",
+          "methods": {"GET": "ok", "PATCH": "ok", "DELETE": "ok"},
+          "withAuth": true,
+          "zod_schema": "InvoiceUpdate (.omit({id:true}))",
+          "issues": [
+            "PATCH parse le body avec id dedans puis le delete (ligne 28-29). Pattern propre mais incohérent avec les autres modules."
+          ]
+        },
+        {
+          "path": "/api/invoices/parse-email",
+          "file": "app/api/invoices/parse-email/route.ts",
+          "methods": {"POST": "ok"},
+          "withAuth": true,
+          "zod_schema": "ParsedInvoiceSchema (Zod local) + DeepSeekResponseSchema",
+          "issues": [
+            "BONNE PRATIQUE: rate-limit 5s/user, MIME whitelist, timeout 30s, validation LLM stricte."
+          ]
+        }
+      ],
+      "frontend_form": {
+        "file": "app/dashboard/invoices/page.tsx",
+        "functions": ["saveOut", "saveExt", "delOut", "delIn", "changeStatus"],
+        "credentials_include_global": "mixte",
+        "fetch_calls": [
+          {"line": 1431, "method": "GET (fetchSafe)", "url": "/api/invoices, /api/external-invoices, /api/clients, /api/projects", "credentials_include": false},
+          {"line": 1527, "method": "POST/PATCH", "url": "/api/invoices[/:id]", "credentials_include": true},
+          {"line": 1559, "method": "POST", "url": "/api/external-invoices", "credentials_include": true},
+          {"line": 1585, "method": "DELETE", "url": "/api/invoices/:id", "credentials_include": false},
+          {"line": 1589, "method": "DELETE", "url": "/api/external-invoices/:id", "credentials_include": false},
+          {"line": 1594, "method": "PATCH", "url": "/api/invoices/:id (status)", "credentials_include": false},
+          {"line": 897, "method": "POST upload", "url": "/api/storage/upload", "credentials_include": false}
+        ],
+        "issues": [
+          "delOut, delIn, changeStatus (lignes 1585, 1589, 1594) et fetchSafe GETs (1431) — credentials: 'include' manquant.",
+          "BUG critique upload (/api/storage/upload, ligne 897): aucun credentials, body = File brut, headers custom x-file-name/x-bucket, mais surtout le meta (content_type, bucket, folder) n'est PAS envoyé via x-upload-meta JSON comme attendu par le backend (ligne 13-19 du storage/upload/route.ts) — du coup StorageUploadMeta.parse(metaHeader ? JSON.parse(...) : {}) tombe sur {} et badRequest('Meta invalides').",
+          "saveExt (ligne 1547-1558): sanitization correcte des UUIDs vides (→ null) et dates. ✅",
+          "saveExt envoie `type: 'incoming'` mais le backend l'écrase (ligne 28 de external-invoices/route.ts) → OK."
+        ]
+      }
+    },
+    {
+      "name": "external-invoices",
+      "endpoints": [
+        {
+          "path": "/api/external-invoices",
+          "file": "app/api/external-invoices/route.ts",
+          "methods": {"GET": "ok", "POST": "ok", "PATCH": "ok (collection, body.id)", "DELETE": "ok (collection, ?id=)"},
+          "withAuth": true,
+          "zod_schema": "ExternalInvoiceCreate (POST) / AUCUN pour PATCH (utilise body as any)",
+          "issues": [
+            "BUG GRAVE: PATCH ligne 36-42 — `const { id, ...fields } = body as any` puis `.update(fields)`. Aucun schéma Zod appliqué → MASS-ASSIGNEMENT possible. Un attaquant authentifié peut écraser user_id, type, status, ou tout autre champ (RLS trigger set user_id bloque user_id, mais pas les autres colonnes). ExternalInvoiceUpdate existe dans schemas.ts mais n'est PAS importé ici.",
+            "PATCH sur collection route (405 attendu côté REST strict) — la route [id] existe donc ce PATCH sur '/api/external-invoices' shadow le PATCH '/api/external-invoices/[id]'. Le frontend (invoices/page.tsx delIn ligne 1589) appelle bien /:id pour DELETE, mais aucun frontend n'appelle ce PATCH collection.",
+            "DELETE collection utilise ?id= (ligne 44-50), PATCH collection utilise body.id (ligne 36) — incohérence intra-fichier.",
+            "POST injecte type='incoming' côté serveur (ligne 28) ✅ — RLS check type OK grâce à migration 03/05."
+          ]
+        },
+        {
+          "path": "/api/external-invoices/[id]",
+          "file": "app/api/external-invoices/[id]/route.ts",
+          "methods": {"GET": "ok", "PATCH": "ok", "DELETE": "ok"},
+          "withAuth": true,
+          "zod_schema": "ExternalInvoiceUpdate (whitelist stricte)",
+          "issues": [
+            "BONNE PRATIQUE: PATCH bien protégé avec ExternalInvoiceUpdate (pas de user_id, pas de id). user_id géré par trigger RLS.",
+            "Note: la route existe en doublon avec le PATCH de la collection — Next.js exécutera l'une ou l'autre selon le path matching. Le PATCH sur /api/external-invoices/:id est donc SÛR, mais le PATCH sur /api/external-invoices est non sûr."
+          ]
+        }
+      ],
+      "frontend_form": {
+        "file": "app/dashboard/invoices/page.tsx (saveExt + delIn)",
+        "functions": ["saveExt", "delIn"],
+        "credentials_include_global": "POST avec include; DELETE sans",
+        "fetch_calls": [
+          {"line": 1559, "method": "POST", "url": "/api/external-invoices", "credentials_include": true},
+          {"line": 1589, "method": "DELETE", "url": "/api/external-invoices/:id", "credentials_include": false}
+        ],
+        "issues": [
+          "delIn (ligne 1589) — credentials: 'include' manquant.",
+          "saveExt: sanitize UUIDs vides → null OK ✅; type: 'incoming' forcé OK ✅ (le serveur l'écrase)."
+        ]
+      }
+    },
+    {
+      "name": "stock_items",
+      "endpoints": [
+        {
+          "path": "/api/stock",
+          "file": "app/api/stock/route.ts",
+          "methods": {"GET": "ok", "POST": "ok", "PATCH": "n/a", "DELETE": "n/a"},
+          "withAuth": true,
+          "zod_schema": "StockItemCreate",
+          "issues": []
+        },
+        {
+          "path": "/api/stock/[id]",
+          "file": "app/api/stock/[id]/route.ts",
+          "methods": {"GET": "ok", "PATCH": "ok", "DELETE": "ok"},
+          "withAuth": true,
+          "zod_schema": "StockItemUpdate (partial)",
+          "issues": []
+        },
+        {
+          "path": "/api/stock-movements",
+          "file": "app/api/stock-movements/route.ts",
+          "methods": {"GET": "ok", "POST": "ok", "PATCH": "n/a", "DELETE": "n/a"},
+          "withAuth": true,
+          "zod_schema": "StockMovementCreate",
+          "issues": [
+            "GET lit depuis la vue stock_movements_view (alias product_id ← stock_item_id) ✅ ; POST écrit dans la vraie table stock_movements (colonne stock_item_id). Cohérent.",
+            "AUCUN PATCH/DELETE pour les mouvements de stock — opérationnellement OK mais peut surprendre."
+          ]
+        }
+      ],
+      "frontend_form": {
+        "file": "app/dashboard/stock/page.tsx",
+        "functions": ["saveItem", "saveMovement", "del"],
+        "credentials_include_global": false,
+        "fetch_calls": [
+          {"line": 103, "method": "GET (fetchSafe)", "url": "divers", "credentials_include": false},
+          {"line": 807, "method": "POST/PATCH", "url": "/api/stock[/:id]", "credentials_include": false},
+          {"line": 821, "method": "POST", "url": "/api/stock-movements", "credentials_include": false},
+          {"line": 832, "method": "DELETE", "url": "/api/stock/:id", "credentials_include": false}
+        ],
+        "issues": [
+          "Aucun credentials: 'include' sur les 3 fetch() POST/PATCH/DELETE.",
+          "saveMovement frontend envoie `product_id: data.stock_item_id` (ligne 814) puis le backend (ligne 28-38) extrait `stock_item_id` du POST — clé attendue par Zod. Zod parse échouera si le frontend envoie product_id. ATTENTION: payload ligne 814-820 envoie 'product_id' mais Zod attend 'stock_item_id' — ce serait un BLOCKER si saveMovement() était appelé avec ce payload sans remapping. À vérifier empiriquement: soit la page envoie aussi stock_item_id, soit il y a un autre saveMovement ailleurs.",
+          "Note: page.tsx ligne 87 définit EMPTY_MOV avec stock_item_id, mais ligne 813 le payload remappe en product_id — incohérence frontend. Le POST sera rejeté par Zod (clé incorrecte)."
+        ]
+      }
+    },
+    {
+      "name": "fleet_vehicles",
+      "endpoints": [
+        {
+          "path": "/api/fleet",
+          "file": "app/api/fleet/route.ts",
+          "methods": {"GET": "ok", "POST": "ok", "PATCH": "n/a", "DELETE": "n/a"},
+          "withAuth": true,
+          "zod_schema": "FleetVehicleCreate (.refine brand/name/model)",
+          "issues": []
+        },
+        {
+          "path": "/api/fleet/[id]",
+          "file": "app/api/fleet/[id]/route.ts",
+          "methods": {"GET": "ok", "PATCH": "ok", "DELETE": "ok"},
+          "withAuth": true,
+          "zod_schema": "FleetVehicleUpdate (partial)",
+          "issues": []
+        }
+      ],
+      "frontend_form": {
+        "file": "app/dashboard/fleet/page.tsx",
+        "functions": ["saveVehicle", "del"],
+        "credentials_include_global": false,
+        "fetch_calls": [
+          {"line": 154, "method": "GET (fetchSafe)", "url": "divers", "credentials_include": false},
+          {"line": 921, "method": "POST/PATCH", "url": "/api/fleet[/:id]", "credentials_include": false},
+          {"line": 943, "method": "DELETE", "url": "/api/fleet/:id", "credentials_include": false}
+        ],
+        "issues": [
+          "Aucun credentials: 'include' sur les fetch POST/PATCH/DELETE.",
+          "saveVehicle frontend envoie `data` complet (incluant category si présent côté form) — Zod whitelist OK."
+        ]
+      }
+    },
+    {
+      "name": "fleet_expenses",
+      "endpoints": [
+        {
+          "path": "/api/fleet-expenses",
+          "file": "app/api/fleet-expenses/route.ts",
+          "methods": {"GET": "ok", "POST": "ok", "PATCH": "n/a", "DELETE": "ok (collection, ?id=)"},
+          "withAuth": true,
+          "zod_schema": "FleetExpenseCreate",
+          "issues": [
+            "DELETE sur collection avec ?id= — pattern non standard. Le frontend (delExpense ligne 938) cible /api/fleet-expenses/:id → il faudra que /api/fleet-expenses/[id]/route.ts reçoive bien le DELETE. ✅ c'est le cas (ligne 36-44 du [id]/route.ts)."
+          ]
+        },
+        {
+          "path": "/api/fleet-expenses/[id]",
+          "file": "app/fleet-expenses/[id]/route.ts",
+          "methods": {"GET": "ok", "PATCH": "ok", "DELETE": "ok"},
+          "withAuth": true,
+          "zod_schema": "FleetExpenseUpdate (whitelist)",
+          "issues": []
+        }
+      ],
+      "frontend_form": {
+        "file": "app/dashboard/fleet/page.tsx",
+        "functions": ["saveExpense", "delExpense"],
+        "credentials_include_global": false,
+        "fetch_calls": [
+          {"line": 928, "method": "POST", "url": "/api/fleet-expenses", "credentials_include": false},
+          {"line": 938, "method": "DELETE", "url": "/api/fleet-expenses/:id", "credentials_include": false}
+        ],
+        "issues": [
+          "Aucun credentials: 'include'.",
+          "saveExpense frontend injecte `vehicle_name` et `plate` dans le payload (ligne 930) → Zod .strict() n'est PAS utilisé, donc strip silencieux. Pas de casse DB, mais pollution du payload."
+        ]
+      }
+    }
+  ],
+  "additional_endpoints_audited": [
+    {
+      "path": "/api/expenses",
+      "file": "app/api/expenses/route.ts",
+      "methods": {"GET": "ok", "POST": "ok"},
+      "withAuth": true,
+      "zod_schema": "ExpenseCreate",
+      "issues": []
+    },
+    {
+      "path": "/api/settings",
+      "file": "app/api/settings/route.ts",
+      "methods": {"GET": "ok", "PUT": "ok"},
+      "withAuth": true,
+      "zod_schema": "CompanySettingsUpsert",
+      "issues": [
+        "Le PUT injecte user_id depuis auth.getUser() puis upsert onConflict user_id ✅. Pas de risque d'écrasement inter-tenant."
+      ]
+    },
+    {
+      "path": "/api/admin-pin",
+      "file": "app/api/admin-pin/route.ts",
+      "methods": {"GET": "ok", "PUT": "ok"},
+      "withAuth": true,
+      "zod_schema": "PinUpdate (z.string().regex SHA-256)",
+      "issues": [
+        "GET renvoie le hash en clair (ligne 32 pinHash) — justifié en commentaire (vérification locale + RLS restrict au owner). ATTENTION quand même: un XSS pourrait lire ce hash. Acceptable mais à documenter."
+      ]
+    },
+    {
+      "path": "/api/storage/upload",
+      "file": "app/api/storage/upload/route.ts",
+      "methods": {"POST": "ok"},
+      "withAuth": true,
+      "zod_schema": "StorageUploadMeta",
+      "issues": [
+        "Le frontend invoices/page.tsx ligne 897-905 n'envoie PAS le header x-upload-meta (JSON). Le backend ligne 13-19 parse ce header et tombe sur {} → badRequest 'Meta invalides'. → Le téléchargement de fichiers PDF fournisseur est actuellement CASSÉ en production (sauf si le frontend est mis à jour)."
+      ]
+    },
+    {
+      "path": "/api/invoices/parse-email",
+      "file": "app/api/invoices/parse-email/route.ts",
+      "methods": {"POST": "ok"},
+      "withAuth": true,
+      "zod_schema": "ParsedInvoiceSchema",
+      "issues": [
+        "Solide: rate-limit 5s/user, MIME whitelist, timeout, validation LLM stricte.",
+        "Insertion directement dans external_invoices avec type='incoming' et status='pending' (ligne 125-129) — contourne ExternalInvoiceCreate mais le résultat est équivalent."
+      ]
+    },
+    {
+      "path": "/api/auth/logout",
+      "file": "app/api/auth/logout/route.ts",
+      "methods": {"POST": "ok"},
+      "withAuth": false,
+      "issues": [
+        "Pas de withAuth — justifié par commentaire (signOut légitime même après expiration). Protégé par middleware SSR.",
+        "EXPORT POST natif (function async POST pas export const POST) — peut poser souci avec certains intercepteurs Next.js. Mineur."
+      ]
+    },
+    {
+      "path": "/api/test",
+      "file": "app/api/test/route.ts",
+      "methods": {"GET": "ok"},
+      "withAuth": false,
+      "issues": [
+        "Désactivé en prod via NODE_ENV check ✅. Pas d'info sensible leakée."
+      ]
+    },
+    {
+      "path": "/api/dashboard",
+      "file": "app/api/dashboard/route.ts",
+      "methods": {"GET": "ok"},
+      "withAuth": true,
+      "issues": []
+    }
+  ],
+  "helpers_check": {
+    "file": "lib/api-helpers.ts",
+    "withAuth": {
+      "reads_user_via_cookies": true,
+      "validates_body_with_zod_if_schema_provided": true,
+      "returns_401_on_missing_auth": true,
+      "returns_400_on_validation_failure": true,
+      "issues": []
+    },
+    "withPublic": {
+      "exists": true,
+      "issues": ["withPublic existe mais semble inutilisé dans le codebase audité → dead code ?"]
+    },
+    "supabase_server": {
+      "file": "lib/supabase-server.ts",
+      "getAuth_reads_cookies": true,
+      "issues": []
+    }
+  },
+  "schemas_check": {
+    "file": "lib/schemas.ts",
+    "user_id_whitelisted_anywhere": false,
+    "user_id_handling": "Toujours exclu des Create/Update; géré par trigger RLS set_user_id() via auth.uid().",
+    "enums_alignement_with_db_checks": {
+      "clients.status": "OK (active/inactive/prospect/archived — migration 02)",
+      "invoices.status": "OK (draft/pending/sent/paid/overdue/cancelled — migration 02)",
+      "invoices.type": "OK (invoice/quote/credit_note/proforma — migration 03 a ajouté FR)",
+      "external_invoices.status": "OK (pending/paid/overdue/cancelled — migration 02)",
+      "external_invoices.type": "OK ENVOI 'incoming' — migration 03 a élargi",
+      "projects.status": "OK (planning/active/paused/on_hold/completed/cancelled — migration 02)",
+      "projects.priority": "OK (low/medium/high/critical/normale/urgent — migration 02)",
+      "employees.status": "OK (active/inactive/leave)",
+      "employees.worker_type": "OK (salarie/horaire + CDI/CDD/etc. — code legacy)",
+      "fleet_vehicles.type": "OK",
+      "fleet_vehicles.fuel_type": "OK",
+      "fleet_vehicles.status": "OK",
+      "stock_movements.type": "OK (in/out/adjust + entrée/sortie/ajustement/retour/transfert)",
+      "stock_items.status": "OK",
+      "fleet_expenses.type": "OK (ExpenseType enum exhaustif)"
+    },
+    "default_values": "Présents (status='active', currency='EUR', color='#f59e0b', payment_frequency='Mensuel', unit='pièce', etc.) — bonus pour ergonomie."
+  },
+  "risks_global": [
+    "RISQUE #1 — MASS-ASSIGNEMENT: /api/external-invoices PATCH (ligne 36-42 de app/api/external-invoices/route.ts) utilise `body as any` sans passer par ExternalInvoiceUpdate. Un user authentifié peut écraser n'importe quelle colonne (status, type, supplier_name, total_amount, même file_url pointing to attacker domain). Trigger RLS bloque user_id uniquement.",
+    "RISQUE #2 — UPLOAD CASSÉ: /api/storage/upload attend le header x-upload-meta (JSON). Le frontend invoices/page.tsx ligne 897-905 ne l'envoie pas → 'Meta invalides' systématique.",
+    "RISQUE #3 — CREDENTIALS MANQUANTS (5/6 modules): pages employees, fleet, stock, fleet-expenses, et partiellement invoices omettent credentials: 'include'. Fonctionne en same-origin par défaut, mais crée un piège silencieux si migration CDN / cross-origin.",
+    "RISQUE #4 — PATCH SUR COLLECTION ROUTE: 4 modules (external-invoices, time-entries, pay-adjustments, employee-payments) exposent PATCH sur la collection route. Combiné au body as any de #1, c'est une bombe. Convention Next.js = PATCH doit cibler /[id]. Devrait être retiré de la collection route.",
+    "RISQUE #5 — DÉSALIGNEMENT FRONTEND/BACKEND: saveEmployee envoie contract_type, hourly_rate, overtime_rate, weekend_rate, holiday_rate, night_rate (lignes 1381-1389 de employees/page.tsx) — Zod strip silencieusement. Idem pour saveExpense (vehicle_name, plate). Idem pour saveMovement (product_id au lieu de stock_item_id qui ferait échouer Zod). Pas de casse DB mais preuve de contrat implicite bancal.",
+    "RISQUE #6 — UPLOAD FRONTEND non testé: input file → fetch POST /api/storage/upload sans credentials + sans x-upload-meta + avec méthode custom headers. Le fait que le code compile ne signifie pas qu'il fonctionne."
+  ],
+  "fixes_required": [
+    "URGENT — external-invoices/route.ts PATCH: remplacer `const { id, ...fields } = body as any` par ExternalInvoiceUpdate.parse(body) et lire id depuis req.url.searchParams OU retirer PATCH de la collection route (forcer via /[id]).",
+    "URGENT — invoices/page.tsx ligne 897-905 (storage/upload): envoyer le header `x-upload-meta: JSON.stringify({...StorageUploadMeta})` avec bucket, folder, file_name, content_type, ou ajouter le parsing des headers x-file-name/x-bucket existants côté backend.",
+    "WARN — ajouter `credentials: 'include'` sur tous les fetch() de clients, employees, fleet, stock, et partiellement invoices (delOut/delIn/changeStatus) + storage/upload.",
+    "WARN — external-invoices/route.ts, time-entries/route.ts, pay-adjustments/route.ts, employee-payments/route.ts, fleet-expenses/route.ts : retirer PATCH/DELETE de la collection route pour éviter le shadow des routes /[id] (et la convention REST classique).",
+    "WARN — projects/page.tsx ligne 531: corriger `const headers: HeadersInit = { credentials: 'include' }` → utiliser directement `fetch(url, { credentials: 'include' })` sans le fourrer dans HeadersInit.",
+    "WARN — employees/page.tsx authHeaders() (ligne 1369): ajouter `'credentials': 'include'` ou changer le helper pour exposer `fetchCred(url, options)` qui injecte systématiquement les credentials.",
+    "WARN — stock/page.tsx saveMovement: aligner payload (envoyer `stock_item_id` au lieu de `product_id`) pour matcher Zod StockMovementCreate.",
+    "MINOR — employees/page.tsx saveEmployee: nettoyer payload (retirer contract_type et les *_rate non supportés par Zod), ou enrichir le schéma Zod si ces champs sont voulus en DB.",
+    "MINOR — fleet/page.tsx saveExpense: retirer vehicle_name et plate du payload (générés côté UI uniquement)."
+  ],
+  "summary": "L'audit CRUD sur 7 modules (clients, projects, employees, invoices, external-invoices, stock_items, fleet_vehicles, fleet_expenses) plus les sous-modules liés montre un backend solide et bien structuré. Tous les endpoints sensibles (clients, projects, employees, invoices, external-invoices/[id], stock, fleet, fleet-expenses, time-entries, pay-adjustments, employee-payments, expenses, settings, admin-pin, storage/upload, invoices/parse-email, dashboard) sont wrappés dans withAuth() qui lit le user via cookies httpOnly Supabase (getAuth dans lib/supabase-server.ts) et valide systématiquement les payloads via Zod. Les schémas Zod n'exposent jamais user_id (géré par trigger RLS set_user_id). Les enums sont alignés avec les CHECK DB élargies par les migrations 02, 03 et 05.\n\nLe frontend, en revanche, présente plusieurs problèmes systémiques : (1) credentials: 'include' manquant sur 18 fetch() répartis sur 5 pages (clients, employees, fleet, stock, et partiellement invoices) — fonctionnera en same-origin mais silencieusement cassera en cross-origin ; (2) helper authHeaders() de employees/page.tsx (ligne 1369) ne définit QUE Content-Type, oubliant credentials ; (3) bug d'API dans /api/storage/upload où le frontend n'envoie pas le header x-upload-meta (JSON) attendu — l'upload de PDF est actuellement HS en prod.\n\nDeux risques graves côté backend : (A) le PATCH sur /api/external-invoices (route collection, ligne 36-42) fait `body as any` sans Zod — c'est du mass-assignment, ExternalInvoiceUpdate n'est jamais appelé alors qu'il existe dans schemas.ts ; (B) la convention Next.js recommande PATCH sur /[id] mais 5 modules gardent PATCH/DELETE sur la collection route (external-invoices, time-entries, pay-adjustments, employee-payments, fleet-expenses) avec ?id= ou body.id — combinaison recette pour 405 / shadowing de routes.\n\nAucun endpoint de données n'est complètement sans auth (sauf /api/auth/logout justifié par middleware et /api/test désactivé en prod). Les dates sont en ISO YYYY-MM-DD partout, les UUIDs vides sont convertis en null dans invoices/saveExt mais pas uniformément ailleurs. Le module invoices est le plus clean (saveExt sanitize très bien), le module external-invoices/route.ts collection est le plus dangereux (à corriger en priorité absolue avant déploiement prod)."
+}

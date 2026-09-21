@@ -894,11 +894,17 @@ function ImportModal({ open, onClose, onSave, clients, projects }:{
 
       if (file) {
         const safeName = `${Date.now()}-${file.name.replace(/[^a-z0-9.\-_]/gi, '_')}`
+        const meta = JSON.stringify({
+          bucket:       'invoices',
+          folder:       'invoices',
+          file_name:    safeName,
+          content_type: file.type || 'application/octet-stream',
+        })
         const uploadRes = await fetch('/api/storage/upload', {
           method:  'POST',
+          credentials: 'include',
           headers: {
-            'x-file-name':   safeName,
-            'x-bucket':      'invoices',
+            'x-upload-meta': meta,
             'Content-Type':  file.type || 'application/octet-stream',
           },
           body: file,
@@ -1428,7 +1434,7 @@ export default function InvoicesPage() {
     try {
       const fetchSafe = async (url: string) => {
         try {
-          const r = await fetch(url)
+          const r = await fetch(url, { credentials: 'include' })
           if (!r.ok) return {}
           const text = await r.text()
           if (!text || text.trim() === '') return {}

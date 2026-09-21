@@ -1369,6 +1369,8 @@ export default function EmployeesPage() {
   function authHeaders() {
     return { 'Content-Type': 'application/json' }
   }
+  // helper qui inclut cookies httpOnly côté fetch
+  const AUTH_FETCH_OPTS = { credentials: 'include' } as RequestInit
 
   async function saveEmployee(form: typeof EMPTY_EMP) {
     const url    = editE?`/api/employees/${editE.id}`:'/api/employees';
@@ -1388,14 +1390,14 @@ export default function EmployeesPage() {
       weekend_rate:Number(form.weekend_rate)||0, holiday_rate:Number(form.holiday_rate)||0,
       night_rate:Number(form.night_rate)||0,
     };
-    const res = await fetch(url, { method, headers: authHeaders(), body:JSON.stringify(payload) });
+    const res = await fetch(url, { method, credentials:'include', headers: authHeaders(), body:JSON.stringify(payload) });
     if (!res.ok) { let msg=`Erreur ${res.status}`; try { const j=await res.json(); msg=j?.error??msg; } catch {} throw new Error(msg); }
     setEmpModal(false); setEditE(null); load();
   }
 
   async function saveAdjustment(form: typeof EMPTY_ADJ & { employee_id: string }) {
     const payload = { ...form, project_id: form.project_id || null };
-    const res = await fetch('/api/pay-adjustments', { method:'POST', headers: authHeaders(), body:JSON.stringify(payload) });
+    const res = await fetch('/api/pay-adjustments', { method:'POST', credentials:'include', headers: authHeaders(), body:JSON.stringify(payload) });
     if (!res.ok) { let msg=`Erreur ${res.status}`; try { const j=await res.json(); msg=j?.error??msg; } catch {} throw new Error(msg); }
     setAdjModal(false); setAdjTarget(null); load();
   }
@@ -1406,6 +1408,7 @@ export default function EmployeesPage() {
     const payload = { ...form, project_id: form.project_id || null };
     const res = await fetch(url, {
       method,
+      credentials: 'include',
       headers: authHeaders(),
       body: JSON.stringify(payload),
     });
@@ -1420,13 +1423,14 @@ export default function EmployeesPage() {
   async function deleteTimeEntry(id: string) {
     await fetch(`/api/time-entries?id=${id}`, {
       method: 'DELETE',
+      credentials: 'include',
       headers: authHeaders(),
     });
     load();
   }
 
   async function del(id: string) {
-    await fetch(`/api/employees/${id}`, { method:'DELETE', headers: authHeaders() });
+    await fetch(`/api/employees/${id}`, { method:'DELETE', credentials:'include', headers: authHeaders() });
     setDeleteId(null); setViewE(null); load();
   }
 

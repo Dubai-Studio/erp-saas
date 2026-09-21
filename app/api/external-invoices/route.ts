@@ -33,18 +33,10 @@ export const POST = withAuth(async ({ supabase, body }) => {
   return created(data)
 }, ExternalInvoiceCreate)
 
-export const PATCH = withAuth(async ({ supabase, body }) => {
-  const { id, ...fields } = body as any
-  if (!id) return badRequest('id requis')
-  const { data, error } = await supabase.from('external_invoices').update(fields).eq('id', id).select().single()
-  if (error) return badRequest(error.message)
-  return ok(data)
-})
-
-export const DELETE = withAuth(async ({ req, supabase }) => {
-  const id = new URL(req.url).searchParams.get('id')
-  if (!id) return badRequest('id requis')
-  const { error } = await supabase.from('external_invoices').delete().eq('id', id)
-  if (error) return badRequest(error.message)
-  return ok({ deleted: true })
-})
+// NOTE IMPORTANTE (sécurité) :
+// PATCH et DELETE sont exportés UNIQUEMENT depuis [id]/route.ts avec le schéma
+// ExternalInvoiceUpdate (whitelist explicite, sans user_id, sans id).
+// Toute requête PATCH/DELETE sur /api/external-invoices (collection) renvoie
+// désormais 405 — c'est le comportement correct REST et cela ferme la faille
+// de mass-assignment qui existait quand ces verbes étaient gérés ici par
+// `body as any`. Ne pas les rajouter !

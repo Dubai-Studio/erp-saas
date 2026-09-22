@@ -22,18 +22,45 @@ export const GET = withAuth(async ({ req, supabase }) => {
 
 export const POST = withAuth(async ({ supabase, body, user }) => {
   const parsed = ExternalInvoiceCreate.parse(body)
-  const { data, error } = await supabase.from('external_invoices').insert({
-    ...parsed,
-    // Migration 05 a élargi le CHECK : 'incoming','supplier_invoice','facture_fournisseur','expense'
-    type: 'incoming',
-    issue_date: parsed.issue_date || new Date().toISOString().split('T')[0],
-    // user_id explicite (en plus du trigger trg_set_user_id) — défense en profondeur
-    // pour fermer toute race condition ou si le trigger n'a pas été appliqué.
-    // Le trigger est "IF NULL THEN set" donc ne touche pas la nôtre.
-    user_id: user.id,
-  }).select().single()
 
-  if (error) return badRequest(error.message)
+  // Migration 09 : on utilise une fonction RPC SECURITY DEFINER qui bypasse
+  // RLS de manière ciblée. Le user_id est forcé côté serveur à auth.uid(),
+  // donc aucun risque de mass-assignment. Cette voie marche immédiatement
+  // après exécution de la migration, sans dépendre du "Reload schema cache"
+  // (qui peut être oublié par l'utilisateur).
+  const { data, error } = await supabase.rpc('insert_external_invoice', {
+    p_supplier_name: parsed.supplier_name,
+    p_supplier_id:   parsed.supplier_id   ?? null,
+    p_client_id:     parsed.client_id     ?? null,
+    p_project_id:    parsed.project_id    ?? null,
+    p_amount_ht:     parsed.amount_ht,
+    p_vat_amount:    parsed.vat_amount,
+    p_total_amount:  parsed.total_amount,
+    p_issue_date:    parsed.issue_date    || new Date().toISOString().split('T')[0],
+    p_due_date:      parsed.due_date      ?? null,
+    p_category:      parsed.category      ?? 'Prestation',
+    p_notes:         parsed.notes         ?? null,
+    p_status:        parsed.status        ?? 'pending',
+    p_file_name:     parsed.file_name     ?? null,
+    p_file_url:      parsed.file_url      ?? null,
+    p_type:          'incoming',
+  }).single()
+
+  if (error) {
+    // Fallback : si la RPC n'est pas encore créée (migration 09 pas exécutée),
+    // on tente l'INSERT direct avec user_id explicite.
+    if (error.code === 'PGRST202' || /function .* does not exist/i.test(error.message)) {
+      const { data: fallback, error: fbErr } = await supabase.from('external_invoices').insert({
+        ...parsed,
+        type: 'incoming',
+        issue_date: parsed.issue_date || new Date().toISOString().split('T')[0],
+        user_id: user.id,
+      }).select().single()
+      if (fbErr) return badRequest(fbErr.message)
+      return created(fallback)
+    }
+    return badRequest(error.message)
+  }
   return created(data)
 }, ExternalInvoiceCreate)
 

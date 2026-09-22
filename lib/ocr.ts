@@ -246,18 +246,21 @@ function extractSupplierName(text: string): string | undefined {
   // numeric / address / "FACTURE" titles.
   const suffixes =
     /\b(?:SA|SPRL|BVBA|NV|SRL|SAS|SARL|GMBH|LTD|INC|LLC|SCS|SNC|SC)\b\.?/i
+  // Labels courants en haut/au milieu d'une facture — à exclure comme nom.
+  // "FACTURÉ À" / "INVOICE TO" / "BILL TO" sont des titres, pas le nom du fournisseur.
+  const labelRe = /^(?:factur[ée]?\s*[àa]|invoice\s*to|bill\s*to|client|to|from|vendor|supplier|fournisseur|emetteur|[àa]\s*:)$/i
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
 
   for (const raw of lines) {
     const line = raw.replace(/\s+/g, ' ')
     // Skip obvious noise.
     if (/^[\d\s.,/-]+$/.test(line)) continue
+    if (labelRe.test(line)) continue                       // ← titres "FACTURÉ À"
     if (/facture|invoice|factuur|rechnung/i.test(line) && line.length < 30) continue
     if (/^\d{1,4}[-/.]\d{1,2}[-/.]\d{2,4}/.test(line)) continue
     if (/@/.test(line)) continue
     if (line.length < 3 || line.length > 60) continue
-    // Accept if it contains the company suffix, or is mostly uppercase letters
-    // (common on the first line of an invoice header).
+    // Accepte si contient un suffixe société OU si majoritairement en majuscules
     const letters = (line.match(/\p{L}/gu) || []).length
     if (letters / line.length < 0.5) continue
     if (suffixes.test(line)) return cleanName(line)

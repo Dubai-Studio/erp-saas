@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect, useCallback } from 'react'
 import React from 'react'
 
-// â”€── Auth helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──
+// ─── Auth helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€────
 async function getUserId(): Promise<string | null> {
   try {
     const { createBrowserClient } = await import('@supabase/ssr')
@@ -17,7 +17,7 @@ async function getUserId(): Promise<string | null> {
   } catch { return null }
 }
 
-// â”€── Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──
+// ─── Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€────
 interface Client { id: string; name: string }
 interface Project {
   id: string; name: string; description: string; client_id: string; client_name?: string
@@ -27,7 +27,7 @@ interface Project {
   progress: number; manager: string; tags?: string; created_at: string
 }
 
-// â”€── Constantes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──
+// ─── Constantes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€────
 const STATUS: Record<string,{label:string;color:string;bg:string;border:string;dot:string}> = {
   planning:  {label:'Planification',color:'#1d4ed8',bg:'#eff6ff',border:'#bfdbfe',dot:'#3b82f6'},
   active:    {label:'En cours',     color:'#15803d',bg:'#f0fdf4',border:'#bbf7d0',dot:'#22c55e'},
@@ -47,7 +47,7 @@ const EMPTY: Omit<Project,'id'|'created_at'|'client_name'> = {
   start_date:'', end_date:'', budget:0, spent:0, progress:0, manager:'', tags:'',
 }
 
-// â”€── Styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──
+// ─── Styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€────
 const card: React.CSSProperties = {
   background:'#fff', borderRadius:16,
   boxShadow:'0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)',
@@ -63,10 +63,13 @@ const lbl: React.CSSProperties = {
   marginBottom:5, textTransform:'uppercase', letterSpacing:'0.04em',
 }
 
-// â”€── Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──
+// ─── Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€────
 const fmt  = (n:number) => new Intl.NumberFormat('fr-BE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n||0)
 const fmtD = (d:string) => d ? new Date(d).toLocaleDateString('fr-BE',{day:'2-digit',month:'short',year:'numeric'}) : '—'
 const today = () => new Date().toISOString().split('T')[0]
+// Normalise tags (DB peut renvoyer string OU string[]) en string[]
+const tagsArr = (t:string|string[]|null|undefined): string[] =>
+  Array.isArray(t) ? t : String(t||'').split(',').map(s=>s.trim()).filter(Boolean)
 
 function daysLeft(end:string): number|null {
   if(!end) return null
@@ -84,7 +87,7 @@ function budgetColor(spent:number, budget:number) {
   return '#10b981'
 }
 
-// â”€── Icons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──
+// ─── Icons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€────
 const I = {
   plus:     <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
   edit:     <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
@@ -113,7 +116,7 @@ const I = {
   sort:     <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>,
 }
 
-// â”€── StatusBadge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──
+// ─── StatusBadge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€────
 function StatusBadge({status}:{status:string}) {
   const s = STATUS[status]||STATUS.planning
   return (
@@ -124,7 +127,7 @@ function StatusBadge({status}:{status:string}) {
   )
 }
 
-// â”€── PriorityBadge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──
+// ─── PriorityBadge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€────
 function PriorityBadge({priority}:{priority:string}) {
   const p = PRIORITY[priority]||PRIORITY.medium
   return (
@@ -134,7 +137,7 @@ function PriorityBadge({priority}:{priority:string}) {
   )
 }
 
-// â”€── ProgressBar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──
+// ─── ProgressBar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€────
 function ProgressBar({value,color,height=8}:{value:number;color:string;height?:number}) {
   return (
     <div style={{width:'100%',height,background:'#f1f5f9',borderRadius:height,overflow:'hidden'}}>
@@ -143,7 +146,7 @@ function ProgressBar({value,color,height=8}:{value:number;color:string;height?:n
   )
 }
 
-// â”€── DaysLeftChip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──
+// ─── DaysLeftChip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€────
 function DaysLeftChip({end_date,status}:{end_date:string;status:string}) {
   if(!end_date||status==='completed'||status==='cancelled') return null
   const d = daysLeft(end_date)
@@ -160,7 +163,7 @@ function DaysLeftChip({end_date,status}:{end_date:string;status:string}) {
   )
 }
 
-// â”€── MODAL Projet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──
+// ─── MODAL Projet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€────
 function ProjectModal({ open, onClose, onSave, initial, clients }:{
   open:boolean; onClose:()=>void
   onSave:(d:typeof EMPTY)=>Promise<void>
@@ -370,7 +373,7 @@ function ProjectModal({ open, onClose, onSave, initial, clients }:{
   )
 }
 
-// â”€── DRAWER Détail Projet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──
+// ─── DRAWER Détail Projet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€────
 function ProjectDrawer({ project, clients, onClose, onEdit, onDelete, onStatusChange, onProgressChange }:{
   project:Project|null; clients:Client[]
   onClose:()=>void; onEdit:()=>void; onDelete:()=>void
@@ -507,7 +510,7 @@ function ProjectDrawer({ project, clients, onClose, onEdit, onDelete, onStatusCh
   )
 }
 
-// â”€── PAGE PRINCIPALE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──
+// ─── PAGE PRINCIPALE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€────
 export default function ProjectsPage() {
   const [projects,  setProjects]  = useState<Project[]>([])
   const [clients,   setClients]   = useState<Client[]>([])
@@ -798,7 +801,7 @@ export default function ProjectsPage() {
                   <tr key={p.id} className="rh" style={{borderBottom:'1px solid #f8fafc',cursor:'pointer'}} onClick={()=>setViewP(p)}>
                     <td style={{padding:'12px 14px'}}>
                       <p style={{fontWeight:700,color:'#0f172a',fontSize:13}}>{p.name}</p>
-                      {p.tags&&<p style={{fontSize:10,color:'#a855f7',marginTop:2}}>{(Array.isArray(p.tags) ? p.tags : String(p.tags).split(',').map(t=>t.trim()).filter(Boolean)).slice(0,2).join(' · ')}</p>}
+                      {p.tags&&<p style={{fontSize:10,color:'#a855f7',marginTop:2}}>{tagsArr(p.tags).slice(0,2).join(' · ')}</p>}
                     </td>
                     <td style={{padding:'12px 14px',color:'#64748b',fontSize:12}}>{p.client_name}</td>
                     <td style={{padding:'12px 14px'}}>
@@ -909,7 +912,7 @@ export default function ProjectsPage() {
                   )}
                   {p.tags&&(
                     <div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:12}}>
-                      {(Array.isArray(p.tags) ? p.tags : String(p.tags).split(',').map(t=>t.trim()).filter(Boolean)).slice(0,3).map((t,i)=>(
+                      {tagsArr(p.tags).slice(0,3).map((t,i)=>(
                         <span key={i} style={{padding:'2px 8px',borderRadius:20,background:'#f3e8ff',color:'#7c3aed',fontSize:10,fontWeight:600}}>{t}</span>
                       ))}
                     </div>

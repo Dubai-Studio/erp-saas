@@ -1586,7 +1586,7 @@ export default function InvoicesPage() {
       } catch { /* ignore */ }
       throw new Error(msg + details)
     }
-    setImpModal(false); load()
+    setImpModal(false); setTab('incoming'); load()
   }
 
   async function delOut(id: string) {

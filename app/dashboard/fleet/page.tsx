@@ -919,7 +919,17 @@ export default function FleetPage() {
     const method = data.id ? 'PATCH' : 'POST'
     const url    = data.id ? `/api/fleet/${data.id}` : '/api/fleet'
     const res    = await fetch(url, { method, credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
-    if (!res.ok) throw new Error('Erreur sauvegarde')
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      let msg = j?.error ?? `Erreur ${res.status}`
+      if (j?.details?.fieldErrors) {
+        const details = Object.entries(j.details.fieldErrors)
+          .map(([k, v]: [string, any]) => `${k}: ${(v as string[]).join(', ')}`)
+          .join(' ; ')
+        msg += ` — ${details}`
+      }
+      throw new Error(msg)
+    }
     setShowVModal(false); setEditVehicle(null); load()
   }
 
@@ -929,18 +939,29 @@ export default function FleetPage() {
       method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...data, vehicle_name: v ? `${v.brand} ${v.model}` : '', plate: v?.plate ?? '' }),
     })
-    if (!res.ok) throw new Error('Erreur dépense')
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      throw new Error(j?.error ?? `Erreur ${res.status}`)
+    }
     setShowExpModal(false); load()
   }
 
   // ── NEW: suppression d'une dépense ──
   const delExpense = async (id: string) => {
-    await fetch(`/api/fleet-expenses/${id}`, { method: 'DELETE', credentials: 'include' })
+    const res = await fetch(`/api/fleet-expenses/${id}`, { method: 'DELETE', credentials: 'include' })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      throw new Error(j?.error ?? `Erreur ${res.status}`)
+    }
     setDelExpTarget(null); setViewExpense(null); load()
   }
 
   const del = async (id: string) => {
-    await fetch(`/api/fleet/${id}`, { method: 'DELETE', credentials: 'include' })
+    const res = await fetch(`/api/fleet/${id}`, { method: 'DELETE', credentials: 'include' })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      throw new Error(j?.error ?? `Erreur ${res.status}`)
+    }
     setDelTarget(null); load()
   }
 
@@ -1303,7 +1324,7 @@ export default function FleetPage() {
             <div style={{ fontSize: 13, color: '#64748b', marginBottom: 24 }}>Cette action est irréversible.</div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
               <button onClick={() => setDelExpTarget(null)} style={btnGh}>Annuler</button>
-              <button onClick={() => delExpense(delExpTarget)} style={btn('#ef4444')}>{I.trash} Supprimer</button>
+              <button onClick={async()=>{ try { await delExpense(delExpTarget) } catch(err) { alert(err instanceof Error ? err.message : 'Erreur') } }} style={btn('#ef4444')}>{I.trash} Supprimer</button>
             </div>
           </div>
         </div>
@@ -1320,7 +1341,7 @@ export default function FleetPage() {
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
               <button onClick={() => setDelTarget(null)} style={btnGh}>Annuler</button>
-              <button onClick={() => del(delTarget.id)}  style={btn('#dc2626')}>{I.trash} Supprimer</button>
+              <button onClick={async()=>{ try { await del(delTarget.id) } catch(err) { alert(err instanceof Error ? err.message : 'Erreur') } }} style={btn('#dc2626')}>{I.trash} Supprimer</button>
             </div>
           </div>
         </div>

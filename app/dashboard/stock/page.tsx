@@ -810,7 +810,17 @@ export default function StockPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     })
-    if (!res.ok) throw new Error('Erreur sauvegarde')
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      let msg = j?.error ?? `Erreur ${res.status}`
+      if (j?.details?.fieldErrors) {
+        const details = Object.entries(j.details.fieldErrors)
+          .map(([k, v]: [string, any]) => `${k}: ${(v as string[]).join(', ')}`)
+          .join(' ; ')
+        msg += ` — ${details}`
+      }
+      throw new Error(msg)
+    }
     setShowModal(false); setEditItem(null); load()
   }
 
@@ -829,13 +839,20 @@ const saveMovement = async (data: Omit<StockMovement, 'id' | 'created_at'>) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     })
-    if (!res.ok) throw new Error('Erreur mouvement')
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      throw new Error(j?.error ?? `Erreur ${res.status}`)
+    }
     setShowMovModal(false); load()
   }
 
 
   const del = async (id: string) => {
-    await fetch(`/api/stock/${id}`, { method: 'DELETE', credentials: 'include' })
+    const res = await fetch(`/api/stock/${id}`, { method: 'DELETE', credentials: 'include' })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      throw new Error(j?.error ?? `Erreur ${res.status}`)
+    }
     setDelTarget(null); load()
   }
 
@@ -1114,7 +1131,7 @@ const saveMovement = async (data: Omit<StockMovement, 'id' | 'created_at'>) => {
             </div>
             <div style={{ display:'flex', gap:10, justifyContent:'center' }}>
               <button onClick={() => setDelTarget(null)}    style={btnGh}>Annuler</button>
-              <button onClick={() => del(delTarget.id)} style={btn('#dc2626')}>Supprimer</button>
+              <button onClick={async()=>{ try { await del(delTarget.id) } catch(err) { alert(err instanceof Error ? err.message : 'Erreur') } }} style={btn('#dc2626')}>Supprimer</button>
             </div>
           </div>
         </div>

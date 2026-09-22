@@ -69,15 +69,17 @@ const PAYMENT_TERMS = ['Immédiat','15 jours','30 jours','45 jours','60 jours','
 const EMPTY_LINE: InvoiceLine = { description:'', quantity:1, unit_price:0, vat_rate:21 }
 
 const COMPANY = {
-  name:    'Next-ERP.PRO',
-  address: 'Rue de la Loi 1',
-  city:    '1000 Bruxelles',
+  // VERTUOSE S.P.R.L. — fallback avant que l'utilisateur ait sauvegardé
+  // ses paramètres société. Cohérent avec le préfill de la page Settings.
+  name:    'VERTUOSE S.P.R.L.',
+  address: 'Chaussée de Forest 146',
+  city:    '1060 Bruxelles Saint-Gilles',
   country: 'Belgique',
-  vat:     'BE 0000.000.000',
-  email:   'contact@next-erp.pro',
-  phone:   '+32 2 000 00 00',
-  iban:    'BE00 0000 0000 0000',
-  bic:     'GEBABEBB',
+  vat:     'BE 0811.234.358',
+  email:   'contact@vertuose.be',
+  phone:   '0484 701 235',
+  iban:    'BE47 7370 6594 4380',
+  bic:     'KREDBEBB',
 }
 
 // ─── Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€────

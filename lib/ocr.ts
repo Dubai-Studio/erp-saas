@@ -13,6 +13,16 @@
 
 import Tesseract from 'tesseract.js'
 
+// Chemins CDN stables (jsdelivr) — survivent aux rebuilds Next.js.
+// Sans cela, Next.js打包 le worker Tesseract dans un chunk /_next/static/chunks/
+// qui peut être absent après un redéploiement (chunk hash obsolète), faisant
+// échouer l'OCR avec "Failed to load chunk …".
+const TESSERACT_CDN = {
+  workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',
+  corePath:   'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.0.0',
+  langPath:   'https://tessdata.projectnaptha.com/4.0.0',
+}
+
 export interface OcrResult {
   rawText: string
   confidence: number
@@ -43,6 +53,9 @@ export async function ocrFromImage(
   onProgress?: ProgressCallback,
 ): Promise<OcrResult> {
   const { data } = await Tesseract.recognize(file, lang, {
+    workerPath: TESSERACT_CDN.workerPath,
+    corePath:   TESSERACT_CDN.corePath,
+    langPath:   TESSERACT_CDN.langPath,
     logger: m => {
       if (onProgress) {
         onProgress({
@@ -102,6 +115,9 @@ await page.render({ canvasContext: ctx, viewport }).promise
 
     const imageFile = new File([blob], `page-${i}.png`, { type: 'image/png' })
     const { data } = await Tesseract.recognize(imageFile, lang, {
+      workerPath: TESSERACT_CDN.workerPath,
+      corePath:   TESSERACT_CDN.corePath,
+      langPath:   TESSERACT_CDN.langPath,
       logger: m => {
         if (onProgress) {
           const pagePortion = 1 / pdf.numPages

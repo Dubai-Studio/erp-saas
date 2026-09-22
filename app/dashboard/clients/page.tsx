@@ -13,7 +13,9 @@ interface Client {
   city: string
   country: string
   vat_number: string
-  status: 'active' | 'inactive' | 'prospect'
+  status: 'active' | 'inactive' | 'prospect' | 'archived'
+  notes?: string
+  zip_code?: string
   created_at: string
   // Champs enrichis (calculés ou depuis jointures)
   invoices_count?: number
@@ -143,7 +145,8 @@ function Modal({ open, onClose, onSave, initial }: {
     setForm(initial
       ? { name: initial.name||'', email: initial.email||'', phone: initial.phone||'',
           address: initial.address||'', city: initial.city||'', country: initial.country||'Belgique',
-          vat_number: initial.vat_number||'', status: initial.status||'active', notes:'' }
+          vat_number: initial.vat_number||'', status: (initial.status as Client['status']) || 'active',
+          notes: initial.notes||'' }
       : { ...EMPTY })
     setError(''); setTab('info')
   }, [initial, open])
@@ -155,8 +158,11 @@ function Modal({ open, onClose, onSave, initial }: {
     e.preventDefault()
     if (!form.name.trim()) { setError('Le nom est obligatoire.'); setTab('info'); return }
     setSaving(true); setError('')
-    try { await onSave(form) }
-    catch  { setError('Erreur lors de la sauvegarde.') }
+    try {
+      await onSave(form)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde.')
+    }
     setSaving(false)
   }
 
@@ -501,16 +507,34 @@ export default function ClientsPage() {
 
   // ── CRUD ───────────────────────────────────────────────────────────────────
   async function save(form: typeof EMPTY) {
-    if (editC) {
-      await fetch(`/api/clients/${editC.id}`, { method:'PATCH', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify(form) })
-    } else {
-      await fetch('/api/clients', { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify(form) })
+    const url    = editC ? `/api/clients/${editC.id}` : '/api/clients'
+    const method = editC ? 'PATCH' : 'POST'
+    const res = await fetch(url, {
+      method,
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      let msg = j?.error ?? `Erreur ${res.status}`
+      if (j?.details?.fieldErrors) {
+        const details = Object.entries(j.details.fieldErrors)
+          .map(([k, v]: [string, any]) => `${k}: ${(v as string[]).join(', ')}`)
+          .join(' ; ')
+        msg += ` — ${details}`
+      }
+      throw new Error(msg)
     }
     setModal(false); setEditC(null); load()
   }
 
   async function del(id: string) {
-    await fetch(`/api/clients/${id}`, { method:'DELETE', credentials:'include' })
+    const res = await fetch(`/api/clients/${id}`, { method:'DELETE', credentials:'include' })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      throw new Error(j?.error ?? `Erreur ${res.status}`)
+    }
     setDeleteId(null); setViewC(null); load()
   }
 
@@ -883,7 +907,7 @@ export default function ClientsPage() {
               <button onClick={() => setDeleteId(null)} style={{ flex:1, padding:'10px 0', borderRadius:10, border:'1.5px solid #e2e8f0', background:'#fff', fontSize:13, fontWeight:600, color:'#64748b', cursor:'pointer' }}>
                 Annuler
               </button>
-              <button onClick={() => del(deleteId)} style={{ flex:1, padding:'10px 0', borderRadius:10, border:'none', background:'#ef4444', fontSize:13, fontWeight:700, color:'#fff', cursor:'pointer' }}>
+              <button onClick={async () => { try { await del(deleteId); } catch(err) { alert(err instanceof Error ? err.message : 'Erreur'); } }} style={{ flex:1, padding:'10px 0', borderRadius:10, border:'none', background:'#ef4444', fontSize:13, fontWeight:700, color:'#fff', cursor:'pointer' }}>
                 Supprimer
               </button>
             </div>

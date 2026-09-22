@@ -24,6 +24,7 @@ export const POST = withAuth(async ({ req, supabase, body }) => {
   }
 
   const arrayBuffer = await req.arrayBuffer()
+  console.log(`[upload] meta=${JSON.stringify(meta)} size=${arrayBuffer.byteLength}`)
   if (arrayBuffer.byteLength === 0) return badRequest('Fichier vide')
   if (arrayBuffer.byteLength > MAX_UPLOAD_BYTES) {
     return badRequest(`Fichier trop volumineux (max ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)} MB)`)
@@ -37,6 +38,7 @@ export const POST = withAuth(async ({ req, supabase, body }) => {
   if (!user) return badRequest('Session invalide')
 
   const fullPath = `${user.id}/${meta.folder}/${Date.now()}-${safeName}`
+  console.log(`[upload] path=${meta.bucket}/${fullPath}`)
 
   const { data, error } = await supabase.storage
     .from(meta.bucket)
@@ -44,7 +46,10 @@ export const POST = withAuth(async ({ req, supabase, body }) => {
       contentType: meta.content_type,
       upsert: false,
     })
-  if (error) return badRequest(error.message)
+  if (error) {
+    console.error(`[upload] storage error: ${error.message} (bucket=${meta.bucket}, path=${fullPath})`)
+    return badRequest(error.message)
+  }
 
   // URL publique (le bucket doit être public, ou utiliser createSignedUrl)
   const { data: urlData } = supabase.storage.from(meta.bucket).getPublicUrl(data.path)

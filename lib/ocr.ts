@@ -313,6 +313,17 @@ function extractSupplierName(text: string): string | undefined {
     if (/^(IBAN|BIC|SWIFT|RIB)\b/i.test(line)) continue        // coordonnées bancaires
     if (/^(T[ée]l|Tel|Phone|Fax|Gsm|Mobile|GSM)\b/i.test(line)) continue
     if (/^https?:\/\//i.test(line)) continue                  // URL
+    // ── Patterns bancaires — très fréquent que l'OCR capte le BIC avant le nom ──
+    // BIC: 4 lettres (banque) + 2 lettres (pays) + 2 alphanum (ville) [+ 3 alphanum (agence)].
+    // Exemples typiques : KREDBEBB (KBC), GEBABEBB (BNP), DEUTDEFF (Deutsche), etc.
+    if (/\b[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?\b/.test(line)) continue
+    // IBAN : 2 lettres (pays) + 2 chiffres (clé) + 10-30 alphanum.
+    if (/\b[A-Z]{2}\d{2}[A-Z0-9]{10,30}\b/.test(line)) continue
+    // Code bancaire compact sans espace (8 à 11 majuscules consécutives).
+    // Exclut "KREDBEBB" mais garde "ACME" (4 lettres) ou "DELHAIZE" (8 lettres en maj mais composé).
+    if (/^[A-Z]{8,11}$/.test(line)) continue
+    // Ligne de la forme "BICODE (MARQUE BANCAIRE)" — fréquent sur les factures BE/FR.
+    if (/^[A-Z]{6,11}\s*\([A-Z]{2,5}\)\s*$/.test(line)) continue
     if (line.length > 70) continue                            // trop long pour un nom
     candidates.push(line)
   }

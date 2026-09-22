@@ -51,12 +51,29 @@ export const POST = withAuth(async ({ req, supabase, body }) => {
     return badRequest(error.message)
   }
 
-  // URL publique (le bucket doit être public, ou utiliser createSignedUrl)
-  const { data: urlData } = supabase.storage.from(meta.bucket).getPublicUrl(data.path)
+  // URL publique (le bucket doit être public pour getPublicUrl).
+  // Si l'appel échoue (bucket inexistant ou policy restrict), on génère une URL
+  // manuelle basée sur la convention Supabase Storage — l'utilisateur pourra
+  // toujours tenter d'ouvrir le lien, et le bucket doit être marqué public via
+  // la migration 10 pour que ça fonctionne réellement.
+  let publicUrl = ''
+  try {
+    const { data: urlData } = supabase.storage.from(meta.bucket).getPublicUrl(data.path)
+    publicUrl = urlData.publicUrl
+    console.log(`[upload] publicUrl=${publicUrl}`)
+  } catch (e: any) {
+    console.warn(`[upload] getPublicUrl failed: ${e?.message ?? e}, falling back to manual URL`)
+  }
+  if (!publicUrl) {
+    // Fallback : URL manuelle conforme au format Supabase Storage public.
+    const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
+    publicUrl = `${baseUrl}/storage/v1/object/public/${meta.bucket}/${data.path}`
+    console.warn(`[upload] using fallback URL: ${publicUrl}`)
+  }
 
   return ok({
     path: data.path,
-    url: urlData.publicUrl,
+    url: publicUrl,
     size: arrayBuffer.byteLength,
     content_type: meta.content_type,
   })

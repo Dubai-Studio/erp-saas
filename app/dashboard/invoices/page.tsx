@@ -941,11 +941,14 @@ function ImportModal({ open, onClose, onSave, clients, projects, initial }:{
           return
         }
         const { url } = await uploadRes.json()
-        fileUrl  = url
+        fileUrl  = url ?? ''
         fileName = file.name
+        console.log('[ImportModal] upload OK fileUrl=', fileUrl, 'fileName=', fileName)
+      } else {
+        console.log('[ImportModal] no file to upload, form.file_url=', form.file_url)
       }
 
-      await onSave({ ...form, file_url: fileUrl, file_name: fileName }, initial?.id)
+      await onSave({ ...form, file_url: fileUrl || form.file_url, file_name: fileName || form.file_name }, initial?.id)
     } catch (err) {
       console.error('ImportModal submit error:', err)
       setError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde. Veuillez réessayer.')
@@ -1364,8 +1367,14 @@ function IncomingDrawer({ invoice, clients, projects, onClose, onDelete }:{
                   {Ic.eye} Ouvrir le document
                 </a>
               ) : (
-                <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'8px 0',borderRadius:9,background:'#dbeafe',color:'#1d4ed8',fontSize:12,fontWeight:500}}>
-                  {Ic.attach}<span>Fichier stocké localement</span>
+                <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'8px 0',borderRadius:9,background:'#fef2f2',color:'#b91c1c',fontSize:12,fontWeight:500}}>
+                    {Ic.warn}<span>URL du document manquante — réimportez le PDF pour le rattacher.</span>
+                  </div>
+                  <a href={`https://kmuunajnuagqylntpvxt.supabase.co/storage/v1/object/public/invoices/`} target="_blank" rel="noopener noreferrer"
+                    style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'7px 0',borderRadius:9,textDecoration:'none',border:`1px solid #fecaca`,color:'#b91c1c',fontSize:11,fontWeight:600}}>
+                    {Ic.link} Ouvrir le bucket storage
+                  </a>
                 </div>
               )}
             </div>

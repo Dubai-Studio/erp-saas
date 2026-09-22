@@ -240,34 +240,115 @@ function extractFields(text: string, confidence: number): OcrResult {
 }
 
 function extractSupplierName(text: string): string | undefined {
-  // Take the first non-empty line that looks like a company name.
-  // Heuristic: a line of 2-50 chars, mostly letters, possibly with a legal
-  // suffix (SA, BVBA, SPRL, NV, SRL, ...). Reject lines that look like
-  // numeric / address / "FACTURE" titles.
-  const suffixes =
-    /\b(?:SA|SPRL|BVBA|NV|SRL|SAS|SARL|GMBH|LTD|INC|LLC|SCS|SNC|SC)\b\.?/i
-  // Labels courants en haut/au milieu d'une facture — à exclure comme nom.
-  // "FACTURÉ À" / "INVOICE TO" / "BILL TO" sont des titres, pas le nom du fournisseur.
-  const labelRe = /^(?:factur[ée]?\s*[àa]|invoice\s*to|bill\s*to|client|to|from|vendor|supplier|fournisseur|emetteur|[àa]\s*:)$/i
-  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
+  // Stratégies en cascade — chacune doit être essayée avant la suivante.
+  //
+  //   Stratégie 0 : label explicite « ÉMETTEUR / FOURNISSEUR / VENDOR / SUPPLIER »
+  //                 suivi d'un nom de société sur la même ligne ou la suivante.
+  //                 Très fiable sur les factures structurées.
+  //   Stratégie 1 : suffixe juridique clair (SA, SPRL, BVBA, NV, SRL, ...)
+  //   Stratégie 2 : ligne majoritairement en MAJUSCULES (≥ 60%) avec ≥ 4 lettres
+  //   Stratégie 3 : ligne mixte (au moins 1 maj + 1 min, longueur raisonnable)
+  //   Stratégie 4 : fallback — premier candidat raisonnable
 
-  for (const raw of lines) {
-    const line = raw.replace(/\s+/g, ' ')
-    // Skip obvious noise.
-    if (/^[\d\s.,/-]+$/.test(line)) continue
-    if (labelRe.test(line)) continue                       // ← titres "FACTURÉ À"
-    if (/facture|invoice|factuur|rechnung/i.test(line) && line.length < 30) continue
-    if (/^\d{1,4}[-/.]\d{1,2}[-/.]\d{2,4}/.test(line)) continue
-    if (/@/.test(line)) continue
-    if (line.length < 3 || line.length > 60) continue
-    // Accepte si contient un suffixe société OU si majoritairement en majuscules
-    const letters = (line.match(/\p{L}/gu) || []).length
-    if (letters / line.length < 0.5) continue
-    if (suffixes.test(line)) return cleanName(line)
-    const upperRatio = (line.match(/[A-ZÀ-Ÿ]/g) || []).length / line.length
-    if (upperRatio > 0.4) return cleanName(line)
+  const suffixes =
+    /\b(?:SA|SPRL|BVBA|NV|SRL|SAS|SARL|GMBH|LTD|INC|LLC|SCS|SNC|SC|AS|AB|OY)\b\.?/i
+
+  // Labels courants en haut/au milieu d'une facture — à exclure comme nom
+  // (la ligne ne doit pas être EXACTEMENT un de ces mots).
+  const labelRe = /^(?:factur[ée]?\s*[àa]|invoice\s*to|bill\s*to|client|to|from|vendor|supplier|fournisseur|emetteur|[àa]\s*:)$/i
+
+  // Mots-clés typiques d'une facture FR/BE/NL/DE qui, combinés ensemble ou
+  // répétés, indiquent une ligne de labels et PAS un nom de société :
+  //   "DATE DEMISSION DATE D'ECHEANCE CONDITIONS DE PAIEMENT"  ← bug classique
+  //   "MONTANT HT TVA TOTAL TTC"
+  //   "DATE D'EMISSION"  ← cas particulier, 2 mots-clés seulement
+  const labelKeywordsRegex =
+    /\b(date|d[eé]mission|[eé]ch[eé]ance|conditions?|paiement|montant|tva|t\.?t\.?c|ttc|ht|net|brut|facture|invoice|num[ée]ro|r[ée]f[eé]rence|tbd|tba|modalit[eé]s?|escompte|remise|p[eé]nalit[eé]|int[eé]r[eê]ts?)\b/gi
+
+  // Compteur de mots-clés label présents dans une ligne.
+  const labelHit = (line: string) => {
+    const re = new RegExp(labelKeywordsRegex.source, 'gi')
+    const hits = (line.match(re) || []).length
+    return hits
   }
-  return undefined
+
+  // Lignes candidates : on garde les 40 premières (marge plus large pour
+  // attraper un nom de société en haut de page).
+  const rawLines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
+
+  // ── Stratégie 0 : label « ÉMETTEUR / FOURNISSEUR / VENDOR / SUPPLIER / FROM »
+  //                  suivi du nom sur la même ligne OU la ligne suivante.
+  const emitLineRe = /^\s*(?:[eé]metteur|emitter|exp[eé]diteur|from|vendor|supplier|fournisseur|leverancier|absender|abs\.?)\s*[:\-]?\s*(.{2,80})$/i
+  for (let i = 0; i < rawLines.length; i++) {
+    const m = rawLines[i].match(emitLineRe)
+    if (!m) continue
+    const value = (m[1] ?? '').replace(/\s+/g, ' ').trim()
+    // Le nom ne doit pas être lui-même un label ni un simple numéro/date
+    if (!value || labelRe.test(value)) continue
+    if (/^[\d\s.,\/\-+()]+$/.test(value)) continue
+    if (labelHit(value) >= 2) continue
+    if (value.length > 70) continue
+    if (looksLikeCompanyName(value)) return cleanName(value)
+    // Ligne suivante (le nom peut être reporté sur 2 lignes dans le PDF)
+    const next = rawLines[i + 1]?.replace(/\s+/g, ' ').trim() ?? ''
+    if (next && !labelRe.test(next) && labelHit(next) < 2 && next.length <= 70 && !/^[\d\s.,\/\-+()]+$/.test(next)) {
+      return cleanName(next)
+    }
+    return cleanName(value)
+  }
+
+  // Construire la liste de candidats "propres" pour les stratégies 1-4.
+  const candidates: string[] = []
+  for (const raw of rawLines.slice(0, 40)) {
+    const line = raw.replace(/\s+/g, ' ').trim()
+    if (line.length < 3) continue
+    if (/^[\d\s.,\/\-+()]+$/.test(line)) continue          // nombres / tel / IBAN
+    if (labelRe.test(line)) continue                          // "FACTURÉ À"
+    // Rejet de toute ligne contenant ≥ 2 mots-clés label (avant on exigeait 3,
+    // mais ça ratait "DATE D'EMISSION" qui n'en a que 2).
+    if (labelHit(line) >= 2) continue
+    if (/^\d{1,4}[-/.]\d{1,2}[-/.]\d{2,4}/.test(line)) continue   // date
+    if (/@/.test(line)) continue                              // email
+    if (/^(TVA|BTW|VAT|N[°ºo])\b/i.test(line)) continue        // numéros TVA, "N°"
+    if (/^(IBAN|BIC|SWIFT|RIB)\b/i.test(line)) continue        // coordonnées bancaires
+    if (/^(T[ée]l|Tel|Phone|Fax|Gsm|Mobile|GSM)\b/i.test(line)) continue
+    if (/^https?:\/\//i.test(line)) continue                  // URL
+    if (line.length > 70) continue                            // trop long pour un nom
+    candidates.push(line)
+  }
+
+  // Stratégie 1 : ligne avec suffixe société clair (SA, SPRL, BVBA, ...)
+  for (const line of candidates) {
+    if (suffixes.test(line)) return cleanName(line)
+  }
+  // Stratégie 2 : ligne majoritairement en majuscules ET ≥ 4 caractères alphabétiques
+  for (const line of candidates) {
+    const letters = (line.match(/\p{L}/gu) || []).length
+    if (letters < 4) continue
+    const upperRatio = (line.match(/[A-ZÀ-Ÿ]/g) || []).length / letters
+    if (upperRatio >= 0.6) return cleanName(line)
+  }
+  // Stratégie 3 : ligne mixte (ex: "ACME Industries") — au moins 1 maj + 1 min
+  for (const line of candidates) {
+    const letters = (line.match(/\p{L}/gu) || []).length
+    if (letters < 4) continue
+    if (line.length > 50) continue
+    if (/[A-ZÀ-Ÿ]/.test(line) && /[a-zà-ÿ]/.test(line)) return cleanName(line)
+  }
+  // Stratégie 4 : au pire, premier candidat raisonnable
+  return candidates[0] ? cleanName(candidates[0]) : undefined
+}
+
+/**
+ * Vérifie heuristiquement qu'une chaîne ressemble à un nom de société :
+ * au moins une lettre, pas que des chiffres/symboles, pas de mots parasites.
+ */
+function looksLikeCompanyName(s: string): boolean {
+  const letters = (s.match(/\p{L}/gu) || []).length
+  if (letters < 3) return false
+  if (/^[\d\s.,\/\-+()]+$/.test(s)) return false
+  if (/@/.test(s)) return false
+  return true
 }
 
 function cleanName(s: string): string {

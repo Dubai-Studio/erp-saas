@@ -3,9 +3,13 @@ import { ExternalInvoiceUpdate } from '@/lib/schemas'
 
 export const GET = withAuth(async ({ supabase, params }) => {
   const id = params.id
+  // Pas d'embed `projects(name)` : PostgREST ne détecte pas la FK
+  // external_invoices.project_id → projects.id dans son schema cache (le user n'a
+  // pas nécessairement exécuté la migration 11). On retourne la ligne brute et
+  // la page résout `project_name` via la liste `projects` qu'elle a déjà chargée.
   const { data, error } = await supabase
     .from('external_invoices')
-    .select('*, projects(name)')
+    .select('*')
     .eq('id', id)
     .maybeSingle()
   if (error) return badRequest(error.message)

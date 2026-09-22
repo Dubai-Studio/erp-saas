@@ -748,10 +748,11 @@ function OcrSummary({ result, extracted }:{
   )
 }
 
-function ImportModal({ open, onClose, onSave, clients, projects }:{
+function ImportModal({ open, onClose, onSave, clients, projects, initial }:{
   open:boolean; onClose:()=>void
-  onSave:(d:Omit<ExternalInvoice,'id'|'created_at'>)=>Promise<void>
+  onSave:(d:Omit<ExternalInvoice,'id'|'created_at'>, id?:string)=>Promise<void>
   clients:Client[]; projects:Project[]
+  initial?: ExternalInvoice | null
 }) {
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -779,7 +780,28 @@ function ImportModal({ open, onClose, onSave, clients, projects }:{
 
   useEffect(() => {
     if (open) {
-      setForm(getEmptyForm())
+      // Mode édition : pré-remplir le formulaire avec les valeurs existantes
+      if (initial) {
+        setForm({
+          type: 'incoming' as const,
+          file_name: initial.file_name || '',
+          file_url: initial.file_url || '',
+          supplier_name: initial.supplier_name || '',
+          supplier_id: initial.supplier_id || '',
+          client_id: initial.client_id || '',
+          project_id: initial.project_id || '',
+          amount_ht: initial.amount_ht || 0,
+          vat_amount: initial.vat_amount || 0,
+          total_amount: initial.total_amount || 0,
+          issue_date: initial.issue_date || today(),
+          due_date: initial.due_date || due30(),
+          category: initial.category || 'Prestation',
+          notes: initial.notes || '',
+          status: initial.status || 'pending' as const,
+        })
+      } else {
+        setForm(getEmptyForm())
+      }
       setError('')
       setFile(null)
       setOcrStatus('idle')
@@ -789,7 +811,7 @@ function ImportModal({ open, onClose, onSave, clients, projects }:{
       setOcrError('')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+  }, [open, initial])
 
   if (!open) return null
 
@@ -923,7 +945,7 @@ function ImportModal({ open, onClose, onSave, clients, projects }:{
         fileName = file.name
       }
 
-      await onSave({ ...form, file_url: fileUrl, file_name: fileName })
+      await onSave({ ...form, file_url: fileUrl, file_name: fileName }, initial?.id)
     } catch (err) {
       console.error('ImportModal submit error:', err)
       setError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde. Veuillez réessayer.')
@@ -945,8 +967,8 @@ function ImportModal({ open, onClose, onSave, clients, projects }:{
             <div style={{display:'flex',alignItems:'center',gap:12}}>
               <div style={{width:36,height:36,borderRadius:10,background:'rgba(255,255,255,0.12)',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',flexShrink:0}}>{Ic.fileIn}</div>
               <div>
-                <h2 style={{fontSize:16,fontWeight:800,color:'#fff'}}>Importer une facture fournisseur</h2>
-                <p style={{fontSize:11,color:'rgba(255,255,255,0.6)',marginTop:2}}>Joindre le document et saisir les données comptables</p>
+                <h2 style={{fontSize:16,fontWeight:800,color:'#fff'}}>{initial ? 'Modifier la facture fournisseur' : 'Importer une facture fournisseur'}</h2>
+                <p style={{fontSize:11,color:'rgba(255,255,255,0.6)',marginTop:2}}>{initial ? 'Modifier les informations comptables' : 'Joindre le document et saisir les données comptables'}</p>
               </div>
             </div>
             <button onClick={onClose} style={{background:'rgba(255,255,255,0.12)',border:'none',borderRadius:9,padding:8,cursor:'pointer',color:'#fff',display:'flex',flexShrink:0}}>{Ic.x}</button>
@@ -1427,6 +1449,7 @@ export default function InvoicesPage() {
   const [outModal,  setOutModal]  = useState(false)
   const [impModal,  setImpModal]  = useState(false)
   const [editInv,   setEditInv]   = useState<Invoice|null>(null)
+  const [editExt,   setEditExt]   = useState<ExternalInvoice|null>(null)
   const [viewOut,   setViewOut]   = useState<Invoice|null>(null)
   const [viewIn,    setViewIn]    = useState<ExternalInvoice|null>(null)
   const [deleteId,  setDeleteId]  = useState<{id:string;type:'out'|'in'}|null>(null)
@@ -1556,7 +1579,7 @@ export default function InvoicesPage() {
     setOutModal(false); setEditInv(null); load()
   }
 
-  async function saveExt(data: Omit<ExternalInvoice,'id'|'created_at'>) {
+  async function saveExt(data: Omit<ExternalInvoice,'id'|'created_at'>, editId?: string) {
     // Sanitize : envoyer null (pas '') pour les champs UUID optionnels
     const payload = {
       ...data,
@@ -1570,8 +1593,10 @@ export default function InvoicesPage() {
       // Garantir que le type est correct (le serveur l'écrase mais on évite le bruit)
       type: 'incoming',
     }
-    const res = await fetch('/api/external-invoices', {
-      method: 'POST',
+    const url    = editId ? `/api/external-invoices/${editId}` : '/api/external-invoices'
+    const method = editId ? 'PATCH' : 'POST'
+    const res = await fetch(url, {
+      method,
       credentials: 'include',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify(payload),
@@ -1582,7 +1607,6 @@ export default function InvoicesPage() {
       try {
         const j = await res.json()
         msg = j?.error ?? msg
-        // Afficher les détails champ par champ si présents
         if (j?.details?.fieldErrors) {
           const fields = j.details.fieldErrors
           details = ' — ' + Object.entries(fields)
@@ -1592,7 +1616,7 @@ export default function InvoicesPage() {
       } catch { /* ignore */ }
       throw new Error(msg + details)
     }
-    setImpModal(false); setTab('incoming'); load()
+    setImpModal(false); setEditExt(null); setTab('incoming'); load()
   }
 
   async function delOut(id: string) {
@@ -1627,6 +1651,21 @@ export default function InvoicesPage() {
   }
 
   function openEdit(inv: Invoice) { setEditInv(inv); setViewOut(null); setOutModal(true) }
+  function openEditExt(ext: ExternalInvoice) { setEditExt(ext); setViewIn(null); setImpModal(true) }
+  async function toggleStatusIn(ext: ExternalInvoice) {
+    const next = ext.status === 'paid' ? 'pending' : 'paid'
+    const res = await fetch(`/api/external-invoices/${ext.id}`, {
+      method:'PATCH', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ status: next }),
+    })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      alert(j?.error ?? `Erreur ${res.status}`)
+      return
+    }
+    load()
+  }
   function resetFilters() { setSearch(''); setStatusF('all'); setClientF('all'); setProjectF('all'); setDateFrom(''); setDateTo(''); setSupplierF('all'); setCategoryF('all') }
 
   function exportCSV() {
@@ -1972,6 +2011,16 @@ export default function InvoicesPage() {
                       <td style={{padding:'12px 14px'}} onClick={e=>e.stopPropagation()}>
                         <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
                           <AB onClick={()=>setViewIn(inv)} title="Voir le détail" icon={Ic.eye} hBg='#eff6ff' hCol={C.blue}/>
+                          {inv.file_url && (
+                            <a href={inv.file_url} target="_blank" rel="noopener noreferrer"
+                              style={{width:30,height:30,borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',background:'#ecfdf5',color:'#10b981',textDecoration:'none'}}
+                              title="Ouvrir le PDF"
+                              onClick={e=>e.stopPropagation()}>
+                              {Ic.pdf}
+                            </a>
+                          )}
+                          <AB onClick={()=>openEditExt(inv)} title="Modifier" icon={Ic.edit} hBg='#fef9c3' hCol='#d97706'/>
+                          <AB onClick={()=>toggleStatusIn(inv)} title={inv.status==='paid'?'Marquer en attente':'Marquer payée'} icon={inv.status==='paid'?Ic.refresh: Ic.check} hBg='#dcfce7' hCol='#15803d'/>
                           <AB onClick={()=>setDeleteId({id:inv.id,type:'in'})} title="Supprimer" icon={Ic.trash} hBg='#fef2f2' hCol='#ef4444'/>
                         </div>
                       </td>
@@ -2010,6 +2059,16 @@ export default function InvoicesPage() {
                     {cli&&<p style={{fontSize:12,color:C.slate,marginBottom:10,display:'flex',alignItems:'center',gap:5}}>{Ic.link}{cli.name}</p>}
                     <div style={{display:'flex',gap:5,paddingTop:10,borderTop:`1px solid ${C.border}`}}>
                       <AB onClick={()=>setViewIn(inv)} title="Voir le détail" icon={Ic.eye} hBg='#eff6ff' hCol={C.blue}/>
+                      {inv.file_url && (
+                        <a href={inv.file_url} target="_blank" rel="noopener noreferrer"
+                          style={{width:30,height:30,borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',background:'#ecfdf5',color:'#10b981',textDecoration:'none'}}
+                          title="Ouvrir le PDF"
+                          onClick={e=>e.stopPropagation()}>
+                          {Ic.pdf}
+                        </a>
+                      )}
+                      <AB onClick={()=>openEditExt(inv)} title="Modifier" icon={Ic.edit} hBg='#fef9c3' hCol='#d97706'/>
+                      <AB onClick={()=>toggleStatusIn(inv)} title={inv.status==='paid'?'Marquer en attente':'Marquer payée'} icon={inv.status==='paid'?Ic.refresh: Ic.check} hBg='#dcfce7' hCol='#15803d'/>
                       <AB onClick={()=>setDeleteId({id:inv.id,type:'in'})} title="Supprimer" icon={Ic.trash} hBg='#fef2f2' hCol='#ef4444'/>
                     </div>
                   </div>
@@ -2042,8 +2101,9 @@ export default function InvoicesPage() {
         onSave={saveOut} initial={editInv} clients={clients} projects={projects}
       />
       <ImportModal
-        open={impModal} onClose={()=>setImpModal(false)}
+        open={impModal} onClose={()=>{setImpModal(false);setEditExt(null)}}
         onSave={saveExt} clients={clients} projects={projects}
+        initial={editExt}
       />
       <OutgoingDrawer
         invoice={viewOut} clients={clients} projects={projects}

@@ -1421,16 +1421,24 @@ export default function EmployeesPage() {
   }
 
   async function deleteTimeEntry(id: string) {
-    await fetch(`/api/time-entries?id=${id}`, {
+    const res = await fetch(`/api/time-entries?id=${id}`, {
       method: 'DELETE',
       credentials: 'include',
       headers: authHeaders(),
     });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      throw new Error(j?.error ?? `Erreur ${res.status}`);
+    }
     load();
   }
 
   async function del(id: string) {
-    await fetch(`/api/employees/${id}`, { method:'DELETE', credentials:'include', headers: authHeaders() });
+    const res = await fetch(`/api/employees/${id}`, { method:'DELETE', credentials:'include', headers: authHeaders() });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      throw new Error(j?.error ?? `Erreur ${res.status}`);
+    }
     setDeleteId(null); setViewE(null); load();
   }
 
@@ -1782,7 +1790,7 @@ export default function EmployeesPage() {
             <p style={{ fontSize:13, color:'#94a3b8', marginBottom:22, lineHeight:1.6 }}>Cette action est irreversible et supprimera egalement ses ajustements et pointages.</p>
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={()=>setDeleteId(null)} style={{ flex:1, padding:'10px 0', borderRadius:10, border:'1.5px solid #e2e8f0', background:'#fff', fontSize:13, fontWeight:600, color:'#64748b', cursor:'pointer' }}>Annuler</button>
-              <button onClick={()=>del(deleteId)}     style={{ flex:1, padding:'10px 0', borderRadius:10, border:'none', background:'#ef4444', fontSize:13, fontWeight:700, color:'#fff', cursor:'pointer' }}>Supprimer</button>
+              <button onClick={async()=>{ try { await del(deleteId) } catch(err) { alert(err instanceof Error ? err.message : 'Erreur') } }} style={{ flex:1, padding:'10px 0', borderRadius:10, border:'none', background:'#ef4444', fontSize:13, fontWeight:700, color:'#fff', cursor:'pointer' }}>Supprimer</button>
             </div>
           </div>
         </div>
@@ -1824,7 +1832,7 @@ export default function EmployeesPage() {
         onPaySlip={(month)=>{ if(viewE) handlePaySlip(viewE,month); }}
         onAddTime={()=>{ if(viewE) openAddTime(viewE); }}
         onEditTime={openEditTime}
-        onDeleteTime={deleteTimeEntry}
+        onDeleteTime={async id => { try { await deleteTimeEntry(id) } catch(err) { alert(err instanceof Error ? err.message : 'Erreur') } }}
       />
     </div>
   );

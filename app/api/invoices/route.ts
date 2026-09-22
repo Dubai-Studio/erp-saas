@@ -39,7 +39,7 @@ export const GET = withAuth(async ({ req, supabase }) => {
  * Crée une facture. user_id injecté par RLS trigger.
  * Numéro FAC-YYYY-NNNNNN généré côté serveur.
  */
-export const POST = withAuth(async ({ supabase, body }) => {
+export const POST = withAuth(async ({ supabase, body, user }) => {
   const parsed = InvoiceCreate.parse(body)
   const totals = computeInvoiceTotals(parsed.lines)
 
@@ -58,6 +58,9 @@ export const POST = withAuth(async ({ supabase, body }) => {
     subtotal:     totals.subtotal,
     vat_amount:   totals.vat_amount,
     total_amount: totals.total,
+    // user_id explicite (en plus du trigger trg_set_user_id) — défense en profondeur
+    // pour fermer toute race condition ou si le trigger n'a pas été appliqué.
+    user_id: user.id,
   }).select().single()
 
   if (error) return badRequest(error.message)

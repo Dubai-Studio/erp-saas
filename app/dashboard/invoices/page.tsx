@@ -1588,16 +1588,33 @@ export default function InvoicesPage() {
   }
 
   async function delOut(id: string) {
-    await fetch(`/api/invoices/${id}`,{method:'DELETE'})
+    const res = await fetch(`/api/invoices/${id}`,{method:'DELETE',credentials:'include'})
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      throw new Error(j?.error ?? `Erreur ${res.status}`)
+    }
     setDeleteId(null); setViewOut(null); load()
   }
   async function delIn(id: string) {
-    await fetch(`/api/external-invoices/${id}`,{method:'DELETE'})
+    const res = await fetch(`/api/external-invoices/${id}`,{method:'DELETE',credentials:'include'})
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      throw new Error(j?.error ?? `Erreur ${res.status}`)
+    }
     setDeleteId(null); setViewIn(null); load()
   }
 
   async function changeStatus(id: string, status: Invoice['status']) {
-    await fetch(`/api/invoices/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})})
+    const res = await fetch(`/api/invoices/${id}`,{
+      method:'PATCH',
+      credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({status}),
+    })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      throw new Error(j?.error ?? `Erreur ${res.status}`)
+    }
     load()
   }
 
@@ -2005,7 +2022,7 @@ export default function InvoicesPage() {
             <p style={{fontSize:13,color:'#94a3b8',marginBottom:22,lineHeight:1.6}}>Cette action est définitive et irréversible.</p>
             <div style={{display:'flex',gap:10}}>
               <button onClick={()=>setDeleteId(null)} style={{flex:1,padding:'10px 0',borderRadius:10,border:`1.5px solid ${C.border}`,background:'#fff',fontSize:13,fontWeight:600,color:C.slate,cursor:'pointer'}}>Annuler</button>
-              <button onClick={()=>deleteId.type==='out'?delOut(deleteId.id):delIn(deleteId.id)} style={{flex:1,padding:'10px 0',borderRadius:10,border:'none',background:'#ef4444',fontSize:13,fontWeight:700,color:'#fff',cursor:'pointer'}}>Supprimer</button>
+              <button onClick={async()=>{try{await(deleteId.type==='out'?delOut(deleteId.id):delIn(deleteId.id))}catch(err){alert(err instanceof Error?err.message:'Erreur')}}} style={{flex:1,padding:'10px 0',borderRadius:10,border:'none',background:'#ef4444',fontSize:13,fontWeight:700,color:'#fff',cursor:'pointer'}}>Supprimer</button>
             </div>
           </div>
         </div>
@@ -2025,7 +2042,7 @@ export default function InvoicesPage() {
         onClose={()=>setViewOut(null)}
         onEdit={()=>{ if(viewOut) openEdit(viewOut) }}
         onDelete={()=>{ if(viewOut) setDeleteId({id:viewOut.id,type:'out'}) }}
-        onStatusChange={changeStatus}
+        onStatusChange={async(id, s)=>{ try { await changeStatus(id, s) } catch(err) { alert(err instanceof Error ? err.message : 'Erreur') } }}
         companyData={companyData}
       />
       <IncomingDrawer

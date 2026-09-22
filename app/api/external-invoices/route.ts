@@ -20,13 +20,17 @@ export const GET = withAuth(async ({ req, supabase }) => {
   return ok(data ?? [])
 })
 
-export const POST = withAuth(async ({ supabase, body }) => {
+export const POST = withAuth(async ({ supabase, body, user }) => {
   const parsed = ExternalInvoiceCreate.parse(body)
   const { data, error } = await supabase.from('external_invoices').insert({
     ...parsed,
     // Migration 05 a élargi le CHECK : 'incoming','supplier_invoice','facture_fournisseur','expense'
     type: 'incoming',
     issue_date: parsed.issue_date || new Date().toISOString().split('T')[0],
+    // user_id explicite (en plus du trigger trg_set_user_id) — défense en profondeur
+    // pour fermer toute race condition ou si le trigger n'a pas été appliqué.
+    // Le trigger est "IF NULL THEN set" donc ne touche pas la nôtre.
+    user_id: user.id,
   }).select().single()
 
   if (error) return badRequest(error.message)

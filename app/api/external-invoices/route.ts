@@ -7,12 +7,13 @@ export const GET = withAuth(async ({ req, supabase }) => {
   const project_id = searchParams.get('project_id')
   const month     = searchParams.get('month')
 
-  // Embed syntax avec alias explicite 'project:projects(name)' — la forme
-  // 'projects(name)' était ambiguë et faisait échouer la requête en 400.
-  // On évite aussi l'embedding si la FK n'existe pas (defensive).
+  // Pas d'embed project: PostgREST ne détecte pas la FK external_invoices.project_id → projects.id
+  // (probablement parce que la FK a été ajoutée par migration alors que le schema cache était actif,
+  // ou que la contrainte n'existe pas vraiment). Le project_name est résolu côté page via
+  // la liste `projects` chargée séparément par load().
   let q = supabase
     .from('external_invoices')
-    .select('*, project:projects(name)')
+    .select('*')
     .order('created_at', { ascending: false })
   if (status)     q = q.eq('status', status)
   if (project_id) q = q.eq('project_id', project_id)

@@ -1453,9 +1453,12 @@ export default function InvoicesPage() {
         ...inv,
         lines: typeof inv.lines === 'string' ? JSON.parse(inv.lines as string) : (Array.isArray(inv.lines) ? inv.lines : []),
       })))
+      // Jointure côté client : on résout project_name via la liste projects chargée séparément
+      // (PostgREST ne reconnaît pas la FK external_invoices.project_id → projects.id dans son cache)
+      const projectsById = new Map((Array.isArray(prjD) ? prjD : prjD.data ?? []).map((p: any) => [p.id, p.name]))
       setExtInvs((Array.isArray(extD) ? extD : extD.data ?? []).map((e: Record<string, any>) => ({
         ...e,
-        project_name: e.project?.name ?? e.project_name ?? null,
+        project_name: projectsById.get(e.project_id) ?? e.project_name ?? null,
       })))
       setClients((Array.isArray(cliD) ? cliD : cliD.data ?? []))
       setProjects((Array.isArray(prjD) ? prjD : prjD.data ?? []))

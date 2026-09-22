@@ -277,7 +277,13 @@ export const ProjectCreate = z.object({
   priority:    z.enum(['low','medium','high','critical','normale','urgent']).default('medium'),
   progress:    z.number().min(0).max(100).default(0),
   manager:     optionalString,
-  tags:        z.array(z.string().max(40)).nullish(),
+  // Accepte string OU array : si string, split par virgules (UX friendly).
+  tags:        z.union([
+                 z.array(z.string().max(40)),
+                 z.string().transform((s, ctx) =>
+                   s.split(',').map(t => t.trim()).filter(Boolean)
+                 ),
+               ]).nullish(),
 })
 
 export const ExpenseCreate = z.object({

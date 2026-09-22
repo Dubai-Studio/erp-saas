@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect, useCallback } from 'react'
 import React from 'react'
 
-// â”€â”€â”€ Auth helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€── Auth helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──
 async function getUserId(): Promise<string | null> {
   try {
     const { createBrowserClient } = await import('@supabase/ssr')
@@ -17,7 +17,7 @@ async function getUserId(): Promise<string | null> {
   } catch { return null }
 }
 
-// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€── Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──
 interface Client { id: string; name: string }
 interface Project {
   id: string; name: string; description: string; client_id: string; client_name?: string
@@ -27,7 +27,7 @@ interface Project {
   progress: number; manager: string; tags?: string; created_at: string
 }
 
-// â”€â”€â”€ Constantes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€── Constantes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──
 const STATUS: Record<string,{label:string;color:string;bg:string;border:string;dot:string}> = {
   planning:  {label:'Planification',color:'#1d4ed8',bg:'#eff6ff',border:'#bfdbfe',dot:'#3b82f6'},
   active:    {label:'En cours',     color:'#15803d',bg:'#f0fdf4',border:'#bbf7d0',dot:'#22c55e'},
@@ -47,7 +47,7 @@ const EMPTY: Omit<Project,'id'|'created_at'|'client_name'> = {
   start_date:'', end_date:'', budget:0, spent:0, progress:0, manager:'', tags:'',
 }
 
-// â”€â”€â”€ Styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€── Styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──
 const card: React.CSSProperties = {
   background:'#fff', borderRadius:16,
   boxShadow:'0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04)',
@@ -63,9 +63,9 @@ const lbl: React.CSSProperties = {
   marginBottom:5, textTransform:'uppercase', letterSpacing:'0.04em',
 }
 
-// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€── Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──
 const fmt  = (n:number) => new Intl.NumberFormat('fr-BE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n||0)
-const fmtD = (d:string) => d ? new Date(d).toLocaleDateString('fr-BE',{day:'2-digit',month:'short',year:'numeric'}) : 'â€”'
+const fmtD = (d:string) => d ? new Date(d).toLocaleDateString('fr-BE',{day:'2-digit',month:'short',year:'numeric'}) : '—'
 const today = () => new Date().toISOString().split('T')[0]
 
 function daysLeft(end:string): number|null {
@@ -84,7 +84,7 @@ function budgetColor(spent:number, budget:number) {
   return '#10b981'
 }
 
-// â”€â”€â”€ Icons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€── Icons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──
 const I = {
   plus:     <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
   edit:     <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
@@ -113,7 +113,7 @@ const I = {
   sort:     <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>,
 }
 
-// â”€â”€â”€ StatusBadge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€── StatusBadge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──
 function StatusBadge({status}:{status:string}) {
   const s = STATUS[status]||STATUS.planning
   return (
@@ -124,7 +124,7 @@ function StatusBadge({status}:{status:string}) {
   )
 }
 
-// â”€â”€â”€ PriorityBadge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€── PriorityBadge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──
 function PriorityBadge({priority}:{priority:string}) {
   const p = PRIORITY[priority]||PRIORITY.medium
   return (
@@ -134,7 +134,7 @@ function PriorityBadge({priority}:{priority:string}) {
   )
 }
 
-// â”€â”€â”€ ProgressBar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€── ProgressBar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──
 function ProgressBar({value,color,height=8}:{value:number;color:string;height?:number}) {
   return (
     <div style={{width:'100%',height,background:'#f1f5f9',borderRadius:height,overflow:'hidden'}}>
@@ -143,7 +143,7 @@ function ProgressBar({value,color,height=8}:{value:number;color:string;height?:n
   )
 }
 
-// â”€â”€â”€ DaysLeftChip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€── DaysLeftChip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──
 function DaysLeftChip({end_date,status}:{end_date:string;status:string}) {
   if(!end_date||status==='completed'||status==='cancelled') return null
   const d = daysLeft(end_date)
@@ -160,7 +160,7 @@ function DaysLeftChip({end_date,status}:{end_date:string;status:string}) {
   )
 }
 
-// â”€â”€â”€ MODAL Projet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€── MODAL Projet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──
 function ProjectModal({ open, onClose, onSave, initial, clients }:{
   open:boolean; onClose:()=>void
   onSave:(d:typeof EMPTY)=>Promise<void>
@@ -184,7 +184,7 @@ function ProjectModal({ open, onClose, onSave, initial, clients }:{
       spent:       initial.spent||0,
       progress:    initial.progress||0,
       manager:     initial.manager||'',
-      tags:        initial.tags||'',
+      tags:        Array.isArray(initial.tags) ? initial.tags.join(', ') : (initial.tags||''),
     } : {...EMPTY})
     setError(''); setTab('info')
   },[initial,open])
@@ -221,9 +221,9 @@ function ProjectModal({ open, onClose, onSave, initial, clients }:{
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
             <div>
               <h2 style={{fontSize:18,fontWeight:800,color:'#fff'}}>
-                {initial ? `Modifier â€” ${initial.name}` : 'Nouveau projet'}
+                {initial ? `Modifier — ${initial.name}` : 'Nouveau projet'}
               </h2>
-              <p style={{fontSize:12,color:'rgba(255,255,255,0.65)',marginTop:3}}>Gestion de projet Â· Next-ERP</p>
+              <p style={{fontSize:12,color:'rgba(255,255,255,0.65)',marginTop:3}}>Gestion de projet · Next-ERP</p>
             </div>
             <button onClick={onClose} style={{background:'rgba(255,255,255,0.15)',border:'none',borderRadius:8,padding:8,cursor:'pointer',color:'#fff',display:'flex'}}>{I.x}</button>
           </div>
@@ -252,7 +252,7 @@ function ProjectModal({ open, onClose, onSave, initial, clients }:{
               <div>
                 <label style={lbl}>Client</label>
                 <select style={{...inp,width:'100%'}} value={form.client_id} onChange={e=>f('client_id',e.target.value)}>
-                  <option value="">â€” Aucun client â€”</option>
+                  <option value="">— Aucun client —</option>
                   {clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
@@ -294,11 +294,11 @@ function ProjectModal({ open, onClose, onSave, initial, clients }:{
             <div style={{padding:24,display:'flex',flexDirection:'column',gap:14}}>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
                 <div>
-                  <label style={lbl}>Budget total (â‚¬)</label>
+                  <label style={lbl}>Budget total (€)</label>
                   <input style={{...inp,fontWeight:700}} type="number" min="0" step="100" value={form.budget||''} onChange={e=>f('budget',+e.target.value)} placeholder="0"/>
                 </div>
                 <div>
-                  <label style={lbl}>Montant dépensé (â‚¬)</label>
+                  <label style={lbl}>Montant dépensé (€)</label>
                   <input style={{...inp,fontWeight:700,color:form.spent>(form.budget||0)?'#ef4444':'#1e293b'}} type="number" min="0" step="100" value={form.spent||''} onChange={e=>f('spent',+e.target.value)} placeholder="0"/>
                 </div>
               </div>
@@ -338,12 +338,12 @@ function ProjectModal({ open, onClose, onSave, initial, clients }:{
               <div>
                 <label style={lbl}>Description / Notes</label>
                 <textarea style={{...inp,minHeight:130,resize:'vertical',fontFamily:'inherit',lineHeight:1.6}}
-                  placeholder="Objectifs, livrables, contraintes, remarquesâ€¦"
+                  placeholder="Objectifs, livrables, contraintes, remarques…"
                   value={form.description} onChange={e=>f('description',e.target.value)}/>
               </div>
               <div>
                 <label style={lbl}>Tags (séparés par des virgules)</label>
-                <input style={inp} value={form.tags||''} onChange={e=>f('tags',e.target.value)} placeholder="design, dev, urgence, client-vipâ€¦"/>
+                <input style={inp} value={form.tags||''} onChange={e=>f('tags',e.target.value)} placeholder="design, dev, urgence, client-vip…"/>
                 {form.tags&&(
                   <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:8}}>
                     {form.tags.split(',').map(t=>t.trim()).filter(Boolean).map((t,i)=>(
@@ -359,7 +359,7 @@ function ProjectModal({ open, onClose, onSave, initial, clients }:{
             <button type="button" onClick={onClose} style={{flex:1,padding:'10px 0',borderRadius:10,border:'1.5px solid #e2e8f0',background:'#fff',fontSize:13,fontWeight:600,color:'#64748b',cursor:'pointer'}}>Annuler</button>
             <button type="submit" disabled={saving} style={{flex:2,padding:'10px 0',borderRadius:10,border:'none',background:saving?'#a5b4fc':'linear-gradient(135deg,#4f46e5,#7c3aed)',fontSize:13,fontWeight:700,color:'#fff',cursor:saving?'not-allowed':'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
               {saving
-                ? <><div style={{width:14,height:14,border:'2px solid #fff',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/> Enregistrementâ€¦</>
+                ? <><div style={{width:14,height:14,border:'2px solid #fff',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/> Enregistrement…</>
                 : <>{I.check} {initial?'Mettre à jour':'Créer le projet'}</>
               }
             </button>
@@ -370,7 +370,7 @@ function ProjectModal({ open, onClose, onSave, initial, clients }:{
   )
 }
 
-// â”€â”€â”€ DRAWER Détail Projet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€── DRAWER Détail Projet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──
 function ProjectDrawer({ project, clients, onClose, onEdit, onDelete, onStatusChange, onProgressChange }:{
   project:Project|null; clients:Client[]
   onClose:()=>void; onEdit:()=>void; onDelete:()=>void
@@ -451,7 +451,7 @@ function ProjectDrawer({ project, clients, onClose, onEdit, onDelete, onStatusCh
           <div style={{background:'#f8fafc',borderRadius:14,padding:16,border:'1px solid #f1f5f9'}}>
             <p style={{fontSize:11,fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:12}}>Informations</p>
             {[
-              {l:'Responsable', v:project.manager||'â€”',     i:I.user},
+              {l:'Responsable', v:project.manager||'—',     i:I.user},
               {l:'Début',       v:fmtD(project.start_date), i:I.calendar},
               {l:'Fin prévue',  v:fmtD(project.end_date),   i:I.calendar},
               {l:'Créé le',     v:fmtD(project.created_at), i:I.clock},
@@ -474,7 +474,7 @@ function ProjectDrawer({ project, clients, onClose, onEdit, onDelete, onStatusCh
             <div style={{background:'#faf5ff',borderRadius:14,padding:16,border:'1px solid #e9d5ff'}}>
               <p style={{fontSize:11,fontWeight:700,color:'#6b21a8',textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:8,display:'flex',alignItems:'center',gap:5}}>{I.tag} Tags</p>
               <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                {project.tags.split(',').map(t=>t.trim()).filter(Boolean).map((t,i)=>(
+                {(Array.isArray(project.tags) ? project.tags : String(project.tags).split(',').map(t=>t.trim()).filter(Boolean)).map((t,i)=>(
                   <span key={i} style={{padding:'3px 10px',borderRadius:20,background:'#f3e8ff',color:'#7c3aed',fontSize:11,fontWeight:600,border:'1px solid #e9d5ff'}}>{t}</span>
                 ))}
               </div>
@@ -507,7 +507,7 @@ function ProjectDrawer({ project, clients, onClose, onEdit, onDelete, onStatusCh
   )
 }
 
-// â”€â”€â”€ PAGE PRINCIPALE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€── PAGE PRINCIPALE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──
 export default function ProjectsPage() {
   const [projects,  setProjects]  = useState<Project[]>([])
   const [clients,   setClients]   = useState<Client[]>([])
@@ -540,7 +540,7 @@ export default function ProjectsPage() {
       const [pd, cd] = await Promise.all([fetchSafe('/api/projects'), fetchSafe('/api/clients')])
       const list = (Array.isArray(pd) ? pd : pd.data ?? []).map((p:Project)=>({
         ...p,
-        client_name: (Array.isArray(cd) ? cd : cd.data ?? []).find((c:Client)=>c.id===p.client_id)?.name||'â€”',
+        client_name: (Array.isArray(cd) ? cd : cd.data ?? []).find((c:Client)=>c.id===p.client_id)?.name||'—',
       }))
       setProjects(list)
       setClients(Array.isArray(cd) ? cd : cd.data ?? [])
@@ -562,7 +562,15 @@ export default function ProjectsPage() {
       url = `/api/projects/${editP.id}`
       method = 'PATCH'
     }
-    const res = await fetch(url, { method, headers, credentials: 'include', body: JSON.stringify(form) })
+    // Le formulaire stocke tags comme chaîne séparée par virgules.
+    // Le schéma Zod attend un array — on transforme côté client.
+    const payload = {
+      ...form,
+      tags: typeof form.tags === 'string'
+        ? form.tags.split(',').map((t: string) => t.trim()).filter(Boolean)
+        : (form.tags ?? []),
+    }
+    const res = await fetch(url, { method, headers, credentials: 'include', body: JSON.stringify(payload) })
     if (!res.ok) {
       const j = await res.json().catch(() => ({}))
       let msg = j?.error ?? `Erreur ${res.status}`
@@ -662,7 +670,7 @@ export default function ProjectsPage() {
           <h1 style={{fontSize:22,fontWeight:800,color:'#0f172a',display:'flex',alignItems:'center',gap:9}}>
             <span style={{color:'#7c3aed'}}>{I.proj}</span> Projets
           </h1>
-          <p style={{fontSize:12,color:'#94a3b8',marginTop:3}}>{kpi.total} projet(s) Â· Progression moyenne : <strong style={{color:'#7c3aed'}}>{kpi.avgProgress}%</strong></p>
+          <p style={{fontSize:12,color:'#94a3b8',marginTop:3}}>{kpi.total} projet(s) · Progression moyenne : <strong style={{color:'#7c3aed'}}>{kpi.avgProgress}%</strong></p>
         </div>
         <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
           <button onClick={exportCSV} style={{display:'flex',alignItems:'center',gap:7,padding:'9px 14px',borderRadius:10,border:'1.5px solid #e2e8f0',background:'#fff',fontSize:13,fontWeight:600,color:'#64748b',cursor:'pointer'}}>
@@ -701,7 +709,7 @@ export default function ProjectsPage() {
         <div style={{...card,padding:'14px 18px',marginBottom:18}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
             <span style={{fontSize:12,fontWeight:700,color:'#64748b',display:'flex',alignItems:'center',gap:6}}>{I.euro} Budget global consolidé</span>
-            <span style={{fontSize:12,color:'#94a3b8'}}>{fmt(kpi.budgetSpent)} / {fmt(kpi.budgetTotal)} Â· <strong style={{color:budgetColor(kpi.budgetSpent,kpi.budgetTotal)}}>{budgetPct(kpi.budgetSpent,kpi.budgetTotal)}%</strong></span>
+            <span style={{fontSize:12,color:'#94a3b8'}}>{fmt(kpi.budgetSpent)} / {fmt(kpi.budgetTotal)} · <strong style={{color:budgetColor(kpi.budgetSpent,kpi.budgetTotal)}}>{budgetPct(kpi.budgetSpent,kpi.budgetTotal)}%</strong></span>
           </div>
           <ProgressBar value={budgetPct(kpi.budgetSpent,kpi.budgetTotal)} color={budgetColor(kpi.budgetSpent,kpi.budgetTotal)} height={10}/>
         </div>
@@ -712,7 +720,7 @@ export default function ProjectsPage() {
         <div style={{display:'flex',gap:10,flexWrap:'wrap',alignItems:'center',marginBottom:10}}>
           <div style={{flex:1,minWidth:200,position:'relative'}}>
             <span style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',color:'#94a3b8',pointerEvents:'none'}}>{I.search}</span>
-            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Projet, client, responsable, tagâ€¦" style={{...inp,paddingLeft:34}}/>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Projet, client, responsable, tag…" style={{...inp,paddingLeft:34}}/>
           </div>
           <select value={statusF} onChange={e=>setStatusF(e.target.value)} style={{...inp,width:'auto',minWidth:150}}>
             <option value="all">Tous les statuts</option>
@@ -757,7 +765,7 @@ export default function ProjectsPage() {
         <div style={{display:'flex',alignItems:'center',justifyContent:'center',padding:'80px 0'}}>
           <div style={{textAlign:'center'}}>
             <div style={{width:36,height:36,border:'3px solid #7c3aed',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite',margin:'0 auto 12px'}}/>
-            <p style={{fontSize:13,color:'#94a3b8'}}>Chargementâ€¦</p>
+            <p style={{fontSize:13,color:'#94a3b8'}}>Chargement…</p>
           </div>
         </div>
       ) : filtered.length===0 ? (
@@ -790,11 +798,11 @@ export default function ProjectsPage() {
                   <tr key={p.id} className="rh" style={{borderBottom:'1px solid #f8fafc',cursor:'pointer'}} onClick={()=>setViewP(p)}>
                     <td style={{padding:'12px 14px'}}>
                       <p style={{fontWeight:700,color:'#0f172a',fontSize:13}}>{p.name}</p>
-                      {p.tags&&<p style={{fontSize:10,color:'#a855f7',marginTop:2}}>{p.tags.split(',').slice(0,2).map(t=>t.trim()).join(' Â· ')}</p>}
+                      {p.tags&&<p style={{fontSize:10,color:'#a855f7',marginTop:2}}>{(Array.isArray(p.tags) ? p.tags : String(p.tags).split(',').map(t=>t.trim()).filter(Boolean)).slice(0,2).join(' · ')}</p>}
                     </td>
                     <td style={{padding:'12px 14px',color:'#64748b',fontSize:12}}>{p.client_name}</td>
                     <td style={{padding:'12px 14px'}}>
-                      <p style={{display:'flex',alignItems:'center',gap:4,color:'#64748b',fontSize:12}}>{I.user}{p.manager||'â€”'}</p>
+                      <p style={{display:'flex',alignItems:'center',gap:4,color:'#64748b',fontSize:12}}>{I.user}{p.manager||'—'}</p>
                     </td>
                     <td style={{padding:'12px 14px'}}><PriorityBadge priority={p.priority||'medium'}/></td>
                     <td style={{padding:'12px 14px',minWidth:160}}>
@@ -807,7 +815,7 @@ export default function ProjectsPage() {
                           <ProgressBar value={bPct} color={bCol} height={5}/>
                           <p style={{fontSize:10,color:'#94a3b8',marginTop:3,textAlign:'right'}}>{bPct}% consommé</p>
                         </>
-                      ):<span style={{fontSize:12,color:'#cbd5e1'}}>â€”</span>}
+                      ):<span style={{fontSize:12,color:'#cbd5e1'}}>—</span>}
                     </td>
                     <td style={{padding:'12px 14px',minWidth:140}}>
                       <div style={{display:'flex',alignItems:'center',gap:8}}>
@@ -870,7 +878,7 @@ export default function ProjectsPage() {
                     <DaysLeftChip end_date={p.end_date} status={p.status}/>
                   </div>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:12}}>
-                    {p.client_name!=='â€”'&&(
+                    {p.client_name!=='—'&&(
                       <div style={{background:'#f8fafc',borderRadius:9,padding:'8px 10px'}}>
                         <p style={{fontSize:9,color:'#94a3b8',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.04em',marginBottom:2}}>Client</p>
                         <p style={{fontSize:12,fontWeight:600,color:'#475569',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.client_name}</p>
@@ -901,7 +909,7 @@ export default function ProjectsPage() {
                   )}
                   {p.tags&&(
                     <div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:12}}>
-                      {p.tags.split(',').map(t=>t.trim()).filter(Boolean).slice(0,3).map((t,i)=>(
+                      {(Array.isArray(p.tags) ? p.tags : String(p.tags).split(',').map(t=>t.trim()).filter(Boolean)).slice(0,3).map((t,i)=>(
                         <span key={i} style={{padding:'2px 8px',borderRadius:20,background:'#f3e8ff',color:'#7c3aed',fontSize:10,fontWeight:600}}>{t}</span>
                       ))}
                     </div>

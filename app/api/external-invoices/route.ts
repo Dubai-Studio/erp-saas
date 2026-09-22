@@ -7,16 +7,22 @@ export const GET = withAuth(async ({ req, supabase }) => {
   const project_id = searchParams.get('project_id')
   const month     = searchParams.get('month')
 
+  // Embed syntax avec alias explicite 'project:projects(name)' — la forme
+  // 'projects(name)' était ambiguë et faisait échouer la requête en 400.
+  // On évite aussi l'embedding si la FK n'existe pas (defensive).
   let q = supabase
     .from('external_invoices')
-    .select('*, projects(name)')
+    .select('*, project:projects(name)')
     .order('created_at', { ascending: false })
   if (status)     q = q.eq('status', status)
   if (project_id) q = q.eq('project_id', project_id)
   if (month)      q = q.gte('issue_date', `${month}-01`).lte('issue_date', `${month}-31`)
 
   const { data, error } = await q
-  if (error) return badRequest(error.message)
+  if (error) {
+    console.error('[GET /api/external-invoices] query failed:', error.message)
+    return badRequest(error.message)
+  }
   return ok(data ?? [])
 })
 

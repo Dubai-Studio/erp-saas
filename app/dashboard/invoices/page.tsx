@@ -1453,7 +1453,10 @@ export default function InvoicesPage() {
         ...inv,
         lines: typeof inv.lines === 'string' ? JSON.parse(inv.lines as string) : (Array.isArray(inv.lines) ? inv.lines : []),
       })))
-      setExtInvs((Array.isArray(extD) ? extD : extD.data ?? []))
+      setExtInvs((Array.isArray(extD) ? extD : extD.data ?? []).map((e: Record<string, any>) => ({
+        ...e,
+        project_name: e.project?.name ?? e.project_name ?? null,
+      })))
       setClients((Array.isArray(cliD) ? cliD : cliD.data ?? []))
       setProjects((Array.isArray(prjD) ? prjD : prjD.data ?? []))
     } catch (e) {

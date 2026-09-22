@@ -28,6 +28,7 @@ export const POST = withAuth(async ({ supabase, body, user }) => {
   // donc aucun risque de mass-assignment. Cette voie marche immédiatement
   // après exécution de la migration, sans dépendre du "Reload schema cache"
   // (qui peut être oublié par l'utilisateur).
+  console.log('[POST /api/external-invoices] trying RPC insert_external_invoice, user=', user.id)
   const { data, error } = await supabase.rpc('insert_external_invoice', {
     p_supplier_name: parsed.supplier_name,
     p_supplier_id:   parsed.supplier_id   ?? null,
@@ -44,24 +45,26 @@ export const POST = withAuth(async ({ supabase, body, user }) => {
     p_file_name:     parsed.file_name     ?? null,
     p_file_url:      parsed.file_url      ?? null,
     p_type:          'incoming',
-  }).single()
+  })
 
-  if (error) {
-    // Fallback : si la RPC n'est pas encore créée (migration 09 pas exécutée),
-    // on tente l'INSERT direct avec user_id explicite.
-    if (error.code === 'PGRST202' || /function .* does not exist/i.test(error.message)) {
-      const { data: fallback, error: fbErr } = await supabase.from('external_invoices').insert({
-        ...parsed,
-        type: 'incoming',
-        issue_date: parsed.issue_date || new Date().toISOString().split('T')[0],
-        user_id: user.id,
-      }).select().single()
-      if (fbErr) return badRequest(fbErr.message)
-      return created(fallback)
-    }
-    return badRequest(error.message)
+  if (!error && data) {
+    console.log('[POST /api/external-invoices] RPC success')
+    return created(data)
   }
-  return created(data)
+
+  // Fallback : la RPC a échoué (migration 09 pas exécutée, ou cache PostgREST pas rechargé).
+  console.warn('[POST /api/external-invoices] RPC unavailable, fallback to direct INSERT. Err:', error?.message)
+  const { data: fallback, error: fbErr } = await supabase.from('external_invoices').insert({
+    ...parsed,
+    type: 'incoming',
+    issue_date: parsed.issue_date || new Date().toISOString().split('T')[0],
+    user_id: user.id,
+  }).select().single()
+  if (fbErr) {
+    console.error('[POST /api/external-invoices] fallback failed:', fbErr.message)
+    return badRequest(fbErr.message)
+  }
+  return created(fallback)
 }, ExternalInvoiceCreate)
 
 // NOTE IMPORTANTE (sécurité) :

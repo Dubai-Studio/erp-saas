@@ -17,6 +17,7 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { formatDate, formatMoney } from './format'
 import type { CompanySettings } from './types'
+import { COLORS } from './pdf-theme'
 
 interface ClientLite {
   name: string
@@ -61,15 +62,7 @@ export interface InterventionForPdf {
   currency?: string
 }
 
-const COLORS = {
-  primary: [30, 58, 95] as [number, number, number],
-  text: [15, 23, 42] as [number, number, number],
-  muted: [100, 116, 139] as [number, number, number],
-  border: [226, 232, 240] as [number, number, number],
-  light: [248, 250, 252] as [number, number, number],
-  success: [16, 185, 129] as [number, number, number],
-  warning: [245, 158, 11] as [number, number, number],
-}
+// COLORS importé depuis pdf-theme (theme unifié)
 
 const STATUS_LABELS: Record<string, string> = {
   planned: 'Planifiée',

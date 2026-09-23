@@ -1,26 +1,27 @@
 /**
- * Génération PDF — Fiche de paie (modèle belge standard).
+ * Génération PDF — Fiche de paie belge (modèle complet)
+ * ───────────────────────────────────────────────────────
+ * Utilise le thème PDF unifié (lib/pdf-theme) pour la couleur, le header
+ * entreprise et le footer mentions légales.
  *
- * Conformité :
- * - Mention du numéro d'employeur (BCE/ONSS)
- * - Période de paie
- * - Salaire brut imposable + non-imposable
- * - Cotisations sécurité sociale (employé + patron)
- * - Précompte professionnel (barème progressif BE)
- * - Salaire net
- * - Détails des heures (régime horaire) si applicable
- * - Heures supplémentaires / nuits / week-ends
- * - Période d'essai, type de contrat
- * - Mention "paiement par virement" + IBAN
- *
- * Données nécessaires :
- *  - company : Partial<CompanySettings>
- *  - employee : Employee + info paie (heures, taux, prime, etc.)
+ * Conformité légale belge :
+ *  - Période de paie + date de versement
+ *  - Identification salarié (nom, NN, fonction, département, type de contrat, date d'entrée)
+ *  - Salaire brut imposable / non-imposable décomposé
+ *  - Détail heures (régulier + supp + nuit + week-end) avec taux horaire
+ *  - Cotisations ONSS employé + cotisation spéciale SS + précompte professionnel
+ *  - Cumul brut / cotisations / net YTD (depuis janvier)
+ *  - Solde congés (si fourni)
+ *  - Mode de paiement + IBAN + BIC + date virement
+ *  - Coût total employeur (charges patronales incluses)
+ *  - Mentions légales : conservation 5 ans, BCE, N° entreprise
+ *  - Double signature : employeur + salarié
  */
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { formatDate, formatMoney } from './format'
+import { formatDate } from './format'
 import type { CompanySettings } from './types'
+import { COLORS, DOC_TITLES, DOC_SUBTITLES, drawHeader, drawFooter, fmtMoney, fmtNumber, fmtIban, round2, type DocKind } from './pdf-theme'
 
 export interface PayslipInput {
   employee: {
@@ -35,9 +36,10 @@ export interface PayslipInput {
     iban?: string | null
     bic?: string | null
     payment_method?: string | null
+    payment_day?: number | null
     base_salary: number
-    hours_worked?: number
     hourly_rate?: number
+    hours_worked?: number
     overtime_hours?: number
     overtime_rate?: number
     night_hours?: number
@@ -47,6 +49,12 @@ export interface PayslipInput {
     bonus?: number
     advance?: number
     other_deductions?: number
+    /** Heures contractuelles mensuelles (ex. 38h/sem × 52 / 12 = 164.67h) */
+    contract_hours_month?: number
+    /** Solde congés payés en jours (si fourni) */
+    vacation_days_balance?: number
+    /** Ancienneté en années (calculée ou fournie) */
+    seniority_years?: number
   }
   period: {
     month: string                  // 'YYYY-MM'
@@ -54,6 +62,15 @@ export interface PayslipInput {
     payment_date: string           // 'YYYY-MM-DD'
     worked_days?: number
     absence_days?: number
+    holiday_days?: number
+    sick_days?: number
+  }
+  /** Cumul annuel depuis janvier (optionnel, agrégé côté API) */
+  ytd?: {
+    gross?: number
+    ss_employee?: number
+    withholding?: number
+    net?: number
   }
   social_security?: {
     employee_rate: number           // ex. 13.07
@@ -68,263 +85,457 @@ export interface PayslipInput {
   company: Partial<CompanySettings>
 }
 
-const COLORS = {
-  primary: [30, 58, 95] as [number, number, number],
-  text: [15, 23, 42] as [number, number, number],
-  muted: [100, 116, 139] as [number, number, number],
-  border: [226, 232, 240] as [number, number, number],
-  light: [248, 250, 252] as [number, number, number],
-  success: [16, 185, 129] as [number, number, number],
+/**
+ * Calcule le salaire mensuel à partir des heures et taux (régime horaire)
+ * ou retourne le salaire de base directement (régime mensuel).
+ */
+function computeGross(input: PayslipInput): {
+  baseSalary: number
+  baseAmount: number
+  overtimeAmount: number
+  nightAmount: number
+  weekendAmount: number
+  bonus: number
+  grossTaxable: number
+  grossNonTaxable: number
+  grossTotal: number
+  totalHours: number
+} {
+  const e = input.employee
+  const baseSalary = e.base_salary
+
+  // Si heures contractuelles indiquées ET taux horaire → calcul "régime horaire"
+  let baseAmount = baseSalary
+  if (e.hourly_rate && e.hours_worked && e.contract_hours_month) {
+    baseAmount = Math.min(e.hours_worked, e.contract_hours_month) * e.hourly_rate
+  }
+
+  const overtimeAmount = (e.overtime_hours ?? 0) * (e.overtime_rate ?? 0)
+  const nightAmount    = (e.night_hours ?? 0)    * (e.night_rate ?? 0)
+  const weekendAmount  = (e.weekend_hours ?? 0)  * (e.weekend_rate ?? 0)
+  const bonus          = e.bonus ?? 0
+  const grossTaxable   = baseAmount + overtimeAmount + nightAmount + weekendAmount + bonus
+  const grossNonTaxable = 0 // ex. indemnités non imposables (placeholder)
+  const grossTotal      = grossTaxable + grossNonTaxable
+  const totalHours      = (e.hours_worked ?? 0) + (e.overtime_hours ?? 0)
+                          + (e.night_hours ?? 0) + (e.weekend_hours ?? 0)
+
+  return { baseSalary, baseAmount, overtimeAmount, nightAmount, weekendAmount, bonus, grossTaxable, grossNonTaxable, grossTotal, totalHours }
 }
 
-function fmt (n: number, currency = 'EUR'): string {
-  if (!Number.isFinite(n)) return '—'
-  return new Intl.NumberFormat('fr-BE', { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
-}
-
-export function generatePayslipPdf (input: PayslipInput): jsPDF {
+export function generatePayslipPdf(input: PayslipInput): jsPDF {
   const { employee, period, company } = input
-  const ssEmployeeRate = input.social_security?.employee_rate ?? 13.07
-  const ssEmployerRate = input.social_security?.employer_rate ?? 25.27
-  const withholding    = input.fiscal?.withholding_tax ?? 0
+  const ssEmployeeRate     = input.social_security?.employee_rate ?? 13.07
+  const ssEmployerRate     = input.social_security?.employer_rate ?? 25.27
+  const specialSSRate      = input.social_security?.special_employee_rate ?? 7.5
+  const withholding        = input.fiscal?.withholding_tax ?? 0
 
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
-  const pageWidth = doc.internal.pageSize.getWidth()
+  const pageWidth  = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
-  const margin = 15
-  const contentW = pageWidth - 2 * margin
+  const margin     = 15
+  const contentW   = pageWidth - 2 * margin
 
-  // ── En-tête société ──────────────────────────────────────────────────────
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(18)
-  doc.setTextColor(...COLORS.primary)
-  doc.text(company.company_name || 'Votre société', margin, margin + 6)
+  // ── En-tête société (theme partagé) ─────────────────────────────────────
+  const periodLabel = formatMonthYear(period.month)
+  let y = drawHeader(doc, company, {
+    kind: 'PAYSLIP',
+    reference: periodLabel,
+    documentDate: period.payment_date,
+    secondaryDate: undefined,
+  })
 
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(9)
-  doc.setTextColor(...COLORS.muted)
-  let y = margin + 12
-  for (const line of [
-    company.address,
-    [company.zip_code, company.city].filter(Boolean).join(' '),
-    company.country,
-    company.vat_number ? `TVA : ${company.vat_number}` : null,
-    company.email,
-    company.phone,
-  ].filter(Boolean) as string[]) {
-    doc.text(line, margin, y)
-    y += 4
-  }
-
-  // ── Bloc titre droite ──────────────────────────────────────────────────
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(22)
-  doc.setTextColor(...COLORS.primary)
-  doc.text('FICHE DE PAIE', pageWidth - margin, margin + 8, { align: 'right' })
-
-  doc.setFontSize(10)
-  doc.setTextColor(...COLORS.text)
-  doc.text(`Période : ${period.month}`, pageWidth - margin, margin + 16, { align: 'right' })
-  doc.setFont('helvetica', 'normal')
-  doc.text(`Versement : ${formatDate(period.payment_date)}`, pageWidth - margin, margin + 22, { align: 'right' })
-
-  // ── Bloc employé ──────────────────────────────────────────────────────
-  const blockY = Math.max(y + 4, margin + 30)
+  // ── Bloc identité salarié ───────────────────────────────────────────────
   doc.setFillColor(...COLORS.light)
-  doc.rect(margin, blockY, contentW, 36, 'F')
   doc.setDrawColor(...COLORS.border)
-  doc.rect(margin, blockY, contentW, 36, 'S')
+  doc.roundedRect(margin, y, contentW, 40, 2, 2, 'FD')
 
+  // Label + nom
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(9)
+  doc.setFontSize(8)
   doc.setTextColor(...COLORS.muted)
-  doc.text('SALARIÉ', margin + 4, blockY + 4)
+  doc.text('SALARIÉ', margin + 4, y + 5)
 
-  doc.setFontSize(12)
+  doc.setFontSize(15)
+  doc.setTextColor(...COLORS.primary)
+  doc.text(`${employee.first_name} ${employee.last_name}`, margin + 4, y + 13)
+
+  // Infos à gauche (sous le nom)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9)
   doc.setTextColor(...COLORS.text)
-  doc.text(`${employee.first_name} ${employee.last_name}`, margin + 4, blockY + 11)
+  let lY = y + 20
+  const leftInfo: Array<[string, string]> = [
+    ['N° Registre national', employee.national_id || '—'],
+    ['Fonction',              employee.position || '—'],
+    ['Département',           employee.department || '—'],
+  ]
+  for (const [label, value] of leftInfo) {
+    doc.setTextColor(...COLORS.muted)
+    doc.text(`${label} :`, margin + 4, lY)
+    doc.setTextColor(...COLORS.text)
+    doc.text(value, margin + 42, lY)
+    lY += 4.5
+  }
 
+  // Bloc droite : type contrat + date entrée + paiement + solde congés
+  const rX = margin + contentW / 2 + 4
+  let rY = y + 13
+  const contractLabel = employee.contract_type || employee.worker_type || 'CDI'
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(10)
+  doc.setTextColor(...COLORS.accent)
+  doc.text(contractLabel.toUpperCase(), rX, rY)
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
   doc.setTextColor(...COLORS.muted)
-  let cy = blockY + 17
-  for (const line of [
-    `N° registre national : ${employee.national_id || '—'}`,
-    `Fonction : ${employee.position || '—'}`,
-    `Département : ${employee.department || '—'}`,
-    `Contrat : ${employee.contract_type || employee.worker_type || 'CDI'} (entrée ${formatDate(employee.hire_date)})`,
-  ]) {
-    doc.text(line, margin + 4, cy)
-    cy += 4
+  rY += 5
+  doc.text(`Date d'entrée : ${formatDate(employee.hire_date)}`, rX, rY)
+  if (employee.seniority_years !== undefined) {
+    rY += 4
+    doc.text(`Ancienneté : ${employee.seniority_years.toFixed(1)} ans`, rX, rY)
+  }
+  if (employee.payment_day) {
+    rY += 4
+    doc.text(`Paiement le : ${employee.payment_day} de chaque mois`, rX, rY)
+  }
+  if (employee.vacation_days_balance !== undefined) {
+    rY += 4
+    doc.setTextColor(...COLORS.success)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`Solde congés : ${employee.vacation_days_balance.toFixed(1)} jours`, rX, rY)
   }
 
-  // ── Calculs paie ──────────────────────────────────────────────────────
-  const baseSalary = employee.base_salary
-  const overtimeAmount   = (employee.overtime_hours ?? 0) * (employee.overtime_rate ?? 0)
-  const nightAmount      = (employee.night_hours ?? 0) * (employee.night_rate ?? 0)
-  const weekendAmount    = (employee.weekend_hours ?? 0) * (employee.weekend_rate ?? 0)
-  const bonus            = employee.bonus ?? 0
-  const grossTaxable     = baseSalary + overtimeAmount + nightAmount + weekendAmount + bonus
+  y += 46
 
-  // Salaire brut imposable vs non imposable (frais propres)
-  const grossNonTaxable = 0  // ex. indemnités non imposables
-  const grossTotal      = grossTaxable + grossNonTaxable
+  // ── Période + jours travaillés (4 KPIs en grille) ───────────────────────
+  const kpiH = 22
+  const kpiW = (contentW - 6) / 4  // 4 KPIs avec marges de 2mm
+  const kpis: Array<{ label: string; value: string; color: [number, number, number] }> = [
+    { label: 'Période',         value: periodLabel,                              color: COLORS.primary },
+    { label: 'Jours travaillés', value: period.worked_days?.toString() ?? '—',     color: COLORS.text },
+    { label: 'Absences',        value: period.absence_days?.toString() ?? '—',    color: COLORS.text },
+    { label: 'Congés',          value: period.holiday_days?.toString() ?? '—',    color: COLORS.text },
+  ]
+  kpis.forEach((k, i) => {
+    const x = margin + i * (kpiW + 2)
+    doc.setFillColor(...COLORS.light)
+    doc.setDrawColor(...COLORS.border)
+    doc.roundedRect(x, y, kpiW, kpiH, 2, 2, 'FD')
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7.5)
+    doc.setTextColor(...COLORS.muted)
+    doc.text(k.label.toUpperCase(), x + 3, y + 5)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(13)
+    doc.setTextColor(...k.color)
+    doc.text(k.value, x + 3, y + 15)
+  })
+  y += kpiH + 6
 
-  const ssEmployee      = round2(grossTaxable * ssEmployeeRate / 100)
-  const specialSS       = input.fiscal?.dependents
-    ? 0
-    : round2(grossTaxable * 7.5 / 100)  // Cotisation spéciale sécurité sociale (statut unique)
-  const taxableIncome   = round2(grossTaxable - ssEmployee - specialSS)
-
-  const advance         = employee.advance ?? 0
-  const otherDeduct     = employee.other_deductions ?? 0
-  const netBeforeTax    = round2(grossTotal - ssEmployee - specialSS - advance - otherDeduct)
-  const netSalary       = round2(netBeforeTax - withholding)
+  // ── Calculs paie ───────────────────────────────────────────────────────
+  const g = computeGross(input)
+  const ssEmployee    = round2(g.grossTaxable * ssEmployeeRate / 100)
+  const specialSS     = round2(g.grossTaxable * specialSSRate / 100)
+  const taxableIncome = round2(g.grossTaxable - ssEmployee - specialSS)
+  const advance       = employee.advance ?? 0
+  const otherDeduct   = employee.other_deductions ?? 0
+  const netSalary     = round2(g.grossTotal - ssEmployee - specialSS - advance - otherDeduct - withholding)
 
   // Charges patronales (informatif, payées par l'employeur en plus)
-  const ssEmployer      = round2(grossTaxable * ssEmployerRate / 100)
-  const employerCost    = round2(grossTotal + ssEmployer)
+  const ssEmployer    = round2(g.grossTaxable * ssEmployerRate / 100)
+  const employerCost  = round2(g.grossTotal + ssEmployer)
+  const totalRetenues = round2(ssEmployee + specialSS + advance + otherDeduct + withholding)
 
-  // ── Tableau calcul ─────────────────────────────────────────────────────
+  // ── Tableau GAINS ──────────────────────────────────────────────────────
+  const gainRows: Array<[string, string, string, string]> = []
+  // Ligne salaire de base — toujours affichée
+  if (employee.hourly_rate && employee.hours_worked !== undefined) {
+    gainRows.push([
+      'Salaire de base (horaire)',
+      `${(employee.hours_worked ?? 0).toFixed(1)} h`,
+      `${fmtMoney(employee.hourly_rate)}/h`,
+      fmtMoney(g.baseAmount),
+    ])
+  } else {
+    gainRows.push([
+      'Salaire de base (mensuel)',
+      '1 mois',
+      '—',
+      fmtMoney(g.baseAmount),
+    ])
+  }
+  if ((employee.overtime_hours ?? 0) > 0) {
+    gainRows.push([
+      'Heures supplémentaires (+50%)',
+      `${employee.overtime_hours} h`,
+      `${fmtMoney(employee.overtime_rate ?? 0)}/h`,
+      fmtMoney(g.overtimeAmount),
+    ])
+  }
+  if ((employee.night_hours ?? 0) > 0) {
+    gainRows.push([
+      'Heures de nuit (+20%)',
+      `${employee.night_hours} h`,
+      `${fmtMoney(employee.night_rate ?? 0)}/h`,
+      fmtMoney(g.nightAmount),
+    ])
+  }
+  if ((employee.weekend_hours ?? 0) > 0) {
+    gainRows.push([
+      'Heures week-end (+50%)',
+      `${employee.weekend_hours} h`,
+      `${fmtMoney(employee.weekend_rate ?? 0)}/h`,
+      fmtMoney(g.weekendAmount),
+    ])
+  }
+  if (g.bonus > 0) {
+    gainRows.push(['Primes / bonus', '—', '—', fmtMoney(g.bonus)])
+  }
+  // Total brut imposable
+  gainRows.push([
+    'SALAIRE BRUT IMPOSABLE',
+    `${g.totalHours.toFixed(1)} h`,
+    '—',
+    fmtMoney(g.grossTaxable),
+  ])
+  if (g.grossNonTaxable > 0) {
+    gainRows.push([
+      'Indemnités non imposables',
+      '—',
+      '—',
+      fmtMoney(g.grossNonTaxable),
+    ])
+    gainRows.push(['SALAIRE BRUT TOTAL', '—', '—', fmtMoney(g.grossTotal)])
+  }
+
   autoTable(doc, {
-    startY: blockY + 42,
+    startY: y,
     margin: { left: margin, right: margin },
-    head: [['DÉSIGNATION', 'BASE', 'TAUX', 'MONTANT']],
-    body: [
-      ['Salaire de base',                '',                       '',                    fmt(baseSalary)],
-      ['Heures supplémentaires',         `${employee.overtime_hours ?? 0} h`,  fmt(employee.overtime_rate ?? 0) + '/h', fmt(overtimeAmount)],
-      ['Heures de nuit',                 `${employee.night_hours ?? 0} h`,     fmt(employee.night_rate ?? 0) + '/h',    fmt(nightAmount)],
-      ['Heures week-end',                `${employee.weekend_hours ?? 0} h`,   fmt(employee.weekend_rate ?? 0) + '/h',  fmt(weekendAmount)],
-      ['Primes / bonus',                 '',                       '',                    fmt(bonus)],
-      [{ content: 'SALAIRE BRUT',          styles: { fontStyle: 'bold', fillColor: COLORS.light } },  { content: '', styles: { fillColor: COLORS.light } }, { content: '', styles: { fillColor: COLORS.light } }, { content: fmt(grossTotal), styles: { fontStyle: 'bold', fillColor: COLORS.light } }],
-    ],
+    head: [['GAINS', 'BASE', 'TAUX', 'MONTANT']],
+    body: gainRows,
     theme: 'grid',
-    headStyles: { fillColor: COLORS.primary, textColor: [255,255,255], fontStyle: 'bold', fontSize: 9 },
+    headStyles: {
+      fillColor: COLORS.primary, textColor: COLORS.white,
+      fontStyle: 'bold', fontSize: 9, halign: 'left',
+    },
     bodyStyles: { fontSize: 9, textColor: COLORS.text },
     columnStyles: {
-      0: { cellWidth: 'auto' },
-      1: { cellWidth: 25, halign: 'right' },
-      2: { cellWidth: 25, halign: 'right' },
-      3: { cellWidth: 30, halign: 'right' },
+      0: { cellWidth: 'auto',  fontStyle: 'normal' },
+      1: { cellWidth: 22, halign: 'right' },
+      2: { cellWidth: 28, halign: 'right' },
+      3: { cellWidth: 35, halign: 'right', fontStyle: 'bold' },
     },
+    didParseCell: (data) => {
+      if (data.section === 'body' && data.row.index === gainRows.length - 1 && g.grossNonTaxable > 0) {
+        data.cell.styles.fillColor = COLORS.light
+        data.cell.styles.fontStyle = 'bold'
+      }
+      // Total brut imposable toujours en bold + fond gris
+      if (data.section === 'body' && data.row.index === gainRows.length - (g.grossNonTaxable > 0 ? 2 : 1)) {
+        data.cell.styles.fillColor = COLORS.light
+        data.cell.styles.fontStyle = 'bold'
+      }
+    },
+    margin: { left: margin, right: margin, bottom: 35 },
   })
-
   // @ts-ignore
-  let yPos: number = (doc.lastAutoTable?.finalY ?? blockY + 80) + 6
+  y = (doc.lastAutoTable?.finalY ?? y + 60) + 6
 
-  // ── Cotisations + retenues ──────────────────────────────────────────────
+  // ── Tableau RETENUES ───────────────────────────────────────────────────
+  const retenueRows: Array<[string, string, string, string]> = [
+    [
+      'Sécurité sociale (ONSS — employé)',
+      fmtMoney(g.grossTaxable),
+      `${ssEmployeeRate.toFixed(2)}%`,
+      fmtMoney(ssEmployee),
+    ],
+    [
+      'Cotisation spéciale sécurité sociale',
+      fmtMoney(g.grossTaxable),
+      `${specialSSRate.toFixed(2)}%`,
+      fmtMoney(specialSS),
+    ],
+  ]
+  if (advance > 0) {
+    retenueRows.push(['Avance sur salaire', '—', '—', fmtMoney(advance)])
+  }
+  if (otherDeduct > 0) {
+    retenueRows.push(['Autres retenues', '—', '—', fmtMoney(otherDeduct)])
+  }
+  retenueRows.push([
+    'Précompte professionnel (barème progressif)',
+    fmtMoney(taxableIncome),
+    input.fiscal?.bracket ? `~${input.fiscal.bracket}%` : '—',
+    fmtMoney(withholding),
+  ])
+  retenueRows.push(['TOTAL RETENUES', '—', '—', fmtMoney(totalRetenues)])
+
   autoTable(doc, {
-    startY: yPos,
+    startY: y,
     margin: { left: margin, right: margin },
     head: [['RETENUES', 'BASE', 'TAUX', 'MONTANT']],
-    body: [
-      ['Sécurité sociale (employé)',  fmt(grossTaxable),     `${ssEmployeeRate}%`,        fmt(ssEmployee)],
-      ['Cotisation spéciale SS',       fmt(grossTaxable),     '7.50%',                    fmt(specialSS)],
-      ['Avance sur salaire',          '',                    '',                          fmt(advance)],
-      ['Autres retenues',             '',                    '',                          fmt(otherDeduct)],
-      ['Précompte professionnel',      fmt(taxableIncome),    input.fiscal?.bracket ? `~${input.fiscal.bracket}%` : '', fmt(withholding)],
-      [{ content: 'TOTAL RETENUES', styles: { fontStyle: 'bold', fillColor: COLORS.light } }, { content: '', styles: { fillColor: COLORS.light } }, { content: '', styles: { fillColor: COLORS.light } }, { content: fmt(ssEmployee + specialSS + advance + otherDeduct + withholding), styles: { fontStyle: 'bold', fillColor: COLORS.light } }],
-    ],
+    body: retenueRows,
     theme: 'grid',
-    headStyles: { fillColor: [220, 38, 38], textColor: [255,255,255], fontStyle: 'bold', fontSize: 9 },
+    headStyles: {
+      fillColor: COLORS.danger, textColor: COLORS.white,
+      fontStyle: 'bold', fontSize: 9,
+    },
     bodyStyles: { fontSize: 9, textColor: COLORS.text },
     columnStyles: {
       0: { cellWidth: 'auto' },
-      1: { cellWidth: 25, halign: 'right' },
-      2: { cellWidth: 25, halign: 'right' },
-      3: { cellWidth: 30, halign: 'right' },
+      1: { cellWidth: 22, halign: 'right' },
+      2: { cellWidth: 28, halign: 'right' },
+      3: { cellWidth: 35, halign: 'right', fontStyle: 'bold' },
     },
+    didParseCell: (data) => {
+      if (data.section === 'body' && data.row.index === retenueRows.length - 1) {
+        data.cell.styles.fillColor = COLORS.light
+      }
+    },
+    margin: { left: margin, right: margin, bottom: 35 },
   })
   // @ts-ignore
-  yPos = (doc.lastAutoTable?.finalY ?? yPos) + 8
+  y = (doc.lastAutoTable?.finalY ?? y + 50) + 8
 
-  // ── NET À PAYER (gros) ───────────────────────────────────────────────
+  // ── Bloc NET À PAYER (gros, mis en évidence) + cumuls YTD ────────────
+  const netBoxH = 28
   doc.setFillColor(...COLORS.success)
-  doc.rect(pageWidth - margin - 80, yPos, 80, 16, 'F')
+  doc.roundedRect(margin, y, contentW, netBoxH, 3, 3, 'F')
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(11)
-  doc.setTextColor(255, 255, 255)
-  doc.text('NET À PAYER', pageWidth - margin - 76, yPos + 6)
-  doc.setFontSize(14)
-  doc.text(fmt(netSalary), pageWidth - margin - 4, yPos + 12, { align: 'right' })
+  doc.setTextColor(...COLORS.white)
+  doc.text('NET À PAYER', margin + 6, y + 9)
+  doc.setFontSize(7.5)
+  doc.setTextColor(220, 255, 235)
+  doc.text(`Versement le ${formatDate(period.payment_date)}`, margin + 6, y + 14)
+  doc.setFontSize(22)
+  doc.setTextColor(...COLORS.white)
+  doc.text(fmtMoney(netSalary), pageWidth - margin - 6, y + 17, { align: 'right' })
+  if (employee.payment_method) {
+    doc.setFontSize(8)
+    doc.text(employee.payment_method, pageWidth - margin - 6, y + 23, { align: 'right' })
+  }
+  y += netBoxH + 6
 
-  yPos += 24
+  // ── Cumul annuel YTD (si fourni) ──────────────────────────────────────
+  if (input.ytd && (input.ytd.gross !== undefined || input.ytd.net !== undefined)) {
+    const ytdGross      = input.ytd.gross ?? 0
+    const ytdSS         = input.ytd.ss_employee ?? 0
+    const ytdWithholding = input.ytd.withholding ?? 0
+    const ytdNet        = input.ytd.net ?? 0
 
-  // ── Charges patronales (info) ─────────────────────────────────────────
+    doc.setFillColor(...COLORS.light)
+    doc.setDrawColor(...COLORS.border)
+    doc.roundedRect(margin, y, contentW, 22, 2, 2, 'FD')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.setTextColor(...COLORS.muted)
+    doc.text(`CUMUL ${period.year} (janvier à aujourd'hui)`, margin + 4, y + 5)
+    const ytdCols = [
+      { l: 'Brut imposable',  v: fmtMoney(ytdGross) },
+      { l: 'Cotisations SS',  v: fmtMoney(ytdSS) },
+      { l: 'Précompte',        v: fmtMoney(ytdWithholding) },
+      { l: 'Net versé',        v: fmtMoney(ytdNet) },
+    ]
+    const colW = (contentW - 8) / ytdCols.length
+    ytdCols.forEach((c, i) => {
+      const cx = margin + 4 + i * colW
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(7.5)
+      doc.setTextColor(...COLORS.muted)
+      doc.text(c.l, cx, y + 12)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(10)
+      doc.setTextColor(...COLORS.primary)
+      doc.text(c.v, cx, y + 18)
+    })
+    y += 28
+  }
+
+  // ── Charges patronales (info, en gris) ────────────────────────────────
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8)
   doc.setTextColor(...COLORS.muted)
-  doc.text(`Charges patronales (informatif) : ONSS ${ssEmployerRate}% = ${fmt(ssEmployer)} | Coût total employeur : ${fmt(employerCost)}`, margin, yPos)
-  yPos += 8
+  doc.text(
+    `Charges patronales : ONSS ${ssEmployerRate.toFixed(2)}% = ${fmtMoney(ssEmployer)} | Coût total employeur : ${fmtMoney(employerCost)}`,
+    margin, y,
+  )
+  y += 6
 
-  // ── Mode de paiement ─────────────────────────────────────────────────
+  // ── Mode de paiement + coordonnées bancaires ──────────────────────────
   doc.setDrawColor(...COLORS.border)
-  doc.line(margin, yPos, pageWidth - margin, yPos)
-  yPos += 6
+  doc.line(margin, y, pageWidth - margin, y)
+  y += 6
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(9)
-  doc.setTextColor(...COLORS.text)
-  doc.text('MODE DE PAIEMENT', margin, yPos)
+  doc.setTextColor(...COLORS.primary)
+  doc.text('MODE DE PAIEMENT', margin, y)
   doc.setFont('helvetica', 'normal')
-  doc.text(`${employee.payment_method || 'Virement'}`, margin + 50, yPos)
+  doc.setTextColor(...COLORS.text)
+  doc.text(employee.payment_method || 'Virement bancaire', margin + 50, y)
+
   if (employee.iban) {
-    doc.text(`IBAN : ${formatIban(employee.iban)}${employee.bic ? ' · BIC : ' + employee.bic : ''}`, margin + 70, yPos)
-  }
-  yPos += 8
-
-  // ── Jours travaillés ─────────────────────────────────────────────────
-  if (period.worked_days !== undefined || period.absence_days !== undefined) {
     doc.setFont('helvetica', 'bold')
-    doc.text('JOURS', margin, yPos)
+    doc.setTextColor(...COLORS.primary)
+    doc.text('IBAN', pageWidth - margin - 70, y)
     doc.setFont('helvetica', 'normal')
-    doc.text(`Travaillés : ${period.worked_days ?? '—'}    |    Absences : ${period.absence_days ?? '—'}`, margin + 50, yPos)
-    yPos += 8
+    doc.setTextColor(...COLORS.text)
+    doc.text(fmtIban(employee.iban), pageWidth - margin, y, { align: 'right' })
+    y += 5
+    if (employee.bic) {
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...COLORS.primary)
+      doc.text('BIC', pageWidth - margin - 70, y)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(...COLORS.text)
+      doc.text(employee.bic, pageWidth - margin, y, { align: 'right' })
+    }
   }
+  y += 8
 
-  // ── Mentions légales ──────────────────────────────────────────────────
-  yPos = pageHeight - 50
-  doc.setDrawColor(...COLORS.border)
-  doc.line(margin, yPos - 4, pageWidth - margin, yPos - 4)
-
-  doc.setFont('helvetica', 'italic')
-  doc.setFontSize(7.5)
-  doc.setTextColor(...COLORS.muted)
-  const mentions = [
-    `Document généré le ${new Date().toLocaleDateString('fr-BE')}`,
-    'Conservation recommandée 5 ans (durée légale belge)',
-    company.vat_number ? `N° entreprise : ${company.vat_number}` : null,
-    'Ce document est confidentiel et destiné uniquement au salarié.',
-  ].filter(Boolean).join(' · ')
-  const mLines = doc.splitTextToSize(mentions, contentW)
-  doc.text(mLines, margin, yPos)
-  yPos += mLines.length * 3
-
+  // ── Signatures ─────────────────────────────────────────────────────────
+  const sigY = pageHeight - 60
+  if (sigY > y + 6) {
+    // Force position to bottom
+    y = sigY
+  }
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
+  doc.setFontSize(9)
   doc.setTextColor(...COLORS.text)
-  doc.text('Signature de l\'employeur :', margin, yPos + 6)
-  doc.text('Reçu par le salarié :', pageWidth / 2, yPos + 6)
+  doc.text('Signature de l\'employeur :', margin, y)
+  doc.text('Reçu par le salarié :', pageWidth / 2, y)
+
+  doc.setDrawColor(...COLORS.border)
+  doc.line(margin, y + 14, margin + 60, y + 14)
+  doc.line(pageWidth / 2, y + 14, pageWidth / 2 + 60, y + 14)
+
+  // ── Footer (theme partagé) ────────────────────────────────────────────
+  drawFooter(doc, company, { kind: 'PAYSLIP' })
 
   return doc
 }
 
-export function downloadPayslip (input: PayslipInput, fileName?: string) {
+export function downloadPayslip(input: PayslipInput, fileName?: string) {
   const doc = generatePayslipPdf(input)
   doc.save(fileName ?? `paie-${input.employee.last_name}-${input.period.month}.pdf`)
 }
 
-export function openPayslip (input: PayslipInput) {
+export function openPayslip(input: PayslipInput) {
   const doc = generatePayslipPdf(input)
   const blob = doc.output('blob')
   const url = URL.createObjectURL(blob)
   window.open(url, '_blank', 'noopener,noreferrer')
 }
 
-function round2 (n: number): number {
-  return Math.round(n * 100) / 100
-}
-
-function formatIban (iban: string): string {
-  return iban.replace(/(.{4})/g, '$1 ').trim()
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers privés
+// ─────────────────────────────────────────────────────────────────────────────
+function formatMonthYear(yyyymm: string): string {
+  const [y, m] = yyyymm.split('-').map(Number)
+  if (!y || !m) return yyyymm
+  const months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+                  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
+  return `${months[m - 1] ?? ''} ${y}`
 }

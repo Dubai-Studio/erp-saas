@@ -13,6 +13,7 @@ import autoTable from 'jspdf-autotable'
 import { formatDate, formatMoney } from './format'
 import { computeInvoiceTotals } from './calculations'
 import type { CompanySettings } from './types'
+import { COLORS, drawHeader, drawFooter } from './pdf-theme'
 
 interface ClientLite {
   name: string
@@ -40,14 +41,7 @@ export interface QuoteForPdf {
   total_amount?: number
 }
 
-const COLORS = {
-  primary: [30, 58, 95] as [number, number, number],
-  primaryRgb: [30, 58, 95] as [number, number, number],
-  text: [15, 23, 42] as [number, number, number],
-  muted: [100, 116, 139] as [number, number, number],
-  border: [226, 232, 240] as [number, number, number],
-  light: [248, 250, 252] as [number, number, number],
-}
+// Couleurs importées depuis pdf-theme (theme unifié)
 
 export function generateQuotePdf (quote: QuoteForPdf, company: Partial<CompanySettings>): jsPDF {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })

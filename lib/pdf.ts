@@ -7,6 +7,7 @@
  * - numérotation officielle FAC-YYYY-NNNNNN
  * - support avoir (credit_note) avec libellé "AVOIR"
  * - totaux HT / TVA / TTC bien lisibles
+ * - Header/Footer/Couleurs : utilise le theme PDF unifie (lib/pdf-theme)
  *
  * On garde jsPDF + jspdf-autotable pour éviter une dépendance native
  * côté serveur. Génération côté client uniquement pour cette V1.
@@ -16,6 +17,7 @@ import autoTable from 'jspdf-autotable'
 import { formatDate, formatMoney } from './format'
 import { computeInvoiceTotals } from './calculations'
 import type { CompanySettings } from './types'
+import { COLORS, drawHeader, drawFooter, type DocKind } from './pdf-theme'
 
 interface ClientLite {
   name: string
@@ -55,24 +57,14 @@ export interface InvoiceForPdf {
   total_amount?: number
 }
 
-const COLORS = {
-  primary: '#1e3a5f',
-  primaryRgb: [30, 58, 95] as [number, number, number],
-  text: '#0f172a',
-  textRgb: [15, 23, 42] as [number, number, number],
-  muted: '#64748b',
-  mutedRgb: [100, 116, 139] as [number, number, number],
-  border: '#e2e8f0',
-  borderRgb: [226, 232, 240] as [number, number, number],
-  light: '#f8fafc',
-  lightRgb: [248, 250, 252] as [number, number, number],
-  danger: '#ef4444',
-}
-
-function hexToRgb (hex: string): [number, number, number] {
-  const m = hex.replace('#', '').match(/[0-9a-f]{2}/gi)
-  if (!m || m.length < 3) return [0, 0, 0]
-  return [parseInt(m[0], 16), parseInt(m[1], 16), parseInt(m[2], 16)]
+/** Mappe type interne → DocKind pour le header unifié */
+function invoiceTypeToDocKind(type: InvoiceForPdf['type']): DocKind {
+  switch (type) {
+    case 'credit_note': return 'CREDIT'
+    case 'quote':       return 'QUOTE'
+    case 'proforma':    return 'PROFORMA'
+    default:            return 'INVOICE'
+  }
 }
 
 export function generateInvoicePdf (
@@ -87,84 +79,34 @@ export function generateInvoicePdf (
 
   const isCredit = invoice.type === 'credit_note'
 
-  // ── En-tête : société émettrice ─────────────────────────────────────────
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(20)
-  doc.setTextColor(COLORS.primaryRgb[0], COLORS.primaryRgb[1], COLORS.primaryRgb[2])
-  doc.text(company.company_name || 'Votre société', margin, margin + 8)
+  // ── En-tête entreprise (theme partagé) ─────────────────────────────
+  const y = drawHeader(doc, company, {
+    kind: invoiceTypeToDocKind(invoice.type),
+    reference: invoice.invoice_number,
+    documentDate: invoice.issue_date,
+    secondaryDate: invoice.due_date,
+    secondaryLabel: "Date d'échéance",
+  })
 
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(9)
-  doc.setTextColor(COLORS.mutedRgb[0], COLORS.mutedRgb[1], COLORS.mutedRgb[2])
-  let y = margin + 14
-  for (const line of [
-    company.address,
-    [company.zip_code, company.city].filter(Boolean).join(' '),
-    company.country,
-    company.vat_number ? `TVA : ${company.vat_number}` : null,
-    company.email,
-    company.phone,
-    company.iban ? `IBAN : ${formatIban(company.iban)}` : null,
-    company.bic ? `BIC : ${company.bic}` : null,
-  ].filter(Boolean) as string[]) {
-    doc.text(line, margin, y)
-    y += 4
-  }
-
-  // ── Bloc droit : titre + numéro ──────────────────────────────────────
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(28)
-  doc.setTextColor(COLORS.primaryRgb[0], COLORS.primaryRgb[1], COLORS.primaryRgb[2])
-  doc.text(
-    isCredit ? 'AVOIR'
-    : invoice.type === 'quote' ? 'DEVIS'
-    : invoice.type === 'proforma' ? 'FACTURE PROFORMA'
-    : 'FACTURE',
-    pageWidth - margin, margin + 8, { align: 'right' },
-  )
-
-  doc.setFontSize(11)
-  doc.setTextColor(COLORS.textRgb[0], COLORS.textRgb[1], COLORS.textRgb[2])
-  doc.text(`N° ${invoice.invoice_number}`, pageWidth - margin, margin + 16, { align: 'right' })
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(9)
-  doc.setTextColor(COLORS.mutedRgb[0], COLORS.mutedRgb[1], COLORS.mutedRgb[2])
-  let ry = margin + 22
-  const metaRows: [string, string][] = [
-    ['Date d\'émission', formatDate(invoice.issue_date)],
-    ['Date d\'échéance',  formatDate(invoice.due_date ?? null)],
-    ['Statut',           statusFr(invoice.status)],
-  ]
-  for (const [label, value] of metaRows) {
-    doc.text(`${label} :`, pageWidth - margin - 50, ry)
-    doc.setTextColor(COLORS.textRgb[0], COLORS.textRgb[1], COLORS.textRgb[2])
-    doc.text(value, pageWidth - margin, ry, { align: 'right' })
-    doc.setTextColor(COLORS.mutedRgb[0], COLORS.mutedRgb[1], COLORS.mutedRgb[2])
-    ry += 5
-  }
-
-  // ── Bloc client ───────────────────────────────────────────────────────────────────────────
-  const clientY = Math.max(y, ry) + 8
-  doc.setFillColor(COLORS.lightRgb[0], COLORS.lightRgb[1], COLORS.lightRgb[2])
-  doc.rect(margin, clientY, contentWidth, 28, 'F')
-  doc.setDrawColor(COLORS.borderRgb[0], COLORS.borderRgb[1], COLORS.borderRgb[2])
-  doc.rect(margin, clientY, contentWidth, 28, 'S')
+  // ── Bloc client ─────────────────────────────────────────────
+  const clientY = y
+  doc.setFillColor(...COLORS.light)
+  doc.setDrawColor(...COLORS.border)
+  doc.roundedRect(margin, clientY, contentWidth, 28, 2, 2, 'FD')
 
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(9)
-  doc.setTextColor(COLORS.mutedRgb[0], COLORS.mutedRgb[1], COLORS.mutedRgb[2])
+  doc.setFontSize(8)
+  doc.setTextColor(...COLORS.muted)
   doc.text('FACTURÉ À', margin + 4, clientY + 5)
 
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(11)
-  doc.setTextColor(COLORS.textRgb[0], COLORS.textRgb[1], COLORS.textRgb[2])
-  doc.text(invoice.client?.name || invoice.client_name || '—', margin + 4, clientY + 11)
+  doc.setFontSize(13)
+  doc.setTextColor(...COLORS.primary)
+  doc.text(invoice.client?.name || invoice.client_name || '—', margin + 4, clientY + 12)
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
-  doc.setTextColor(COLORS.mutedRgb[0], COLORS.mutedRgb[1], COLORS.mutedRgb[2])
-  let cy = clientY + 16
+  doc.setTextColor(...COLORS.text)
+  let cy = clientY + 18
   for (const line of [
     invoice.client?.address,
     [invoice.client?.zip_code, invoice.client?.city].filter(Boolean).join(' '),
@@ -176,7 +118,26 @@ export function generateInvoicePdf (
     cy += 4
   }
 
-  // ── Tableau des lignes ───────────────────────────────────────────────────────────────────────
+  // Statut en haut à droite (badge)
+  const statusLabel = statusFr(invoice.status)
+  const badgeColors: Record<string, [number, number, number]> = {
+    'paid':     COLORS.success,
+    'sent':     COLORS.accent,
+    'pending':  COLORS.warning,
+    'overdue':  COLORS.danger,
+    'cancelled': [148, 163, 184],
+    'draft':    [148, 163, 184],
+  }
+  const badgeColor = badgeColors[invoice.status ?? ''] ?? COLORS.muted
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(9)
+  const statusW = doc.getTextWidth(statusLabel) + 8
+  doc.setFillColor(...badgeColor)
+  doc.roundedRect(pageWidth - margin - statusW, clientY + 4, statusW, 8, 1.5, 1.5, 'F')
+  doc.setTextColor(...COLORS.white)
+  doc.text(statusLabel, pageWidth - margin - statusW / 2, clientY + 9.5, { align: 'center' })
+
+  // ── Tableau des lignes ─────────────────────────────────────
   const typedLines: InvoiceLineFull[] = invoice.lines.map((l) => ({
     description: l.description,
     quantity:    l.quantity,
@@ -203,13 +164,13 @@ export function generateInvoicePdf (
     ]),
     theme: 'grid',
     headStyles: {
-      fillColor: COLORS.primaryRgb,
-      textColor: [255, 255, 255],
+      fillColor: COLORS.primary,
+      textColor: COLORS.white,
       fontStyle: 'bold',
       fontSize: 9,
     },
-    bodyStyles: { fontSize: 9, textColor: COLORS.textRgb },
-    alternateRowStyles: { fillColor: COLORS.lightRgb },
+    bodyStyles: { fontSize: 9, textColor: COLORS.text },
+    alternateRowStyles: { fillColor: COLORS.light },
     columnStyles: {
       0: { cellWidth: 'auto' },
       1: { cellWidth: 18, halign: 'right' },
@@ -218,79 +179,66 @@ export function generateInvoicePdf (
       4: { cellWidth: 32, halign: 'right' },
     },
     didDrawPage: () => {
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(8)
-      doc.setTextColor(COLORS.mutedRgb[0], COLORS.mutedRgb[1], COLORS.mutedRgb[2])
-      doc.text(
-        `${invoice.invoice_number} · page ${doc.getNumberOfPages()}`,
-        pageWidth / 2,
-        pageHeight - 8,
-        { align: 'center' },
-      )
+      // Footer à chaque page — theme partagé
+      drawFooter(doc, company, { kind: invoiceTypeToDocKind(invoice.type) })
     },
   })
 
-  // ── Bloc totaux ─────────────────────────────────────────────────────────────────────────────
+  // ── Bloc totaux ────────────────────────────────────────────
   // @ts-ignore — lastAutoTable est injecté par jspdf-autotable
   const afterY: number = (doc.lastAutoTable?.finalY ?? clientY + 50) + 8
   const totalsX = pageWidth - margin - 70
   const totalsW = 70
   const totalsH = isCredit ? 38 : 32
 
-  doc.setFillColor(COLORS.lightRgb[0], COLORS.lightRgb[1], COLORS.lightRgb[2])
-  doc.rect(totalsX, afterY, totalsW, totalsH, 'F')
-  doc.setDrawColor(COLORS.borderRgb[0], COLORS.borderRgb[1], COLORS.borderRgb[2])
-  doc.rect(totalsX, afterY, totalsW, totalsH, 'S')
+  doc.setFillColor(...COLORS.light)
+  doc.roundedRect(totalsX, afterY, totalsW, totalsH, 2, 2, 'F')
+  doc.setDrawColor(...COLORS.border)
+  doc.roundedRect(totalsX, afterY, totalsW, totalsH, 2, 2, 'S')
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(10)
-  doc.setTextColor(COLORS.mutedRgb[0], COLORS.mutedRgb[1], COLORS.mutedRgb[2])
+  doc.setTextColor(...COLORS.muted)
   doc.text('Sous-total HT', totalsX + 4, afterY + 6)
-  doc.setTextColor(COLORS.textRgb[0], COLORS.textRgb[1], COLORS.textRgb[2])
+  doc.setTextColor(...COLORS.text)
   doc.text(formatMoney(subtotal, currency), totalsX + totalsW - 4, afterY + 6, { align: 'right' })
 
-  doc.setTextColor(COLORS.mutedRgb[0], COLORS.mutedRgb[1], COLORS.mutedRgb[2])
+  doc.setTextColor(...COLORS.muted)
   doc.text('TVA', totalsX + 4, afterY + 12)
-  doc.setTextColor(COLORS.textRgb[0], COLORS.textRgb[1], COLORS.textRgb[2])
+  doc.setTextColor(...COLORS.text)
   doc.text(formatMoney(vatAmount, currency), totalsX + totalsW - 4, afterY + 12, { align: 'right' })
 
-  doc.setDrawColor(COLORS.borderRgb[0], COLORS.borderRgb[1], COLORS.borderRgb[2])
+  doc.setDrawColor(...COLORS.border)
   doc.line(totalsX + 4, afterY + 16, totalsX + totalsW - 4, afterY + 16)
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(12)
-  doc.setTextColor(COLORS.primaryRgb[0], COLORS.primaryRgb[1], COLORS.primaryRgb[2])
+  doc.setTextColor(...COLORS.primary)
   doc.text(isCredit ? 'Total TTC (avoir)' : 'Total TTC', totalsX + 4, afterY + 24)
   doc.text(formatMoney(totalAmount, currency), totalsX + totalsW - 4, afterY + 24, { align: 'right' })
 
-  // ── Notes ────────────────────────────────────────────────────────────────────────────────────
+  // ── Notes ──────────────────────────────────────────────────
   if (invoice.notes) {
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(9)
-    doc.setTextColor(COLORS.mutedRgb[0], COLORS.mutedRgb[1], COLORS.mutedRgb[2])
+    doc.setTextColor(...COLORS.muted)
     doc.text('NOTES', margin, afterY + 6)
     doc.setFont('helvetica', 'normal')
-    doc.setTextColor(COLORS.textRgb[0], COLORS.textRgb[1], COLORS.textRgb[2])
+    doc.setTextColor(...COLORS.text)
     const noteLines = doc.splitTextToSize(invoice.notes, contentWidth)
     doc.text(noteLines, margin, afterY + 12)
   }
 
-  // ── Mentions légales ──────────────────────────────────────────────────────────────────────
-  const footerY = pageHeight - 28
-  doc.setDrawColor(COLORS.borderRgb[0], COLORS.borderRgb[1], COLORS.borderRgb[2])
-  doc.line(margin, footerY - 4, pageWidth - margin, footerY - 4)
-
-  doc.setFont('helvetica', 'italic')
-  doc.setFontSize(7.5)
-  doc.setTextColor(COLORS.mutedRgb[0], COLORS.mutedRgb[1], COLORS.mutedRgb[2])
-  const mentions = [
-    `Document généré le ${new Date().toLocaleDateString('fr-BE')} à ${new Date().toLocaleTimeString('fr-BE')}`,
-    company.vat_number ? `N° TVA : ${company.vat_number}` : null,
-    invoice.payment_terms ? `Conditions : ${invoice.payment_terms}` : null,
-    'En cas de retard de paiement, pénalités de 3x le taux légal belge (Loi du 02.08.2002) et indemnité forfaitaire de 40 €.',
-  ].filter(Boolean).join(' · ')
-  const mentionsLines = doc.splitTextToSize(mentions, contentWidth)
-  doc.text(mentionsLines, margin, footerY)
+  // Footer final sur la dernière page
+  drawFooter(doc, company, {
+    kind: invoiceTypeToDocKind(invoice.type),
+    legal: [
+      `Document généré le ${new Date().toLocaleDateString('fr-BE')} à ${new Date().toLocaleTimeString('fr-BE')}`,
+      company.vat_number ? `N° TVA : ${company.vat_number}` : null,
+      invoice.payment_terms ? `Conditions : ${invoice.payment_terms}` : null,
+      'En cas de retard de paiement, pénalités de 3x le taux légal belge (Loi du 02.08.2002) et indemnité forfaitaire de 40 €.',
+    ],
+  })
 
   return doc
 }
@@ -311,10 +259,6 @@ export function openInvoicePdf (
   const blob = doc.output('blob')
   const url = URL.createObjectURL(blob)
   window.open(url, '_blank', 'noopener,noreferrer')
-}
-
-function formatIban (iban: string): string {
-  return iban.replace(/(.{4})/g, '$1 ').trim()
 }
 
 function statusFr (s?: string): string {

@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import React from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { generatePayslipPdf } from '@/lib/pdf-payslip';
 
 /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€────
    TYPES
@@ -237,7 +238,15 @@ const I = {
 /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€────
    PDF FICHE DE SALAIRE
 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€──── */
-function generatePaySlip(data: PaySlipData, company: CompanySettings) {
+/* ─────────────────────────────────────────────────────────────────────────
+   PDF FICHE DE SALAIRE
+   ────────────────────────────────────────────────────────────────────────
+   Génération désormais déléguée à lib/pdf-payslip.ts (theme unifié).
+   handlePaySlip (en bas de page) agrège les ajustements/pointages puis
+   appelle generatePayslipPdf() pour bénéficier du même header/footer/
+   palette que les factures/devis/interventions. */
+
+function _legacyGeneratePaySlip_REMOVED(data: PaySlipData, company: CompanySettings) {
   const { employee: e, month, year, gross, adjustments, totalAdj, net } = data;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const W = 210, M = 15;
@@ -1453,11 +1462,88 @@ export default function EmployeesPage() {
   }
 
   function handlePaySlip(employee: Employee, month: string) {
-    const myAdj    = (Array.isArray(adjustments)?adjustments:[]).filter(a=>a.employee_id===employee.id&&a.month===month);
-    const totalAdj = myAdj.reduce((s,a) => { const t=ADJ_TYPES[a.type]??{sign:1}; return s+t.sign*a.amount; }, 0);
-    const [yr]     = month.split('-');
-    const companyData: CompanySettings = company??{ company_name:'Mon Entreprise', address:'—', vat_number:'—', email:'—', phone:'—', iban:'—' };
-    generatePaySlip({ employee, month, year:parseInt(yr), gross:Number(employee.salary)||0, adjustments:myAdj, totalAdj, net:(Number(employee.salary)||0)+totalAdj }, companyData);
+    const myAdj = (Array.isArray(adjustments) ? adjustments : [])
+      .filter(a => a.employee_id === employee.id && a.month === month)
+    const totalAdj = myAdj.reduce((s, a) => {
+      const t = ADJ_TYPES[a.type] ?? { sign: 1 }
+      return s + t.sign * a.amount
+    }, 0)
+    const [yr] = month.split('-')
+    const year = parseInt(yr)
+
+    const companyData: CompanySettings = company ?? {
+      company_name: 'Mon Entreprise', address: '—', vat_number: '—',
+      email: '—', phone: '—', iban: '—',
+    } as CompanySettings
+
+    // Agrège les ajustements en bonus / avance / retenues
+    let bonus = 0, advance = 0, otherDeduct = 0
+    for (const a of myAdj) {
+      const t = ADJ_TYPES[a.type] ?? { sign: 1 }
+      const amt = t.sign * a.amount
+      if (a.type === 'prime' || (a.type !== 'avance' && a.type !== 'retenue' && amt > 0)) bonus += Math.abs(amt)
+      else if (a.type === 'avance' || (amt < 0 && a.type !== 'retenue')) advance += Math.abs(amt)
+      else if (a.type === 'retenue') otherDeduct += Math.abs(amt)
+    }
+    // Net sans précompte = (salaire + ajustements) — pour l'aperçu UI
+    // Le précompte professionnel est saisi via le payload fiscal de l'API POST.
+    // Ici, en preview côté UI, on prend 0 par défaut (l'utilisateur lance ensuite
+    // la génération officielle via POST /api/payslips/:id/pdf pour ajouter le précompte).
+    const withholding = 0
+
+    // Agrège les heures du mois depuis les time_entries chargées
+    const monthTE = (timeEntries ?? []).filter(te => te.employee_id === employee.id && te.month === month)
+    let hoursWorked = 0, overtimeHours = 0, overtimeRate = 0
+    let nightHours = 0, nightRate = 0, weekendHours = 0, weekendRate = 0
+    for (const te of monthTE) {
+      const h = Number(te.hours_worked || 0)
+      if (te.entry_type === 'normal')    hoursWorked += h
+      if (te.entry_type === 'overtime') { overtimeHours += h; overtimeRate = Number(te.rate_applied || te.hourly_rate || 0) }
+      if (te.entry_type === 'night')    { nightHours    += h; nightRate    = Number(te.rate_applied || te.hourly_rate || 0) }
+      if (te.entry_type === 'weekend')  { weekendHours  += h; weekendRate  = Number(te.rate_applied || te.hourly_rate || 0) }
+    }
+
+    const doc = generatePayslipPdf({
+      employee: {
+        first_name:        employee.first_name,
+        last_name:         employee.last_name,
+        national_id:       employee.national_id,
+        position:          employee.position,
+        department:        employee.department,
+        contract_type:     employee.contract_type,
+        worker_type:       employee.worker_type,
+        hire_date:         employee.hire_date,
+        iban:              employee.iban,
+        bic:               null,
+        payment_method:    employee.payment_method,
+        payment_day:       employee.payment_day,
+        base_salary:       Number(employee.salary) || 0,
+        hourly_rate:       employee.hourly_rate ?? undefined,
+        hours_worked:      hoursWorked,
+        overtime_hours:    overtimeHours,
+        overtime_rate:     overtimeRate,
+        night_hours:       nightHours,
+        night_rate:        nightRate,
+        weekend_hours:     weekendHours,
+        weekend_rate:      weekendRate,
+        bonus,
+        advance,
+        other_deductions:  otherDeduct,
+        seniority_years:   seniority(employee.hire_date),
+      },
+      period: {
+        month:        month,
+        year:         year,
+        // Pour la preview UI on prend la fin du mois
+        payment_date: `${month}-${new Date(year, parseInt(month.split('-')[1]), 0).getDate()}`,
+        worked_days:  Math.max(0, 22 - Math.round(Math.abs(totalAdj < 0 ? totalAdj / 100 : 0))),
+        absence_days: 0,
+      },
+      social_security: { employee_rate: 13.07, employer_rate: 25.27, special_employee_rate: 7.5 },
+      fiscal: { withholding_tax: withholding },
+      company: companyData,
+    })
+    doc.save(`Fiche-Salaire-${employee.last_name}-${month}.pdf`)
   }
 
   function exportCSV() {

@@ -35,6 +35,7 @@ export interface OcrResult {
   issue_date?: string   // ISO YYYY-MM-DD
   due_date?: string     // ISO YYYY-MM-DD
   amount_ht?: number
+  vat_rate?: number     // % (0/6/12/21 BE standard)
   vat_amount?: number
   total_amount?: number
   iban?: string
@@ -316,6 +317,7 @@ function extractFields(
   )
 
   result.iban          = extractIban(text)
+  result.vat_rate      = extractVatRate(text)
 
   // Reconciliation
   if (result.amount_ht === undefined && result.total_amount !== undefined && result.vat_amount !== undefined) {
@@ -327,10 +329,18 @@ function extractFields(
   if (result.total_amount === undefined && result.amount_ht !== undefined && result.vat_amount !== undefined) {
     result.total_amount = round2(result.amount_ht + result.vat_amount)
   }
+  // Si le taux n'a pas été trouvé dans le texte, dérive-le depuis HT + TVA.
+  if (result.vat_rate === undefined && result.amount_ht !== undefined && result.amount_ht > 0
+      && result.vat_amount !== undefined && result.vat_amount > 0) {
+    const derived = (result.vat_amount / result.amount_ht) * 100
+    if (derived >= 0 && derived <= 100) {
+      result.vat_rate = Math.round(derived * 100) / 100
+    }
+  }
 
   for (const k of [
     'supplier_name', 'issue_date', 'due_date',
-    'amount_ht', 'vat_amount', 'total_amount', 'iban',
+    'amount_ht', 'vat_rate', 'vat_amount', 'total_amount', 'iban',
   ] as const) {
     const v = result[k]
     if (v === undefined) continue
@@ -604,6 +614,46 @@ function extractIban(text: string): string | undefined {
   const compact = m[1].replace(/\s+/g, '').toUpperCase()
   if (!isValidIbanShape(compact)) return undefined
   return compact
+}
+
+/**
+ * Extrait le TAUX de TVA (%) imprimé sur la facture. Plusieurs patterns
+ * reconnus (FR/BE/NL/DE) :
+ *   • "TVA 21%", "Taux TVA : 21%", "TVA 21 %"
+ *   • "BTW 21%", "21% BTW", "B.T.W. 21 %"
+ *   • "VAT 21%", "MwSt. 21%", "USt. 19%"
+ *   • "21%" seul à proximité d'un label TVA
+ *
+ * Renvoie undefined si pas trouvé, ou un nombre 0-100 arrondi 2 décimales.
+ */
+function extractVatRate(text: string): number | undefined {
+  // Pattern 1 : label TVA + nombre + %  →  "TVA 21%", "Taux TVA: 21 %"
+  let m = text.match(
+    /\b(?:taux\s+)?(?:TVA|BTW|VAT|MWST|UST|TVA\b)(?:[^\d\n]{0,15})(\d{1,2}(?:[.,]\d+)?)\s*%/i,
+  )
+  if (m) return clampRate(m[1])
+
+  // Pattern 2 : nombre + % + label TVA  →  "21 % TVA", "6% BTW"
+  m = text.match(/(\d{1,2}(?:[.,]\d+)?)\s*%\s*(?:TVA|BTW|VAT|MWST|UST)\b/i)
+  if (m) return clampRate(m[1])
+
+  // Pattern 3 : ligne "TVA X% : 100,00 €" où on lit X dans le label
+  m = text.match(/\b(?:TVA|BTW|VAT|MWST|UST)\s*\(?\s*(\d{1,2}(?:[.,]\d+)?)\s*%\s*\)?/i)
+  if (m) return clampRate(m[1])
+
+  // Pattern 4 : "21%" suivi d'un label TVA dans la même ligne (rare)
+  m = text.match(/(\d{1,2}(?:[.,]\d+)?)\s*%\s*\((?:TVA|BTW|VAT|MWST|UST)/i)
+  if (m) return clampRate(m[1])
+
+  return undefined
+}
+
+function clampRate(raw: string | undefined): number | undefined {
+  if (!raw) return undefined
+  const n = parseFloat(raw.replace(',', '.'))
+  if (!Number.isFinite(n)) return undefined
+  if (n < 0 || n > 100) return undefined
+  return Math.round(n * 100) / 100
 }
 
 function isValidIbanShape(iban: string): boolean {

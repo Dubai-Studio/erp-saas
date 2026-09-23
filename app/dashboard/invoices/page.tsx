@@ -30,7 +30,7 @@ interface ExternalInvoice {
   id: string; type: 'incoming'; file_name: string; file_url?: string
   supplier_id?: string; supplier_name: string
   client_id?: string; project_id?: string; project_name?: string
-  amount_ht: number; vat_amount: number; total_amount: number
+  amount_ht: number; vat_rate?: number; vat_amount: number; total_amount: number
   issue_date: string; due_date?: string; category: string
   notes: string; status: 'pending'|'paid'|'contested'|'overdue'|'cancelled'; created_at: string
 }
@@ -761,7 +761,7 @@ function ImportModal({ open, onClose, onSave, clients, projects, initial }:{
     file_name: '', file_url: '',
     supplier_name: '', supplier_id: '',
     client_id: '', project_id: '',
-    amount_ht: 0, vat_amount: 0, total_amount: 0,
+    amount_ht: 0, vat_rate: 21, vat_amount: 0, total_amount: 0,
     issue_date: today(), due_date: due30(),
     category: 'Prestation',
     notes: '',
@@ -782,6 +782,13 @@ function ImportModal({ open, onClose, onSave, clients, projects, initial }:{
     if (open) {
       // Mode édition : pré-remplir le formulaire avec les valeurs existantes
       if (initial) {
+        // Détecte si le taux correspond à un preset BE standard, sinon 'custom'
+        const initialRate = initial.vat_rate ?? 21
+        const presetRates = [0, 6, 12, 21]
+        const closestPreset = presetRates.reduce((prev, curr) =>
+          Math.abs(curr - initialRate) < Math.abs(prev - initialRate) ? curr : prev,
+        )
+        const isPreset = Math.abs(closestPreset - initialRate) < 0.1
         setForm({
           type: 'incoming' as const,
           file_name: initial.file_name || '',
@@ -791,6 +798,7 @@ function ImportModal({ open, onClose, onSave, clients, projects, initial }:{
           client_id: initial.client_id || '',
           project_id: initial.project_id || '',
           amount_ht: initial.amount_ht || 0,
+          vat_rate: isPreset ? closestPreset : (initialRate as number),
           vat_amount: initial.vat_amount || 0,
           total_amount: initial.total_amount || 0,
           issue_date: initial.issue_date || today(),
@@ -818,10 +826,30 @@ function ImportModal({ open, onClose, onSave, clients, projects, initial }:{
   const sf = (k: keyof ReturnType<typeof getEmptyForm>, v: string | number) =>
     setForm(p => ({ ...p, [k]: v }))
 
+  function getCurrentRate(p: ReturnType<typeof getEmptyForm>): number {
+    const r = p.vat_rate
+    return typeof r === 'number' ? r : 21
+  }
+
+  function recalcFromHT(ht: number, p: ReturnType<typeof getEmptyForm>) {
+    const rate = getCurrentRate(p)
+    const tva  = Math.round(ht * rate) / 100
+    return { vat_amount: Math.round(tva * 100) / 100, total_amount: Math.round((ht + tva) * 100) / 100 }
+  }
+
   function onAmountHT(v: string) {
-    const ht  = parseFloat(v) || 0
-    const tva = Math.round(ht * 0.21 * 100) / 100
-    setForm(p => ({ ...p, amount_ht: ht, vat_amount: tva, total_amount: Math.round((ht + tva) * 100) / 100 }))
+    const ht = parseFloat(v) || 0
+    setForm(p => {
+      const { vat_amount, total_amount } = recalcFromHT(ht, p)
+      return { ...p, amount_ht: ht, vat_amount, total_amount }
+    })
+  }
+
+  function onVatRate(rate: number) {
+    setForm(p => {
+      const { vat_amount, total_amount } = recalcFromHT(p.amount_ht, { ...p, vat_rate: rate })
+      return { ...p, vat_rate: rate, vat_amount, total_amount }
+    })
   }
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -867,6 +895,13 @@ function ImportModal({ open, onClose, onSave, clients, projects, initial }:{
         if (result.issue_date)     next.issue_date   = result.issue_date
         if (result.due_date)       next.due_date     = result.due_date
         if (result.amount_ht  != null) next.amount_ht    = result.amount_ht
+        if (result.vat_rate != null) {
+          // Map OCR rate (e.g. 6, 12, 21) to preset, else keep as custom number
+          const rate = result.vat_rate
+          const presets = [0, 6, 12, 21]
+          const closest = presets.reduce((p, c) => Math.abs(c - rate) < Math.abs(p - rate) ? c : p, 0)
+          next.vat_rate = Math.abs(closest - rate) < 0.05 ? closest : rate
+        }
         if (result.vat_amount != null) next.vat_amount   = result.vat_amount
         if (result.total_amount != null) next.total_amount = result.total_amount
         return next
@@ -1114,17 +1149,59 @@ function ImportModal({ open, onClose, onSave, clients, projects, initial }:{
               />
             </div>
             <div>
-              <label style={lbl}>TVA (€)</label>
-              <input
-                style={{...inp,textAlign:'right'}}
-                type="number" min="0" step="0.01"
-                value={form.vat_amount || ''}
-                onChange={e => {
-                  const tva = parseFloat(e.target.value) || 0
-                  setForm(p => ({ ...p, vat_amount: tva, total_amount: Math.round((p.amount_ht + tva)*100)/100 }))
-                }}
-                placeholder="21% auto"
-              />
+              <label style={lbl}>TVA (%)</label>
+              <div style={{display:'flex',gap:4,alignItems:'center'}}>
+                {[0, 6, 12, 21].map(r => {
+                  const active = form.vat_rate === r
+                  return (
+                    <button key={r} type="button" onClick={() => onVatRate(r)}
+                      style={{
+                        flex:1, padding:'9px 0', borderRadius:8, cursor:'pointer',
+                        border: active ? `2px solid ${C.blue}` : `1px solid ${C.border}`,
+                        background: active ? '#eff6ff' : '#fff',
+                        color: active ? C.blue : C.text,
+                        fontWeight: active ? 700 : 500, fontSize:13,
+                        transition:'all 0.15s',
+                      }}>
+                      {r}%
+                    </button>
+                  )
+                })}
+                <button type="button"
+                  onClick={() => setForm(p => {
+                    const cur = typeof p.vat_rate === 'number' ? p.vat_rate : 21
+                    // Si déjà custom (pas dans presets), garder tel quel ; sinon mettre 0 par défaut
+                    const presets = [0, 6, 12, 21]
+                    const isCustom = !presets.includes(cur)
+                    return { ...p, vat_rate: isCustom ? cur : 0 }
+                  })}
+                  style={{
+                    padding:'9px 10px', borderRadius:8, cursor:'pointer',
+                    border: ![0, 6, 12, 21].includes(form.vat_rate as number)
+                      ? `2px solid ${C.blue}` : `1px solid ${C.border}`,
+                    background: ![0, 6, 12, 21].includes(form.vat_rate as number)
+                      ? '#eff6ff' : '#fff',
+                    color: ![0, 6, 12, 21].includes(form.vat_rate as number)
+                      ? C.blue : C.text,
+                    fontWeight:500, fontSize:12,
+                  }} title="Taux personnalisé">
+                  Autre…
+                </button>
+              </div>
+              {/* Champ libre si taux custom */}
+              {![0, 6, 12, 21].includes(form.vat_rate as number) && (
+                <input
+                  style={{...inp, marginTop:6, textAlign:'right', width:'100%'}}
+                  type="number" min="0" max="100" step="0.01"
+                  value={form.vat_rate || ''}
+                  onChange={e => onVatRate(parseFloat(e.target.value) || 0)}
+                  placeholder="ex: 5.5"
+                />
+              )}
+              {/* Montant TVA calculé affiché en lecture seule */}
+              <div style={{marginTop:6, fontSize:11, color:'#64748b', textAlign:'right'}}>
+                = <strong style={{color:C.primary}}>{fmt(form.vat_amount || 0)}</strong>
+              </div>
             </div>
             <div>
               <label style={lbl}>Total TTC (€)</label>
@@ -1386,7 +1463,8 @@ function IncomingDrawer({ invoice, clients, projects, onClose, onDelete }:{
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:14}}>
             {[
               {l:'Montant HT', v:fmt(invoice.amount_ht||0),    c:C.text,    bg:C.bg,    bd:C.border},
-              {l:'TVA',        v:fmt(invoice.vat_amount||0),   c:C.slate,   bg:C.bg,    bd:C.border},
+              {l:`TVA${invoice.vat_rate != null ? ` (${invoice.vat_rate}%)` : ''}`,
+                v:fmt(invoice.vat_amount||0), c:C.slate, bg:C.bg, bd:C.border},
               {l:'Total TTC',  v:fmt(invoice.total_amount||0), c:C.primary, bg:'#eff6ff',bd:'#bfdbfe'},
             ].map((d,i)=>(
               <div key={i} style={{background:d.bg,borderRadius:10,padding:'10px 8px',border:`1.5px solid ${d.bd}`,textAlign:'center'}}>

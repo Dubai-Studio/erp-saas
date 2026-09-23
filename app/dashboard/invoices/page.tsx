@@ -940,8 +940,10 @@ function ImportModal({ open, onClose, onSave, clients, projects, initial }:{
           setSaving(false)
           return
         }
-        const { url } = await uploadRes.json()
-        fileUrl  = url ?? ''
+        // ATTENTION : la réponse est wrappée en { data: ... } par api-helpers.ok()
+        // (cf. lib/api-helpers.ts ligne 17 : NextResponse.json({ data }, { status: 200 }))
+        const json = await uploadRes.json()
+        fileUrl  = json?.data?.url ?? ''
         fileName = file.name
         console.log('[ImportModal] upload OK fileUrl=', fileUrl, 'fileName=', fileName)
       } else {
@@ -1367,14 +1369,8 @@ function IncomingDrawer({ invoice, clients, projects, onClose, onDelete }:{
                   {Ic.eye} Ouvrir le document
                 </a>
               ) : (
-                <div style={{display:'flex',flexDirection:'column',gap:6}}>
-                  <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'8px 0',borderRadius:9,background:'#fef2f2',color:'#b91c1c',fontSize:12,fontWeight:500}}>
-                    {Ic.warn}<span>URL du document manquante — réimportez le PDF pour le rattacher.</span>
-                  </div>
-                  <a href={`https://kmuunajnuagqylntpvxt.supabase.co/storage/v1/object/public/invoices/`} target="_blank" rel="noopener noreferrer"
-                    style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'7px 0',borderRadius:9,textDecoration:'none',border:`1px solid #fecaca`,color:'#b91c1c',fontSize:11,fontWeight:600}}>
-                    {Ic.link} Ouvrir le bucket storage
-                  </a>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'8px 0',borderRadius:9,background:'#fef2f2',color:'#b91c1c',fontSize:12,fontWeight:500,lineHeight:1.4,textAlign:'center'}}>
+                  {Ic.warn}<span>URL du document manquante — utilisez « Modifier » et ré-attachez le PDF.</span>
                 </div>
               )}
             </div>

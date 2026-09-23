@@ -22,9 +22,10 @@ const TESSERACT_CDN = {
   workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/worker.min.js',
   corePath:   'https://cdn.jsdelivr.net/npm/tesseract.js-core@6.1.2',
   // tessdata reste sur projectnaptha — héberge les .traineddata pour 100+ langues.
-  // v6 attend le format "best" LSTM ; le path 4.0.0_best_int fournit les modèles
-  // LSTM les plus récents pour fra/eng/nld/deu.
-  langPath:   'https://tessdata.projectnaptha.com/4.0.0_best_int',
+  // IMPORTANT : tesseract.js ajoute automatiquement ".traineddata.gz" au nom
+  // de langue (fra -> fra.traineddata.gz). Le dossier "4.0.0" contient les
+  // modèles LSTM pour fra/eng/nld/deu et ~100 autres langues.
+  langPath:   'https://tessdata.projectnaptha.com/4.0.0',
 }
 
 export interface OcrResult {
@@ -128,7 +129,7 @@ function preprocessCanvas(canvas: HTMLCanvasElement): void {
  */
 export async function ocrFromImage(
   file: File,
-  lang = 'fra+eng+nld+deu',
+  lang = 'fra+eng+nld',
   onProgress?: ProgressCallback,
 ): Promise<OcrResult> {
   // Charge l'image dans un canvas pour pouvoir la pré-traiter.
@@ -170,7 +171,7 @@ export async function ocrFromImage(
  */
 export async function ocrFromPdf(
   file: File,
-  lang = 'fra+eng+nld+deu',
+  lang = 'fra+eng+nld',
   onProgress?: ProgressCallback,
 ): Promise<OcrResult> {
   const pdfjsLib = await import('pdfjs-dist')
@@ -250,8 +251,8 @@ export async function ocrInvoice(
   const isPdf =
     file.type === 'application/pdf' ||
     file.name.toLowerCase().endsWith('.pdf')
-  if (isPdf) return ocrFromPdf(file, 'fra+eng+nld+deu', onProgress)
-  return ocrFromImage(file, 'fra+eng+nld+deu', onProgress)
+  if (isPdf) return ocrFromPdf(file, 'fra+eng+nld', onProgress)
+  return ocrFromImage(file, 'fra+eng+nld', onProgress)
 }
 
 // ────────────────────────────────────────────────────────────────────────────

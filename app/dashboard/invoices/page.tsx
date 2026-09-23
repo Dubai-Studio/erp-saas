@@ -1047,7 +1047,14 @@ function ImportModal({ open, onClose, onSave, clients, projects, initial }:{
                 {ocrStatus === 'scanning' ? (
                   <>
                     <div style={{width:14,height:14,border:`2px solid ${C.purple}`,borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/>
-                    Analyse OCR en cours… {Math.round(ocrProgress * 100)}%
+                    <div style={{flex:1,display:'flex',flexDirection:'column',gap:2,overflow:'hidden'}}>
+                      <div>Analyse OCR — {Math.round(ocrProgress * 100)}%</div>
+                      {ocrProgressLabel && (
+                        <div style={{fontSize:11,opacity:0.7,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+                          {ocrProgressLabel}
+                        </div>
+                      )}
+                    </div>
                   </>
                 ) : (
                   <>📷 Scanner la facture (OCR automatique)</>

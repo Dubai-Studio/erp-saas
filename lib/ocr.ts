@@ -1,26 +1,30 @@
 'use client'
 
 /**
- * Browser-side OCR module for supplier invoices.
+ * Browser-side OCR module for supplier invoices — Next.ERP-Pro.
  *
- * - Tesseract.js: pure JS OCR engine, runs entirely in the browser, no API key.
- * - pdfjs-dist: PDF rendering in the browser (worker loaded from CDN).
+ * Stack 2026-Q3 :
+ *   • Tesseract.js v6.0.1 + core v6.1.2 (LSTM only, modèles entraînés 2024+)
+ *   • pdfjs-dist v4.10.38 pour le rendu PDF (worker depuis CDN)
+ *   • Pipeline pre-processing canvas : grayscale → contraste → binarisation
+ *   • Multi-langues : fra + eng + nld + deu (couvre FR/BE/NL/DE)
+ *   • Résolution PDF : scale 3 (au lieu de 2) pour les petits caractères
+ *   • Heuristiques LAYOUT-AWARE via bbox + confidence retournés par Tesseract
+ *     → le nom du fournisseur = la plus grande police en haut de la page
  *
- * The OCR is intentionally lenient: any single field may be missing if the
- * source document is noisy / handwritten / in another language. The user is
- * always allowed to edit before saving.
+ * Tout tourne dans le navigateur, aucun envoi vers un serveur externe.
  */
 
 import Tesseract from 'tesseract.js'
 
 // Chemins CDN stables (jsdelivr) — survivent aux rebuilds Next.js.
-// Sans cela, Next.js打包 le worker Tesseract dans un chunk /_next/static/chunks/
-// qui peut être absent après un redéploiement (chunk hash obsolète), faisant
-// échouer l'OCR avec "Failed to load chunk …".
 const TESSERACT_CDN = {
-  workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',
-  corePath:   'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.0.0',
-  langPath:   'https://tessdata.projectnaptha.com/4.0.0',
+  workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/worker.min.js',
+  corePath:   'https://cdn.jsdelivr.net/npm/tesseract.js-core@6.1.2',
+  // tessdata reste sur projectnaptha — héberge les .traineddata pour 100+ langues.
+  // v6 attend le format "best" LSTM ; le path 4.0.0_best_int fournit les modèles
+  // LSTM les plus récents pour fra/eng/nld/deu.
+  langPath:   'https://tessdata.projectnaptha.com/4.0.0_best_int',
 }
 
 export interface OcrResult {
@@ -44,15 +48,105 @@ export interface OcrProgress {
 
 export type ProgressCallback = (p: OcrProgress) => void
 
+// ────────────────────────────────────────────────────────────────────────────
+// PRE-PROCESSING (canvas)
+// ────────────────────────────────────────────────────────────────────────────
+
 /**
- * Runs OCR on an image file (JPG/PNG/etc.) using French + English language data.
+ * Convertit l'image en niveaux de gris via le standard ITU-R BT.601.
+ * Améliore la lisibilité pour Tesseract sur les PDF scannés en couleur.
+ */
+function toGrayscale(imageData: ImageData): ImageData {
+  const d = imageData.data
+  for (let i = 0; i < d.length; i += 4) {
+    // BT.601 luminance : Y = 0.299 R + 0.587 G + 0.114 B
+    const y = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]
+    d[i] = d[i + 1] = d[i + 2] = y
+  }
+  return imageData
+}
+
+/**
+ * Augmente le contraste par expansion linéaire autour du milieu (128).
+ * `factor`=1.4 : +40% de contraste — valeur sûre pour la plupart des scans.
+ */
+function increaseContrast(imageData: ImageData, factor = 1.4): ImageData {
+  const d = imageData.data
+  const c = (factor - 1) * 128
+  for (let i = 0; i < d.length; i += 4) {
+    d[i]     = Math.max(0, Math.min(255, factor * d[i]     - c))
+    d[i + 1] = Math.max(0, Math.min(255, factor * d[i + 1] - c))
+    d[i + 2] = Math.max(0, Math.min(255, factor * d[i + 2] - c))
+  }
+  return imageData
+}
+
+/**
+ * Binarisation par seuil simple (Otsu serait mieux mais ~3x plus lent).
+ * `threshold`=180 : sombre = texte, clair = fond — typique pour scans PDF.
+ * Si une page a un fond très sombre, on inverse.
+ */
+function binarize(imageData: ImageData, threshold = 180): ImageData {
+  const d = imageData.data
+  // Échantillonne pour décider si on doit inverser (fond sombre, texte clair)
+  let darkCount = 0
+  const sampleStep = Math.max(4, Math.floor(d.length / 4 / 1000) * 4)
+  for (let i = 0; i < d.length; i += sampleStep * 4) {
+    if (d[i] < 128) darkCount++
+  }
+  const darkRatio = darkCount / (d.length / sampleStep / 4)
+  const invert = darkRatio > 0.6 // fond majoritairement sombre → on inverse
+  for (let i = 0; i < d.length; i += 4) {
+    const v = d[i] // après grayscale, R=G=B
+    const bw = invert ? (v > threshold ? 0 : 255) : (v > threshold ? 255 : 0)
+    d[i] = d[i + 1] = d[i + 2] = bw
+  }
+  return imageData
+}
+
+/**
+ * Pipeline pre-processing complet appliqué à un canvas.
+ * Retourne le même canvas, modifié en place.
+ */
+function preprocessCanvas(canvas: HTMLCanvasElement): void {
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  const img = ctx.getImageData(0, 0, canvas.width, canvas.height)
+  toGrayscale(img)
+  increaseContrast(img, 1.4)
+  binarize(img, 180)
+  ctx.putImageData(img, 0, 0)
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// OCR entry points
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Runs OCR on an image file (JPG/PNG/etc.) using French + English + Dutch + German.
+ * Pre-processing appliqué avant Tesseract pour maximiser la lisibilité.
  */
 export async function ocrFromImage(
   file: File,
-  lang = 'fra+eng',
+  lang = 'fra+eng+nld+deu',
   onProgress?: ProgressCallback,
 ): Promise<OcrResult> {
-  const { data } = await Tesseract.recognize(file, lang, {
+  // Charge l'image dans un canvas pour pouvoir la pré-traiter.
+  const bitmap = await createImageBitmap(file)
+  const canvas = document.createElement('canvas')
+  canvas.width  = bitmap.width
+  canvas.height = bitmap.height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Canvas 2D indisponible')
+  ctx.drawImage(bitmap, 0, 0)
+  preprocessCanvas(canvas)
+
+  const blob: Blob | null = await new Promise(resolve =>
+    canvas.toBlob(resolve, 'image/png'),
+  )
+  if (!blob) throw new Error('Échec de la conversion canvas → PNG')
+
+  const { data } = await Tesseract.recognize(blob, lang, {
     workerPath: TESSERACT_CDN.workerPath,
     corePath:   TESSERACT_CDN.corePath,
     langPath:   TESSERACT_CDN.langPath,
@@ -65,22 +159,21 @@ export async function ocrFromImage(
       }
     },
   })
-  return extractFields(data.text, data.confidence)
+  return extractFields(data.text, data.confidence, data.blocks)
 }
 
 /**
- * Runs OCR on a PDF file by rendering every page to a canvas at scale 2 and
- * feeding each page to Tesseract. Concatenates text and averages confidence.
+ * Runs OCR on a PDF file by rendering every page to a canvas at scale 3
+ * (résolution supérieure aux scale 2 précédents — meilleur pour les petits
+ * caractères), pre-processing appliqué, puis Tesseract.
+ * Concatenates text and averages confidence across pages.
  */
 export async function ocrFromPdf(
   file: File,
-  lang = 'fra+eng',
+  lang = 'fra+eng+nld+deu',
   onProgress?: ProgressCallback,
 ): Promise<OcrResult> {
-  // Dynamic import keeps pdfjs out of the initial bundle.
   const pdfjsLib = await import('pdfjs-dist')
-  // Worker is loaded from a CDN to avoid Vercel size limits on /public.
-  // Pinning a major version keeps the worker compatible with the lib.
   if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
     pdfjsLib.GlobalWorkerOptions.workerSrc =
       'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs'
@@ -93,20 +186,22 @@ export async function ocrFromPdf(
   let fullText = ''
   let totalConfidence = 0
   let pageCount = 0
+  const allBlocks: any[] = []
 
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i)
-    const viewport = page.getViewport({ scale: 2.0 })
+    // Scale 3 (vs 2 avant) : pixel-densité plus élevée pour petits caractères.
+    // Pour une A4 à 72 DPI natif → 216 DPI effectifs (qualité OCR).
+    const viewport = page.getViewport({ scale: 3.0 })
     const canvas = document.createElement('canvas')
     canvas.width = viewport.width
     canvas.height = viewport.height
     const ctx = canvas.getContext('2d')
     if (!ctx) continue
-    // pdfjs-dist 4.10.38 (installé) : `canvasContext` est la clé attendue (TypeScript + runtime).
-// NOTE: l'audit mentionnait que pdfjs-dist 4 avait renommé `canvasContext` → `canvas` ; ce n'est pas
-// le cas pour la version 4.10.38 actuellement verrouillée dans package.json. On garde donc
-// `canvasContext` pour respecter le typage strict et la compatibilité runtime.
-await page.render({ canvasContext: ctx, viewport }).promise
+    await page.render({ canvasContext: ctx, viewport }).promise
+
+    // Pre-processing canvas avant Tesseract
+    preprocessCanvas(canvas)
 
     const blob: Blob | null = await new Promise(resolve =>
       canvas.toBlob(resolve, 'image/png'),
@@ -135,11 +230,13 @@ await page.render({ canvasContext: ctx, viewport }).promise
     fullText += '\n' + data.text
     totalConfidence += data.confidence
     pageCount++
+    if (Array.isArray(data.blocks)) allBlocks.push(...data.blocks)
   }
 
   return extractFields(
     fullText,
     pageCount > 0 ? totalConfidence / pageCount : 0,
+    allBlocks,
   )
 }
 
@@ -153,83 +250,86 @@ export async function ocrInvoice(
   const isPdf =
     file.type === 'application/pdf' ||
     file.name.toLowerCase().endsWith('.pdf')
-  if (isPdf) return ocrFromPdf(file, 'fra+eng', onProgress)
-  return ocrFromImage(file, 'fra+eng', onProgress)
+  if (isPdf) return ocrFromPdf(file, 'fra+eng+nld+deu', onProgress)
+  return ocrFromImage(file, 'fra+eng+nld+deu', onProgress)
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Field extraction (regex-based heuristics for FR/BE invoices)
+// Field extraction (regex-based + layout-aware)
 // ────────────────────────────────────────────────────────────────────────────
 
-function extractFields(text: string, confidence: number): OcrResult {
+type TesseractBlock = {
+  bbox: { x0: number; y0: number; x1: number; y1: number }
+  paragraphs?: Array<{
+    bbox: { x0: number; y0: number; x1: number; y1: number }
+    lines: Array<{
+      bbox: { x0: number; y0: number; x1: number; y1: number }
+      text: string
+      confidence: number
+      words: Array<{
+        text: string
+        confidence: number
+        bbox: { x0: number; y0: number; x1: number; y1: number }
+        font_name?: string
+      }>
+    }>
+  }>
+}
+
+function extractFields(
+  text: string,
+  confidence: number,
+  blocks?: TesseractBlock[] | null,
+): OcrResult {
   const result: OcrResult = {
     rawText: text,
     confidence,
     lowConfidence: confidence > 0 && confidence < 60,
   }
 
-  result.supplier_name = extractSupplierName(text)
-  result.issue_date    = extractDate(text, /(?:date\s*(?:de\s*)?(?:facture|émission|invoice|facturatiedatum)|datum|issued|factuurdatum)/i)
+  result.supplier_name = extractSupplierName(text, blocks)
+  result.issue_date    = extractDate(text, /(?:date\s*(?:de\s*)?(?:facture|émission|invoice|facturatiedatum)|datum|issued|factuurdatum|rechnungsdatum)/i)
                         ?? extractFirstDate(text)
 
   result.due_date      = extractDate(
     text,
-    /(?:échéance|due\s*date|vervaldatum|payable\s*(?:avant|by|before)|à\s*payer\s*le|te\s*betalen)/i,
+    /(?:échéance|due\s*date|vervaldatum|payable\s*(?:avant|by|before)|à\s*payer\s*le|te\s*betalen|zahlbar)/i,
   )
 
   result.total_amount  = extractAmount(
     text,
-    /(?:total\s*(?:à\s*payer|ttc|totaal|général|invoice\s*total|general|gross|amount\s*due))/i,
+    /(?:total\s*(?:à\s*payer|ttc|totaal|général|invoice\s*total|general|gross|amount\s*due|te\s*betalen|gesamt))/i,
     true,
   )
 
   result.amount_ht     = extractAmount(
     text,
-    /(?:montant\s*(?:ht|htva|hors\s*taxe|hors\s*tv)|subtotal|net\s*(?:amount|à\s*payer)|base\s*taxable|btw\s*excl)/i,
+    /(?:montant\s*(?:ht|htva|hors\s*taxe|hors\s*tv)|subtotal|net\s*(?:amount|à\s*payer)|base\s*taxable|btw\s*excl|netto)/i,
     false,
   )
 
   result.vat_amount    = extractAmount(
     text,
-    /(?:tva|btw|vat|tax(?:es)?)(?!\s*number|\s*num)/i,
+    /(?:tva|btw|vat|tax(?:es)?|mwst)(?!\s*number|\s*num)/i,
     false,
   )
 
   result.iban          = extractIban(text)
 
-  // Reconciliation: if a value is missing but the other two are present,
-  // derive it. This makes the form usable even on poorly structured invoices.
-  if (
-    result.amount_ht === undefined &&
-    result.total_amount !== undefined &&
-    result.vat_amount !== undefined
-  ) {
+  // Reconciliation
+  if (result.amount_ht === undefined && result.total_amount !== undefined && result.vat_amount !== undefined) {
     result.amount_ht = round2(result.total_amount - result.vat_amount)
   }
-  if (
-    result.vat_amount === undefined &&
-    result.total_amount !== undefined &&
-    result.amount_ht !== undefined
-  ) {
+  if (result.vat_amount === undefined && result.total_amount !== undefined && result.amount_ht !== undefined) {
     result.vat_amount = round2(result.total_amount - result.amount_ht)
   }
-  if (
-    result.total_amount === undefined &&
-    result.amount_ht !== undefined &&
-    result.vat_amount !== undefined
-  ) {
+  if (result.total_amount === undefined && result.amount_ht !== undefined && result.vat_amount !== undefined) {
     result.total_amount = round2(result.amount_ht + result.vat_amount)
   }
 
-  // Final cleanup: strip empty optional fields so the UI doesn't render them.
   for (const k of [
-    'supplier_name',
-    'issue_date',
-    'due_date',
-    'amount_ht',
-    'vat_amount',
-    'total_amount',
-    'iban',
+    'supplier_name', 'issue_date', 'due_date',
+    'amount_ht', 'vat_amount', 'total_amount', 'iban',
   ] as const) {
     const v = result[k]
     if (v === undefined) continue
@@ -239,121 +339,168 @@ function extractFields(text: string, confidence: number): OcrResult {
   return result
 }
 
-function extractSupplierName(text: string): string | undefined {
-  // Stratégies en cascade — chacune doit être essayée avant la suivante.
-  //
-  //   Stratégie 0 : label explicite « ÉMETTEUR / FOURNISSEUR / VENDOR / SUPPLIER »
-  //                 suivi d'un nom de société sur la même ligne ou la suivante.
-  //                 Très fiable sur les factures structurées.
-  //   Stratégie 1 : suffixe juridique clair (SA, SPRL, BVBA, NV, SRL, ...)
-  //   Stratégie 2 : ligne majoritairement en MAJUSCULES (≥ 60%) avec ≥ 4 lettres
-  //   Stratégie 3 : ligne mixte (au moins 1 maj + 1 min, longueur raisonnable)
-  //   Stratégie 4 : fallback — premier candidat raisonnable
+// ────────────────────────────────────────────────────────────────────────────
+// Supplier name extraction — LAYOUT-AWARE
+// ────────────────────────────────────────────────────────────────────────────
 
+function extractSupplierName(
+  text: string,
+  blocks?: TesseractBlock[] | null,
+): string | undefined {
   const suffixes =
     /\b(?:SA|SPRL|BVBA|NV|SRL|SAS|SARL|GMBH|LTD|INC|LLC|SCS|SNC|SC|AS|AB|OY)\b\.?/i
 
-  // Labels courants en haut/au milieu d'une facture — à exclure comme nom
-  // (la ligne ne doit pas être EXACTEMENT un de ces mots).
   const labelRe = /^(?:factur[ée]?\s*[àa]|invoice\s*to|bill\s*to|client|to|from|vendor|supplier|fournisseur|emetteur|[àa]\s*:)$/i
 
-  // Mots-clés typiques d'une facture FR/BE/NL/DE qui, combinés ensemble ou
-  // répétés, indiquent une ligne de labels et PAS un nom de société :
-  //   "DATE DEMISSION DATE D'ECHEANCE CONDITIONS DE PAIEMENT"  ← bug classique
-  //   "MONTANT HT TVA TOTAL TTC"
-  //   "DATE D'EMISSION"  ← cas particulier, 2 mots-clés seulement
   const labelKeywordsRegex =
-    /\b(date|d[eé]mission|[eé]ch[eé]ance|conditions?|paiement|montant|tva|t\.?t\.?c|ttc|ht|net|brut|facture|invoice|num[ée]ro|r[ée]f[eé]rence|tbd|tba|modalit[eé]s?|escompte|remise|p[eé]nalit[eé]|int[eé]r[eê]ts?)\b/gi
+    /\b(date|d[eé]mission|[eé]ch[eé]ance|conditions?|paiement|montant|tva|t\.?t\.?c|ttc|ht|net|brut|facture|invoice|num[ée]ro|r[ée]f[eé]rence|tbd|tba|modalit[eé]s?|escompte|remise|p[eé]nalit[eé]|int[eé]r[eê]ts?|klant|leverancier|datum|btw|kvk|iban|bic|swift|rib)\b/gi
 
-  // Compteur de mots-clés label présents dans une ligne.
   const labelHit = (line: string) => {
     const re = new RegExp(labelKeywordsRegex.source, 'gi')
-    const hits = (line.match(re) || []).length
-    return hits
+    return (line.match(re) || []).length
   }
 
-  // Lignes candidates : on garde les 40 premières (marge plus large pour
-  // attraper un nom de société en haut de page).
+  const BIC_RE = /\b[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?\b/
+  const IBAN_RE = /\b[A-Z]{2}\d{2}[A-Z0-9]{10,30}\b/
+
   const rawLines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
 
   // ── Stratégie 0 : label « ÉMETTEUR / FOURNISSEUR / VENDOR / SUPPLIER / FROM »
-  //                  suivi du nom sur la même ligne OU la ligne suivante.
   const emitLineRe = /^\s*(?:[eé]metteur|emitter|exp[eé]diteur|from|vendor|supplier|fournisseur|leverancier|absender|abs\.?)\s*[:\-]?\s*(.{2,80})$/i
   for (let i = 0; i < rawLines.length; i++) {
     const m = rawLines[i].match(emitLineRe)
     if (!m) continue
     const value = (m[1] ?? '').replace(/\s+/g, ' ').trim()
-    // Le nom ne doit pas être lui-même un label ni un simple numéro/date
     if (!value || labelRe.test(value)) continue
     if (/^[\d\s.,\/\-+()]+$/.test(value)) continue
     if (labelHit(value) >= 2) continue
+    if (BIC_RE.test(value) || IBAN_RE.test(value)) continue
     if (value.length > 70) continue
     if (looksLikeCompanyName(value)) return cleanName(value)
-    // Ligne suivante (le nom peut être reporté sur 2 lignes dans le PDF)
     const next = rawLines[i + 1]?.replace(/\s+/g, ' ').trim() ?? ''
-    if (next && !labelRe.test(next) && labelHit(next) < 2 && next.length <= 70 && !/^[\d\s.,\/\-+()]+$/.test(next)) {
+    if (next && !labelRe.test(next) && labelHit(next) < 2 && next.length <= 70
+        && !/^[\d\s.,\/\-+()]+$/.test(next) && !BIC_RE.test(next) && !IBAN_RE.test(next)) {
       return cleanName(next)
     }
     return cleanName(value)
   }
 
-  // Construire la liste de candidats "propres" pour les stratégies 1-4.
+  // ── Stratégie LAYOUT-AWARE (NOUVELLE) : utilise les bbox retournées par
+  //    Tesseract. Le nom du fournisseur = la plus grande police située dans
+  //    le top 30% de la page, OU le plus grand texte confiant sur la page.
+  if (Array.isArray(blocks) && blocks.length > 0) {
+    const layoutName = extractSupplierFromLayout(blocks)
+    if (layoutName) return layoutName
+  }
+
+  // Construire la liste de candidats "propres" pour les stratégies texte-only.
   const candidates: string[] = []
   for (const raw of rawLines.slice(0, 40)) {
     const line = raw.replace(/\s+/g, ' ').trim()
     if (line.length < 3) continue
-    if (/^[\d\s.,\/\-+()]+$/.test(line)) continue          // nombres / tel / IBAN
-    if (labelRe.test(line)) continue                          // "FACTURÉ À"
-    // Rejet de toute ligne contenant ≥ 2 mots-clés label (avant on exigeait 3,
-    // mais ça ratait "DATE D'EMISSION" qui n'en a que 2).
+    if (/^[\d\s.,\/\-+()]+$/.test(line)) continue
+    if (labelRe.test(line)) continue
     if (labelHit(line) >= 2) continue
-    if (/^\d{1,4}[-/.]\d{1,2}[-/.]\d{2,4}/.test(line)) continue   // date
-    if (/@/.test(line)) continue                              // email
-    if (/^(TVA|BTW|VAT|N[°ºo])\b/i.test(line)) continue        // numéros TVA, "N°"
-    if (/^(IBAN|BIC|SWIFT|RIB)\b/i.test(line)) continue        // coordonnées bancaires
+    if (/^\d{1,4}[-/.]\d{1,2}[-/.]\d{2,4}/.test(line)) continue
+    if (/@/.test(line)) continue
+    if (/^(TVA|BTW|VAT|N[°ºo])\b/i.test(line)) continue
+    if (/^(IBAN|BIC|SWIFT|RIB)\b/i.test(line)) continue
     if (/^(T[ée]l|Tel|Phone|Fax|Gsm|Mobile|GSM)\b/i.test(line)) continue
-    if (/^https?:\/\//i.test(line)) continue                  // URL
-    // ── Patterns bancaires — très fréquent que l'OCR capte le BIC avant le nom ──
-    // BIC: 4 lettres (banque) + 2 lettres (pays) + 2 alphanum (ville) [+ 3 alphanum (agence)].
-    // Exemples typiques : KREDBEBB (KBC), GEBABEBB (BNP), DEUTDEFF (Deutsche), etc.
-    if (/\b[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?\b/.test(line)) continue
-    // IBAN : 2 lettres (pays) + 2 chiffres (clé) + 10-30 alphanum.
-    if (/\b[A-Z]{2}\d{2}[A-Z0-9]{10,30}\b/.test(line)) continue
-    // Code bancaire compact sans espace (8 à 11 majuscules consécutives).
-    // Exclut "KREDBEBB" mais garde "ACME" (4 lettres) ou "DELHAIZE" (8 lettres en maj mais composé).
+    if (/^https?:\/\//i.test(line)) continue
+    if (BIC_RE.test(line)) continue
+    if (IBAN_RE.test(line)) continue
     if (/^[A-Z]{8,11}$/.test(line)) continue
-    // Ligne de la forme "BICODE (MARQUE BANCAIRE)" — fréquent sur les factures BE/FR.
     if (/^[A-Z]{6,11}\s*\([A-Z]{2,5}\)\s*$/.test(line)) continue
-    if (line.length > 70) continue                            // trop long pour un nom
+    if (line.length > 70) continue
     candidates.push(line)
   }
 
-  // Stratégie 1 : ligne avec suffixe société clair (SA, SPRL, BVBA, ...)
   for (const line of candidates) {
     if (suffixes.test(line)) return cleanName(line)
   }
-  // Stratégie 2 : ligne majoritairement en majuscules ET ≥ 4 caractères alphabétiques
   for (const line of candidates) {
     const letters = (line.match(/\p{L}/gu) || []).length
     if (letters < 4) continue
     const upperRatio = (line.match(/[A-ZÀ-Ÿ]/g) || []).length / letters
     if (upperRatio >= 0.6) return cleanName(line)
   }
-  // Stratégie 3 : ligne mixte (ex: "ACME Industries") — au moins 1 maj + 1 min
   for (const line of candidates) {
     const letters = (line.match(/\p{L}/gu) || []).length
     if (letters < 4) continue
     if (line.length > 50) continue
     if (/[A-ZÀ-Ÿ]/.test(line) && /[a-zà-ÿ]/.test(line)) return cleanName(line)
   }
-  // Stratégie 4 : au pire, premier candidat raisonnable
   return candidates[0] ? cleanName(candidates[0]) : undefined
 }
 
 /**
- * Vérifie heuristiquement qu'une chaîne ressemble à un nom de société :
- * au moins une lettre, pas que des chiffres/symboles, pas de mots parasites.
+ * LAYOUT-AWARE supplier extraction : se base sur la position (top de page)
+ * et la taille de police (bbox.height) des lignes renvoyées par Tesseract.
+ *
+ * Heuristique : sur 95% des factures, le nom du fournisseur est dans le
+ * top 30% de la page, écrit en plus gros que les lignes de labels en-dessous.
  */
+function extractSupplierFromLayout(blocks: TesseractBlock[]): string | undefined {
+  // Récupère toutes les lignes avec leur bbox et leur texte.
+  type LineInfo = { text: string; top: number; height: number; confidence: number; yCenter: number }
+  const allLines: LineInfo[] = []
+  let pageHeight = 0
+  let pageWidth = 0
+
+  for (const block of blocks) {
+    pageHeight = Math.max(pageHeight, block.bbox.y1)
+    pageWidth = Math.max(pageWidth, block.bbox.x1)
+    for (const para of (block.paragraphs ?? [])) {
+      for (const line of (para.lines ?? [])) {
+        allLines.push({
+          text: line.text.replace(/\s+/g, ' ').trim(),
+          top: line.bbox.y0,
+          height: line.bbox.y1 - line.bbox.y0,
+          confidence: line.confidence,
+          yCenter: (line.bbox.y0 + line.bbox.y1) / 2,
+        })
+      }
+    }
+  }
+
+  if (allLines.length === 0) return undefined
+
+  // Filtre : top 30% de la page ET hauteur >= médiane (texte plus gros).
+  const headerThreshold = pageHeight * 0.35
+  const headerLines = allLines.filter(l => l.yCenter < headerThreshold && l.height > 0)
+
+  if (headerLines.length === 0) return undefined
+
+  // Calcule la médiane des hauteurs dans le header.
+  const sortedHeights = headerLines.map(l => l.height).sort((a, b) => a - b)
+  const medianHeight = sortedHeights[Math.floor(sortedHeights.length / 2)] ?? 0
+
+  // Garde seulement les lignes dont la hauteur dépasse 1.2x la médiane (vraiment gros).
+  const bigLines = headerLines
+    .filter(l => l.height >= medianHeight * 1.2 && l.confidence >= 50)
+    .sort((a, b) => b.height * b.confidence - a.height * a.confidence)
+
+  for (const ln of bigLines) {
+    if (ln.text.length < 3 || ln.text.length > 70) continue
+    if (/^[\d\s.,\/\-+()]+$/.test(ln.text)) continue
+    if (/^(TVA|BTW|VAT|N[°ºo]|IBAN|BIC|SWIFT|RIB|T[ée]l|Tel|Phone|Fax|Gsm|Mobile)\b/i.test(ln.text)) continue
+    if (/\b[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?\b/.test(ln.text)) continue
+    if (/\b[A-Z]{2}\d{2}[A-Z0-9]{10,30}\b/.test(ln.text)) continue
+    if (/^[A-Z]{8,11}$/.test(ln.text)) continue
+    if (/^\d{1,4}[-/.]\d{1,2}[-/.]\d{2,4}/.test(ln.text)) continue
+    // Refuse les lignes qui sont uniquement des mots-clés label.
+    const labelKeywordsRegexLocal =
+      /\b(date|d[eé]mission|[eé]ch[eé]ance|conditions?|paiement|montant|tva|t\.?t\.?c|ttc|ht|net|brut|facture|invoice|num[ée]ro|r[ée]f[eé]rence|tbd|tba|modalit[eé]s?|escompte|remise|p[eé]nalit[eé]|int[eé]r[eê]ts?)\b/gi
+    const hits = (ln.text.match(labelKeywordsRegexLocal) || []).length
+    if (hits >= 2) continue
+    // Au moins 3 lettres alphabétiques
+    if ((ln.text.match(/\p{L}/gu) || []).length < 3) continue
+    return cleanName(ln.text)
+  }
+
+  return undefined
+}
+
 function looksLikeCompanyName(s: string): boolean {
   const letters = (s.match(/\p{L}/gu) || []).length
   if (letters < 3) return false
@@ -363,15 +510,14 @@ function looksLikeCompanyName(s: string): boolean {
 }
 
 function cleanName(s: string): string {
-  // Collapse spaces, drop stray punctuation, return a sensible title case-ish
-  // form. Tesseract often returns ALL CAPS which doesn't match the user's
-  // saved suppliers; we keep it readable but not lower-cased.
   return s.replace(/\s+/g, ' ').trim()
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// Date / Amount / IBAN extraction (regex-based)
+// ────────────────────────────────────────────────────────────────────────────
+
 function extractFirstDate(text: string): string | undefined {
-  // Fallback used when no "Date de facture" keyword is found.
-  // Matches the first dd/mm/yyyy or dd-mm-yyyy (or yyyy-mm-dd) date.
   const m =
     text.match(/\b(\d{1,2}[-/.]\d{1,2}[-/.](?:20\d{2}|\d{2}))\b/) ||
     text.match(/\b(20\d{2}[-/.]\d{1,2}[-/.]\d{1,2})\b/)
@@ -379,11 +525,7 @@ function extractFirstDate(text: string): string | undefined {
   return normalizeDate(m[1])
 }
 
-function extractDate(
-  text: string,
-  labelRe: RegExp,
-): string | undefined {
-  // Try to find a label followed by a date within ~25 chars.
+function extractDate(text: string, labelRe: RegExp): string | undefined {
   const re = new RegExp(
     labelRe.source +
       '[^\\d\\n]{0,25}(\\d{1,2}[-/.]\\d{1,2}[-/.](?:20\\d{2}|\\d{2}))',
@@ -399,9 +541,7 @@ function normalizeDate(raw: string): string | undefined {
   if (parts.length !== 3) return undefined
   let [a, b, y] = parts
   if (!a || !b || !y) return undefined
-  // Handle 2-digit years.
   if (y.length === 2) y = '20' + y
-  // If the first part looks like a year (yyyy-mm-dd), swap.
   let d: string, m: string
   if (a.length === 4) {
     y = a
@@ -423,9 +563,6 @@ function extractAmount(
   labelRe: RegExp,
   preferLast: boolean,
 ): number | undefined {
-  // Find every line where the label appears and collect the first number that
-  // follows. If `preferLast`, take the last match (often the "Total à payer"
-  // appears below subtotals on the same document).
   const re = new RegExp(
     labelRe.source +
       '[^\\d\\n]{0,20}([\\d][\\d\\s.,]{1,15})\\s*(?:\\u20ac|eur|EUR|€)?',
@@ -442,33 +579,27 @@ function extractAmount(
 }
 
 function parseNumber(s: string): number {
-  // Accept "1 234,56", "1.234,56", "1234.56", "1,234.56", "1234,56".
   const cleaned = s.replace(/\s/g, '').replace(/[^\d.,-]/g, '')
   if (!cleaned) return 0
   const hasDot = cleaned.includes('.')
   const hasComma = cleaned.includes(',')
   if (hasDot && hasComma) {
-    // Whichever appears last is the decimal separator.
     if (cleaned.lastIndexOf(',') > cleaned.lastIndexOf('.')) {
       return parseFloat(cleaned.replace(/\./g, '').replace(',', '.')) || 0
     }
     return parseFloat(cleaned.replace(/,/g, '')) || 0
   }
   if (hasComma) {
-    // Single comma: treat as decimal separator (FR/BE convention).
     return parseFloat(cleaned.replace(/\./g, '').replace(',', '.')) || 0
   }
   return parseFloat(cleaned) || 0
 }
 
 function extractIban(text: string): string | undefined {
-  // Standard IBAN: 2 letters + 2 digits + (1-7 groups of 4 alphanumerics) +
-  // optional final group of 1-4 chars. Tolerant of spaces / hyphens.
   const m = text.match(
     /\b([A-Z]{2}\s?\d{2}(?:\s?[A-Z0-9]{1,4}){2,8})\b/i,
   )
   if (!m) return undefined
-  // Mod-97 validation (best effort, lengths 15-32).
   const compact = m[1].replace(/\s+/g, '').toUpperCase()
   if (!isValidIbanShape(compact)) return undefined
   return compact

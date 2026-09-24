@@ -276,12 +276,15 @@ export function generatePayslipPdf(input: PayslipInput): jsPDF {
   }
 
   // ── Retenues (-) ─────────────────────────────────────
-  rows.push(['− Sécurité sociale (ONSS — employé)', fmtMoney(g.grossTaxable), `${ssEmployeeRate.toFixed(2)}%`, fmtMoney(ssEmployee)])
+  // Labels raccourcis pour éviter tout wrap/débordement dans la cellule
+  // DESCRIPTION (etait "Sécurité sociale (ONSS — employé)" et
+  // "Précompte professionnel (barème progressif)" qui overflowaient).
+  rows.push(['− Sécurité sociale (ONSS)', fmtMoney(g.grossTaxable), `${ssEmployeeRate.toFixed(2)}%`, fmtMoney(ssEmployee)])
   rows.push(['− Cotisation spéciale SS', fmtMoney(g.grossTaxable), `${specialSSRate.toFixed(2)}%`, fmtMoney(specialSS)])
   if (advance > 0)    rows.push(['− Avance sur salaire', '—', '—', fmtMoney(advance)])
   if (otherDeduct > 0) rows.push(['− Autres retenues', '—', '—', fmtMoney(otherDeduct)])
   rows.push([
-    '− Précompte professionnel (barème progressif)',
+    '− Précompte professionnel',
     fmtMoney(taxableIncome),
     input.fiscal?.bracket ? `~${input.fiscal.bracket}%` : '—',
     fmtMoney(withholding),
@@ -297,17 +300,16 @@ export function generatePayslipPdf(input: PayslipInput): jsPDF {
 
   // Couleurs de dégradé bleu : primary (header), rows alternées #f0f6ff,
   // retenues #f4f7fe. Header navy primary, ligne finale NET À PAYER en
-  // bandeau navy primary. MÊME police (helvetica normal) pour toutes les
-  // lignes pour une lecture uniforme — pas de bold parasite.
-  // Pas de bordures verticales : uniquement lignes horizontales fines entre
-  // chaque row + ligne épaisse navy sous header + ligne épaisse avant NET.
-  // Police 7pt (au lieu de 8pt) pour éviter tout wrap bizarre
-  // ('S e c u r i t e   s o c i a l e' avec espaces entre lettres quand
-  // la cellule était trop étroite).
+  // bandeau navy primary. MÊME police (helvetica normal 7pt) pour TOUTES
+  // les lignes — gains, retenues, sous-totaux — pour une lecture uniforme.
+  // Header aligné exactement comme le body (col 0 à gauche, autres à droite)
+  // pour que chaque intitulé tombe pile sous son intitulé/header.
+  // Pas de bordures (theme plain) — le dégradé bleu sépare visuellement les rows.
+  // Labels courts ("TAUX" au lieu de "TAUX / MAJORATION") pour rester sur 1 ligne.
   autoTable(doc, {
     startY: y,
     margin: { left: margin, right: margin },
-    head: [['DESCRIPTION', 'BASE', 'TAUX / MAJORATION', 'MONTANT (€)']],
+    head: [['DESCRIPTION', 'BASE', 'TAUX', 'MONTANT (€)']],
     body: rows,
     theme: 'plain',
     styles: {
@@ -327,12 +329,19 @@ export function generatePayslipPdf(input: PayslipInput): jsPDF {
     },
     alternateRowStyles: { fillColor: [240, 246, 255] },
     columnStyles: {
-      0: { cellWidth: 'auto', minCellWidth: 70, halign: 'left',  valign: 'middle' },
-      1: { cellWidth: 22,                  halign: 'right', valign: 'middle' },
-      2: { cellWidth: 25,                  halign: 'right', valign: 'middle' },
-      3: { cellWidth: 55,                  halign: 'right', valign: 'middle' },
+      0: { cellWidth: 'auto', minCellWidth: 90, halign: 'left',  valign: 'middle' },
+      1: { cellWidth: 20,                  halign: 'right', valign: 'middle' },
+      2: { cellWidth: 18,                  halign: 'right', valign: 'middle' },
+      3: { cellWidth: 52,                  halign: 'right', valign: 'middle' },
     },
     didParseCell: (data) => {
+      // ── HEADER : aligne chaque intitulé comme le body en dessous ──
+      if (data.section === 'head') {
+        if (data.column.index === 0) data.cell.styles.halign = 'left'
+        else data.cell.styles.halign = 'right'
+        return
+      }
+      // ── BODY : force la même police 7pt normal partout (sauf exceptions) ──
       if (data.section !== 'body') return
       const idx = data.row.index
       const isNetRow = idx === rows.length - 1
@@ -344,22 +353,23 @@ export function generatePayslipPdf(input: PayslipInput): jsPDF {
         data.cell.styles.fontSize = 10
         return
       }
+      // Force helvetica 7pt normal sur TOUTES les autres lignes (gains + retenues)
+      data.cell.styles.font = 'helvetica'
+      data.cell.styles.fontSize = 7
+      data.cell.styles.fontStyle = 'normal'
       const desc = String(rows[idx]?.[0] ?? '')
-      const isRetenue = desc.startsWith('−')
       const isSousTotal = desc.startsWith('Brut imposable')
+      const isRetenue   = desc.startsWith('−')
       if (isSousTotal) {
         data.cell.styles.fillColor = COLORS.light
-        data.cell.styles.fontStyle = 'bold'
+        data.cell.styles.fontStyle = 'bold'  // sous-total reste en bold pour isoler visuellement
       } else if (isRetenue && idx % 2 === 0) {
         data.cell.styles.fillColor = [244, 247, 254]
       }
     },
-    // Pas de bordures verticales ni horizontales : theme 'plain' + pas de
-    // didDrawCell (le type Cell de jspdf-autotable v3 n'expose pas y/height
-    // publiquement, et l'accès via cast renvoie undefined qui fait crasher
-    // jsPDF.line avec "Invalid arguments"). Le visuel reste clean grâce au
-    // dégradé de couleurs alternées (bleu très clair) qui sépare visuellement
-    // les rows, et le bandeau navy du NET À PAYER isole clairement le total.
+    // Pas de bordures (theme plain) — pas de didDrawCell pour éviter le
+    // crash jsPDF.line "Invalid arguments" causé par cell.y/cell.height
+    // undefined à runtime (types jspdf-autotable v3 n'exposent pas ces props).
   })
   // @ts-ignore
   y = (doc.lastAutoTable?.finalY ?? y + 50) + 8
@@ -401,15 +411,9 @@ export function generatePayslipPdf(input: PayslipInput): jsPDF {
     y += 28
   }
 
-  // ── Charges patronales (info, en gris) ────────────────────────────────
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.setTextColor(...COLORS.muted)
-  doc.text(
-    `Charges patronales : ONSS ${ssEmployerRate.toFixed(2)}% = ${fmtMoney(ssEmployer)} | Coût total employeur : ${fmtMoney(employerCost)}`,
-    margin, y,
-  )
-  y += 6
+  // (Charges patronales + Coût total employeur retirés de la fiche de paie
+  //  sur demande utilisateur — info déjà connue de l'employeur, n'apporte
+  //  rien au salarié et alourdit le document.)
 
   // ── Mode de paiement + coordonnées bancaires ──────────────────────────
   doc.setDrawColor(...COLORS.border)

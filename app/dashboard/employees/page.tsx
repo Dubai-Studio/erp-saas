@@ -1335,8 +1335,14 @@ export default function EmployeesPage() {
       setProjects(toArray<Project>(projRaw));
       // Dé-wrap la réponse api-helpers.ok({ data }) : { data: { ...settings } }
       if (companyRaw && !companyRaw.error) {
-        const wrapped = companyRaw as { data?: CompanySettings } | CompanySettings
-        setCompany('data' in wrapped ? (wrapped.data ?? null) : wrapped)
+        // L'API renvoie soit { data: {...} } soit {...} directement.
+        // On accepte les deux formes pour eviter de casser si l'API evolue.
+        const wrapper = companyRaw as { data?: CompanySettings }
+        if (wrapper.data && typeof wrapper.data === 'object') {
+          setCompany(wrapper.data)
+        } else {
+          setCompany(companyRaw as CompanySettings)
+        }
       }
     } catch (e) {
       console.error('HR load error:', e);

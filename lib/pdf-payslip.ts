@@ -361,12 +361,19 @@ export function generatePayslipPdf(input: PayslipInput): jsPDF {
       const rightX = leftX + (table as any).width   // largeur totale du tableau
       const HR_COLOR: [number, number, number] = [220, 226, 235]
       const HEADER_COLOR: [number, number, number] = COLORS.primary
+      // row.y n'est pas exposé dans le type Row (jspdf-autotable v3) — on
+      // passe par cell.y + cell.height qui est public et précis (toutes les
+      // cellules d'une même row ont la même hauteur dans ce tableau).
+      const cellBottomY = (cell as any).y + (cell as any).height
+      // On calcule aussi le top de la row (= bottom de la row précédente) via
+      // cell.y pour la ligne épaisse avant NET
+      const rowTopY = (cell as any).y
 
       // Ligne épaisse navy SOUS le header
       if (section === 'head' && column.index === 0) {
         doc.setDrawColor(...HEADER_COLOR)
         doc.setLineWidth(0.5)
-        doc.line(leftX, cell.y + cell.height, rightX, cell.y + cell.height)
+        doc.line(leftX, cellBottomY, rightX, cellBottomY)
         return
       }
       // Pour le body, on ne dessine qu'une seule fois par row (1ʳᵉ colonne)
@@ -376,13 +383,13 @@ export function generatePayslipPdf(input: PayslipInput): jsPDF {
       if (row.index < table.body.length - 1) {
         doc.setDrawColor(...HR_COLOR)
         doc.setLineWidth(0.15)
-        doc.line(leftX, row.y + row.height, rightX, row.y + row.height)
+        doc.line(leftX, cellBottomY, rightX, cellBottomY)
       }
       // Ligne épaisse navy juste avant la ligne NET (avant-dernière row)
       if (row.index === table.body.length - 2) {
         doc.setDrawColor(...HEADER_COLOR)
         doc.setLineWidth(0.5)
-        doc.line(leftX, row.y, rightX, row.y)
+        doc.line(leftX, rowTopY, rightX, rowTopY)
       }
     },
   })

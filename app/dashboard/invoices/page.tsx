@@ -1596,7 +1596,9 @@ export default function InvoicesPage() {
       try {
         const res = await fetch('/api/settings', { credentials: 'include' })
         if (res.ok) {
-          const d = await res.json()
+          const json = await res.json()
+          // Dé-wrap api-helpers.ok({ data }) : { data: { ...settings } }
+          const d = (json?.data ?? json) as Record<string, any>
           setCompanyData({
             name:    d.company_name || COMPANY.name,
             address: d.address      || COMPANY.address,

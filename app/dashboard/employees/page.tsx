@@ -1333,7 +1333,11 @@ export default function EmployeesPage() {
       setAdjustments(toArray<PayAdjustment>(adjRaw));
       setTimeEntries(toArray<TimeEntry>(timeRaw));
       setProjects(toArray<Project>(projRaw));
-      if (companyRaw && !companyRaw.error) setCompany(companyRaw);
+      // Dé-wrap la réponse api-helpers.ok({ data }) : { data: { ...settings } }
+      if (companyRaw && !companyRaw.error) {
+        const wrapped = companyRaw as { data?: CompanySettings } | CompanySettings
+        setCompany('data' in wrapped ? (wrapped.data ?? null) : wrapped)
+      }
     } catch (e) {
       console.error('HR load error:', e);
       setEmployees([]); setAdjustments([]); setTimeEntries([]); setProjects([]);

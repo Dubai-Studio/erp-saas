@@ -39,7 +39,7 @@ const DEFAULTS: CompanySettings = {
   zip_code:         '1060',
   country:          'Belgique',
   vat_number:       'BE 0811.234.358',
-  email:            '',
+  email:            'vertuose.intervention@gmail.com',
   phone:            '0484 701 235',
   iban:             'BE47 7370 6594 4380',
   bic:              'KREDBEBB',

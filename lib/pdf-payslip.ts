@@ -295,34 +295,42 @@ export function generatePayslipPdf(input: PayslipInput): jsPDF {
     fmtMoney(netSalary),
   ])
 
-  // Couleurs de dégradé bleu : primary (header), accent (rows retenues alternées)
-  // Largeurs de colonnes : on laisse l'auto-fill sur la description,
-  // on elargit BASE/TAUX/MONTANT pour eviter tout overflow de chiffre.
-  // Marges reduites dans les cellules pour gagner de la place.
+  // Couleurs de dégradé bleu : primary (header), rows alternées #f0f6ff,
+  // retenues #f4f7fe. Header navy primary, ligne finale NET À PAYER en
+  // bandeau navy primary. MÊME police (helvetica normal) pour toutes les
+  // lignes pour une lecture uniforme — pas de bold parasite.
+  // Pas de bordures verticales : uniquement lignes horizontales fines entre
+  // chaque row + ligne épaisse navy sous header + ligne épaisse avant NET.
+  // Police 7pt (au lieu de 8pt) pour éviter tout wrap bizarre
+  // ('S e c u r i t e   s o c i a l e' avec espaces entre lettres quand
+  // la cellule était trop étroite).
   autoTable(doc, {
     startY: y,
     margin: { left: margin, right: margin },
     head: [['DESCRIPTION', 'BASE', 'TAUX / MAJORATION', 'MONTANT (€)']],
     body: rows,
-    theme: 'grid',
+    theme: 'plain',
     styles: {
-      // Police normale (helvetica regular), taille de base 8.5pt
-      font: 'helvetica', fontStyle: 'normal', fontSize: 8,
-      cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 },
-      overflow: 'linebreak',    // wrap au lieu de pousser
+      font: 'helvetica', fontStyle: 'normal', fontSize: 7,
+      cellPadding: { top: 2, bottom: 2, left: 4, right: 4 },
+      overflow: 'linebreak',
+      valign: 'middle',
+      lineWidth: 0,
       lineColor: [220, 226, 235],
-      lineWidth: 0.2,
     },
     headStyles: {
       fillColor: COLORS.primary, textColor: COLORS.white,
-      fontStyle: 'bold', fontSize: 8.5, cellPadding: { top: 3, bottom: 3 },
+      fontStyle: 'bold', fontSize: 8,
+      cellPadding: { top: 3, bottom: 3, left: 4, right: 4 },
+      valign: 'middle',
+      lineWidth: 0,
     },
-    alternateRowStyles: { fillColor: [240, 246, 255] }, // bleu très clair
+    alternateRowStyles: { fillColor: [240, 246, 255] },
     columnStyles: {
-      0: { cellWidth: 'auto', minCellWidth: 55 },
-      1: { cellWidth: 22, halign: 'right' },
-      2: { cellWidth: 25, halign: 'right' },
-      3: { cellWidth: 60, halign: 'right' },
+      0: { cellWidth: 'auto', minCellWidth: 70, halign: 'left',  valign: 'middle' },
+      1: { cellWidth: 22,                  halign: 'right', valign: 'middle' },
+      2: { cellWidth: 25,                  halign: 'right', valign: 'middle' },
+      3: { cellWidth: 55,                  halign: 'right', valign: 'middle' },
     },
     didParseCell: (data) => {
       if (data.section !== 'body') return
@@ -333,7 +341,7 @@ export function generatePayslipPdf(input: PayslipInput): jsPDF {
         data.cell.styles.fillColor = COLORS.primary
         data.cell.styles.textColor = COLORS.white
         data.cell.styles.fontStyle = 'bold'
-        data.cell.styles.fontSize = 10.5
+        data.cell.styles.fontSize = 10
         return
       }
       const desc = String(rows[idx]?.[0] ?? '')
@@ -344,6 +352,37 @@ export function generatePayslipPdf(input: PayslipInput): jsPDF {
         data.cell.styles.fontStyle = 'bold'
       } else if (isRetenue && idx % 2 === 0) {
         data.cell.styles.fillColor = [244, 247, 254]
+      }
+    },
+    // Bordures : uniquement horizontales, dessinées à la main
+    didDrawCell: (data) => {
+      const { doc, cell, row, column, table, section } = data
+      const leftX  = table.settings.margin.left
+      const rightX = leftX + table.settings.table.width
+      const HR_COLOR: [number, number, number] = [220, 226, 235]
+      const HEADER_COLOR: [number, number, number] = COLORS.primary
+
+      // Ligne épaisse navy SOUS le header
+      if (section === 'head' && column.index === 0) {
+        doc.setDrawColor(...HEADER_COLOR)
+        doc.setLineWidth(0.5)
+        doc.line(leftX, cell.y + cell.height, rightX, cell.y + cell.height)
+        return
+      }
+      // Pour le body, on ne dessine qu'une seule fois par row (1ʳᵉ colonne)
+      if (section !== 'body' || column.index !== 0) return
+
+      // Ligne horizontale fine entre chaque row
+      if (row.index < table.body.length - 1) {
+        doc.setDrawColor(...HR_COLOR)
+        doc.setLineWidth(0.15)
+        doc.line(leftX, row.y + row.height, rightX, row.y + row.height)
+      }
+      // Ligne épaisse navy juste avant la ligne NET (avant-dernière row)
+      if (row.index === table.body.length - 2) {
+        doc.setDrawColor(...HEADER_COLOR)
+        doc.setLineWidth(0.5)
+        doc.line(leftX, row.y, rightX, row.y)
       }
     },
   })

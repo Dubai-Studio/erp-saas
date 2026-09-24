@@ -311,7 +311,7 @@ export const TimeEntryCreate = z.object({
   hourly_rate:    nonNegativeNum.default(0),
   rate_applied:   z.number().min(0).max(100).default(0),
   amount:         nonNegativeNum.nullish(),
-  status:         z.enum(['draft', 'submitted', 'approved', 'paid']).default('draft'),
+  status:         z.enum(['draft', 'submitted', 'approved', 'validated', 'paid', 'rejected']).default('draft'),
   notes:          optionalString,
 })
 
@@ -363,7 +363,7 @@ export const TimeEntryUpdate = z.object({
   hourly_rate:    nonNegativeNum.optional(),
   rate_applied:   z.number().min(0).max(100).optional(),
   amount:         nonNegativeNum.nullish(),
-  status:         z.enum(['draft', 'submitted', 'approved', 'paid']).optional(),
+  status:         z.enum(['draft', 'submitted', 'approved', 'validated', 'paid', 'rejected']).optional(),
   notes:          optionalString,
 })
 

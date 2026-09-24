@@ -247,174 +247,101 @@ export function generatePayslipPdf(input: PayslipInput): jsPDF {
   const employerCost  = round2(g.grossTotal + ssEmployer)
   const totalRetenues = round2(ssEmployee + specialSS + advance + otherDeduct + withholding)
 
-  // ── Tableau GAINS ──────────────────────────────────────────────────────
-  const gainRows: Array<[string, string, string, string]> = []
-  // Ligne salaire de base — toujours affichée
+  // ── Tableau UNIFIE gains + retenues (bleu, +/- par ligne) ──────────
+  // Chaque ligne commence par '+' pour les gains et '-' pour les retenues
+  // pour une lecture immédiate.
+  const rows: Array<[string, string, string, string]> = []
+
+  // ── Gains (+) ─────────────────────────────────────────
   if (employee.hourly_rate && employee.hours_worked !== undefined) {
-    gainRows.push([
-      'Salaire de base (horaire)',
-      `${(employee.hours_worked ?? 0).toFixed(1)} h`,
-      `${fmtMoney(employee.hourly_rate)}/h`,
-      fmtMoney(g.baseAmount),
-    ])
+    rows.push(['+ Salaire de base (horaire)', `${(employee.hours_worked ?? 0).toFixed(1)} h`, `${fmtMoney(employee.hourly_rate)}/h`, fmtMoney(g.baseAmount)])
   } else {
-    gainRows.push([
-      'Salaire de base (mensuel)',
-      '1 mois',
-      '—',
-      fmtMoney(g.baseAmount),
-    ])
+    rows.push(['+ Salaire de base (mensuel)', '1 mois', '—', fmtMoney(g.baseAmount)])
   }
   if ((employee.overtime_hours ?? 0) > 0) {
-    gainRows.push([
-      'Heures supplémentaires (+50%)',
-      `${employee.overtime_hours} h`,
-      `${fmtMoney(employee.overtime_rate ?? 0)}/h`,
-      fmtMoney(g.overtimeAmount),
-    ])
+    rows.push(['+ Heures supplémentaires (+50%)', `${employee.overtime_hours} h`, `${fmtMoney(employee.overtime_rate ?? 0)}/h`, fmtMoney(g.overtimeAmount)])
   }
   if ((employee.night_hours ?? 0) > 0) {
-    gainRows.push([
-      'Heures de nuit (+20%)',
-      `${employee.night_hours} h`,
-      `${fmtMoney(employee.night_rate ?? 0)}/h`,
-      fmtMoney(g.nightAmount),
-    ])
+    rows.push(['+ Heures de nuit (+20%)', `${employee.night_hours} h`, `${fmtMoney(employee.night_rate ?? 0)}/h`, fmtMoney(g.nightAmount)])
   }
   if ((employee.weekend_hours ?? 0) > 0) {
-    gainRows.push([
-      'Heures week-end (+50%)',
-      `${employee.weekend_hours} h`,
-      `${fmtMoney(employee.weekend_rate ?? 0)}/h`,
-      fmtMoney(g.weekendAmount),
-    ])
+    rows.push(['+ Heures week-end (+50%)', `${employee.weekend_hours} h`, `${fmtMoney(employee.weekend_rate ?? 0)}/h`, fmtMoney(g.weekendAmount)])
   }
   if (g.bonus > 0) {
-    gainRows.push(['Primes / bonus', '—', '—', fmtMoney(g.bonus)])
+    rows.push(['+ Primes / bonus', '—', '—', fmtMoney(g.bonus)])
   }
-  // Total brut imposable
-  gainRows.push([
-    'SALAIRE BRUT IMPOSABLE',
-    `${g.totalHours.toFixed(1)} h`,
-    '—',
-    fmtMoney(g.grossTaxable),
-  ])
+  rows.push([`Brut imposable (${g.totalHours.toFixed(1)} h)`, '—', '—', fmtMoney(g.grossTaxable)])
   if (g.grossNonTaxable > 0) {
-    gainRows.push([
-      'Indemnités non imposables',
-      '—',
-      '—',
-      fmtMoney(g.grossNonTaxable),
-    ])
-    gainRows.push(['SALAIRE BRUT TOTAL', '—', '—', fmtMoney(g.grossTotal)])
+    rows.push(['+ Indemnités non imposables', '—', '—', fmtMoney(g.grossNonTaxable)])
   }
 
-  autoTable(doc, {
-    startY: y,
-    margin: { left: margin, right: margin },
-    head: [['GAINS', 'BASE', 'TAUX', 'MONTANT']],
-    body: gainRows,
-    theme: 'grid',
-    headStyles: {
-      fillColor: COLORS.primary, textColor: COLORS.white,
-      fontStyle: 'bold', fontSize: 9, halign: 'left',
-    },
-    bodyStyles: { fontSize: 9, textColor: COLORS.text },
-    columnStyles: {
-      0: { cellWidth: 'auto',  fontStyle: 'normal' },
-      1: { cellWidth: 22, halign: 'right' },
-      2: { cellWidth: 28, halign: 'right' },
-      3: { cellWidth: 35, halign: 'right', fontStyle: 'bold' },
-    },
-    didParseCell: (data) => {
-      if (data.section === 'body' && data.row.index === gainRows.length - 1 && g.grossNonTaxable > 0) {
-        data.cell.styles.fillColor = COLORS.light
-        data.cell.styles.fontStyle = 'bold'
-      }
-      // Total brut imposable toujours en bold + fond gris
-      if (data.section === 'body' && data.row.index === gainRows.length - (g.grossNonTaxable > 0 ? 2 : 1)) {
-        data.cell.styles.fillColor = COLORS.light
-        data.cell.styles.fontStyle = 'bold'
-      }
-    },
-  })
-  // @ts-ignore
-  y = (doc.lastAutoTable?.finalY ?? y + 60) + 6
-
-  // ── Tableau RETENUES ───────────────────────────────────────────────────
-  const retenueRows: Array<[string, string, string, string]> = [
-    [
-      'Sécurité sociale (ONSS — employé)',
-      fmtMoney(g.grossTaxable),
-      `${ssEmployeeRate.toFixed(2)}%`,
-      fmtMoney(ssEmployee),
-    ],
-    [
-      'Cotisation spéciale sécurité sociale',
-      fmtMoney(g.grossTaxable),
-      `${specialSSRate.toFixed(2)}%`,
-      fmtMoney(specialSS),
-    ],
-  ]
-  if (advance > 0) {
-    retenueRows.push(['Avance sur salaire', '—', '—', fmtMoney(advance)])
-  }
-  if (otherDeduct > 0) {
-    retenueRows.push(['Autres retenues', '—', '—', fmtMoney(otherDeduct)])
-  }
-  retenueRows.push([
-    'Précompte professionnel (barème progressif)',
+  // ── Retenues (-) ─────────────────────────────────────
+  rows.push(['− Sécurité sociale (ONSS — employé)', fmtMoney(g.grossTaxable), `${ssEmployeeRate.toFixed(2)}%`, fmtMoney(ssEmployee)])
+  rows.push(['− Cotisation spéciale SS', fmtMoney(g.grossTaxable), `${specialSSRate.toFixed(2)}%`, fmtMoney(specialSS)])
+  if (advance > 0)    rows.push(['− Avance sur salaire', '—', '—', fmtMoney(advance)])
+  if (otherDeduct > 0) rows.push(['− Autres retenues', '—', '—', fmtMoney(otherDeduct)])
+  rows.push([
+    '− Précompte professionnel (barème progressif)',
     fmtMoney(taxableIncome),
     input.fiscal?.bracket ? `~${input.fiscal.bracket}%` : '—',
     fmtMoney(withholding),
   ])
-  retenueRows.push(['TOTAL RETENUES', '—', '—', fmtMoney(totalRetenues)])
 
+  // ── Total NET (ligne finale sur fond bleu primary) ────
+  rows.push([
+    `NET À PAYER  (versement le ${formatDate(period.payment_date)})`,
+    '',
+    '',
+    fmtMoney(netSalary),
+  ])
+
+  // Couleurs de dégradé bleu : primary (header), accent (rows retenues alternées)
   autoTable(doc, {
     startY: y,
     margin: { left: margin, right: margin },
-    head: [['RETENUES', 'BASE', 'TAUX', 'MONTANT']],
-    body: retenueRows,
+    head: [['DESCRIPTION', 'BASE', 'TAUX / MAJORATION', 'MONTANT']],
+    body: rows,
     theme: 'grid',
     headStyles: {
-      fillColor: COLORS.danger, textColor: COLORS.white,
-      fontStyle: 'bold', fontSize: 9,
+      fillColor: COLORS.primary, textColor: COLORS.white,
+      fontStyle: 'bold', fontSize: 9.5,
     },
     bodyStyles: { fontSize: 9, textColor: COLORS.text },
+    alternateRowStyles: { fillColor: [240, 246, 255] }, // bleu très clair
     columnStyles: {
       0: { cellWidth: 'auto' },
-      1: { cellWidth: 22, halign: 'right' },
-      2: { cellWidth: 28, halign: 'right' },
-      3: { cellWidth: 35, halign: 'right', fontStyle: 'bold' },
+      1: { cellWidth: 26, halign: 'right' },
+      2: { cellWidth: 30, halign: 'right' },
+      3: { cellWidth: 38, halign: 'right', fontStyle: 'bold' },
     },
     didParseCell: (data) => {
-      if (data.section === 'body' && data.row.index === retenueRows.length - 1) {
+      if (data.section !== 'body') return
+      const idx = data.row.index
+      const isNetRow = idx === rows.length - 1
+      // Ligne NET : gros, fond primary navy, texte blanc
+      if (isNetRow) {
+        data.cell.styles.fillColor = COLORS.primary
+        data.cell.styles.textColor = COLORS.white
+        data.cell.styles.fontStyle = 'bold'
+        data.cell.styles.fontSize = 12
+        return
+      }
+      const desc = String(rows[idx]?.[0] ?? '')
+      const isRetenue = desc.startsWith('−')
+      const isSousTotal = desc.startsWith('Brut imposable')
+      if (isSousTotal) {
         data.cell.styles.fillColor = COLORS.light
+        data.cell.styles.fontStyle = 'bold'
+      } else if (isRetenue && idx % 2 === 0) {
+        // retenues impaires : fond bleu très clair pour différencier
+        data.cell.styles.fillColor = [244, 247, 254]
       }
     },
   })
   // @ts-ignore
   y = (doc.lastAutoTable?.finalY ?? y + 50) + 8
 
-  // ── Bloc NET À PAYER (gros, mis en évidence) + cumuls YTD ────────────
-  const netBoxH = 28
-  doc.setFillColor(...COLORS.success)
-  doc.roundedRect(margin, y, contentW, netBoxH, 3, 3, 'F')
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(11)
-  doc.setTextColor(...COLORS.white)
-  doc.text('NET À PAYER', margin + 6, y + 9)
-  doc.setFontSize(7.5)
-  doc.setTextColor(220, 255, 235)
-  doc.text(`Versement le ${formatDate(period.payment_date)}`, margin + 6, y + 14)
-  doc.setFontSize(22)
-  doc.setTextColor(...COLORS.white)
-  doc.text(fmtMoney(netSalary), pageWidth - margin - 6, y + 17, { align: 'right' })
-  if (employee.payment_method) {
-    doc.setFontSize(8)
-    doc.text(employee.payment_method, pageWidth - margin - 6, y + 23, { align: 'right' })
-  }
-  y += netBoxH + 6
+  // ── Cumul annuel YTD (si fourni) ──────────────────────────
 
   // ── Cumul annuel YTD (si fourni) ──────────────────────────────────────
   if (input.ytd && (input.ytd.gross !== undefined || input.ytd.net !== undefined)) {

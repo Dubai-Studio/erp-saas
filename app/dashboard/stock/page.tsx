@@ -75,7 +75,26 @@ const MOVEMENT_TYPES: Record<string, { label: string; color: string; bg: string;
   loss:       { label: 'Perte',      color: '#9f1239', bg: '#fff1f2', sign: -1 },
 }
 
-const COMPANY = { name: 'Wasalak SPRL', address: 'Bruxelles, Belgique', vat: 'BE 0000.000.000' }
+// Avant : const COMPANY = { name: 'Wasalak SPRL', ... } hardcodé.
+// Maintenant : company est chargée depuis /api/settings (cohérent avec les
+// autres pages : employees, invoices). Si pas encore chargé, fallback honnête.
+interface CompanyLite {
+  company_name: string
+  address:      string
+  city:         string
+  zip_code:     string
+  country:      string
+  vat_number:   string
+  email:        string
+  phone:        string
+  iban:         string
+  bic:          string
+}
+const DEFAULT_COMPANY: CompanyLite = {
+  company_name: '—',
+  address: '', city: '', zip_code: '', country: 'Belgique',
+  vat_number: '', email: '', phone: '', iban: '', bic: '',
+}
 
 const EMPTY: Omit<StockItem, 'id' | 'created_at'> = {
   name: '', reference: '', category: CATEGORIES[0], quantity: 0,
@@ -142,7 +161,9 @@ const btn   = (c = '#2563eb') => ({ background:c, color:'#fff', border:'none', b
 const btnGh = { background:'transparent', color:'#64748b', border:'1px solid #e2e8f0', borderRadius:8, padding:'8px 14px', fontSize:13, fontWeight:500, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }
 
 // ─── PDF Report Generator ─────────────────────────────────────────────────────
-async function generateStockPDF(items: StockItem[], valuation: StockValuation) {
+// company: passé par le composant principal (chargé depuis /api/settings).
+// Plus de COMPANY hardcodé — fallback honnête '—' si pas encore chargé.
+async function generateStockPDF(items: StockItem[], valuation: StockValuation, company: CompanyLite) {
   const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
     import('jspdf'),
     import('jspdf-autotable'),
@@ -157,7 +178,10 @@ async function generateStockPDF(items: StockItem[], valuation: StockValuation) {
   doc.setFontSize(16); doc.setFont('helvetica', 'bold')
   doc.text('RAPPORT DE STOCK', 14, 12)
   doc.setFontSize(9); doc.setFont('helvetica', 'normal')
-  doc.text(`${COMPANY.name} — TVA: ${COMPANY.vat}`, 14, 20)
+  const companyHeader = company.company_name
+    ? `${company.company_name}${company.vat_number ? ` — TVA: ${company.vat_number}` : ''}`
+    : '—'
+  doc.text(companyHeader, 14, 20)
   doc.text(`Généré le ${now}`, W - 14, 20, { align: 'right' })
 
   const kpis = [
@@ -206,14 +230,14 @@ async function generateStockPDF(items: StockItem[], valuation: StockValuation) {
   for (let p = 1; p <= pages; p++) {
     doc.setPage(p)
     doc.setFontSize(7); doc.setTextColor(148, 163, 184)
-    doc.text(`${COMPANY.name} — Rapport confidentiel`, 14, 205)
+    doc.text(`${company.company_name || '—'} — Rapport confidentiel`, 14, 205)
     doc.text(`Page ${p} / ${pages}`, W - 14, 205, { align: 'right' })
   }
   doc.save(`rapport-stock-${todayStr()}.pdf`)
 }
 
 // ─── Movement PDF ─────────────────────────────────────────────────────────────
-async function generateMovementPDF(movements: StockMovement[]) {
+async function generateMovementPDF(movements: StockMovement[], company: CompanyLite) {
   const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
     import('jspdf'),
     import('jspdf-autotable'),
@@ -226,7 +250,7 @@ async function generateMovementPDF(movements: StockMovement[]) {
   doc.setTextColor(255, 255, 255); doc.setFontSize(15); doc.setFont('helvetica', 'bold')
   doc.text('JOURNAL DES MOUVEMENTS DE STOCK', 14, 12)
   doc.setFontSize(9); doc.setFont('helvetica', 'normal')
-  doc.text(COMPANY.name, 14, 20)
+  doc.text(company.company_name || '—', 14, 20)
   doc.text(`Édité le ${now}`, W - 14, 20, { align: 'right' })
 
   autoTable(doc, {
@@ -250,7 +274,7 @@ async function generateMovementPDF(movements: StockMovement[]) {
   for (let p = 1; p <= pages; p++) {
     doc.setPage(p)
     doc.setFontSize(7); doc.setTextColor(148, 163, 184)
-    doc.text(COMPANY.name, 14, 290)
+    doc.text(company.company_name || '—', 14, 290)
     doc.text(`Page ${p} / ${pages}`, W - 14, 290, { align: 'right' })
   }
   doc.save(`journal-mouvements-${todayStr()}.pdf`)
@@ -767,6 +791,7 @@ export default function StockPage() {
   const [movements,  setMovements]  = useState<StockMovement[]>([])
   const [loading,    setLoading]    = useState(true)
   const [view,       setView]       = useState<'list' | 'grid'>('list')
+  const [company,    setCompany]    = useState<CompanyLite>(DEFAULT_COMPANY)
 
   const [search,     setSearch]     = useState('')
   const [statusF,    setStatusF]    = useState('')
@@ -782,10 +807,30 @@ export default function StockPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [its, movs] = await Promise.all([
+    // Charge en parallèle : items + mouvements + company_settings (pour les PDFs)
+    const [its, movs, settingsRes] = await Promise.all([
       fetchSafe<StockItem>('/api/stock'),
       fetchSafe<StockMovement>('/api/stock-movements'),
+      fetch('/api/settings', { credentials: 'include' })
+        .then(r => r.ok ? r.json() : null)
+        .catch(() => null),
     ])
+    // De-wrap la réponse API { data: {...} }
+    const c = (settingsRes?.data ?? settingsRes) as Partial<CompanyLite> | null
+    if (c && typeof c === 'object') {
+      setCompany({
+        company_name: c.company_name ?? '—',
+        address:      c.address      ?? '',
+        city:         c.city         ?? '',
+        zip_code:     c.zip_code     ?? '',
+        country:      c.country      ?? 'Belgique',
+        vat_number:   c.vat_number   ?? '',
+        email:        c.email        ?? '',
+        phone:        c.phone        ?? '',
+        iban:         c.iban         ?? '',
+        bic:          c.bic          ?? '',
+      })
+    }
     const enriched = its.map(i => ({
       ...i,
       status:        autoStatus(Number(i.quantity) || 0, Number(i.min_quantity) || 0),
@@ -892,8 +937,8 @@ const saveMovement = async (data: Omit<StockMovement, 'id' | 'created_at'>) => {
           <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
             <button onClick={load}                                  style={btnGh}>{I.refresh} Actualiser</button>
             <button onClick={() => exportCSV(filtered)}             style={btnGh}>{I.export}  CSV</button>
-            <button onClick={() => generateStockPDF(filtered, valuation)} style={btnGh}>{I.pdf} Rapport PDF</button>
-            <button onClick={() => generateMovementPDF(movements)}  style={btnGh}>{I.move}    Journal PDF</button>
+            <button onClick={() => generateStockPDF(filtered, valuation, company)} style={btnGh}>{I.pdf} Rapport PDF</button>
+            <button onClick={() => generateMovementPDF(movements, company)}  style={btnGh}>{I.move}    Journal PDF</button>
             <button onClick={() => setShowMovModal(true)}           style={btn('#7c3aed')}>{I.move} Mouvement</button>
             <button onClick={openCreate}                            style={btn()}>{I.plus}     Nouvel article</button>
           </div>

@@ -12,7 +12,7 @@ export const GET = withAuth(async ({ req, supabase }) => {
   if (status)   q = q.eq('status', status)
   if (category) q = q.eq('category', category)
   if (search)   q = q.or(`name.ilike.%${search}%,sku.ilike.%${search}%,reference.ilike.%${search}%`)
-  if (lowOnly)  q = q.lte('quantity', 0) // fallback ; géré en post-fetch
+  if (lowOnly)  q = q.or('status.eq.low_stock,status.eq.out_of_stock')
 
   const { data, error } = await q
   if (error) return badRequest(error.message)

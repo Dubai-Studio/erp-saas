@@ -244,7 +244,11 @@ export const StockItemCreate = z.object({
   expiry_date:    isoDate.nullish(),
 })
 
-export const StockItemUpdate = StockItemCreate.partial()
+// Update : tous les champs optionnels, MAIS name reste obligatoire non-vide
+// si fourni (sinon on pourrait vider le nom d'un article via PATCH).
+export const StockItemUpdate = StockItemCreate.partial().extend({
+  name: z.string().trim().min(1).max(200).optional(),
+})
 
 export const StockMovementCreate = z.object({
   // Ta DB utilise stock_item_id (FK vers stock_items). On garde une API claire.

@@ -86,10 +86,15 @@ export const POST = withAuth(async ({ supabase, params, body }) => {
     else if (a.type === 'retenue') otherDeduct += Math.abs(Number(a.amount || 0))
   }
 
-  // Récupère paramètres société
+  // Récupère paramètres société. Robuste aux doublons : ORDER BY updated_at
+  // DESC + LIMIT 1 + maybeSingle() retourne la ligne la plus récente pour
+  // l'user courant (RLS filtre par user_id = auth.uid()).
   const { data: company } = await supabase
     .from('company_settings')
     .select('*')
+    .order('updated_at', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(1)
     .maybeSingle()
 
   const baseSalary = Number(employee.salary || 0)

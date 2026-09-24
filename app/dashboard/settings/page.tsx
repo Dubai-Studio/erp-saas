@@ -113,10 +113,12 @@ export default function SettingsPage() {
       const uid = data.session.user.id
       setUserId(uid)
 
-      // 1. Charge les settings
+      // 1. Charge les settings. NOTE: l'API renvoie { data: ... } (wrappé via
+      //    ok() dans lib/api-helpers). Il faut dé-wrapper pour lire les champs.
       const res = await fetch('/api/settings', { credentials: 'include' })
       if (res.ok) {
-        const d = await res.json()
+        const json = await res.json()
+        const d = (json?.data ?? json) as Partial<CompanySettings> | null
         const merged: CompanySettings = {
           company_name:     d?.company_name     ?? DEFAULTS.company_name,
           address:          d?.address          ?? DEFAULTS.address,
@@ -300,13 +302,27 @@ export default function SettingsPage() {
             Ces informations apparaîtront sur toutes vos factures et documents générés.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setUnlocked(false)}
-          style={{ padding: '8px 14px', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: 9, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-        >
-          🔒 Verrouiller
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            type="button"
+            onClick={() => {
+              if (confirm('Restaurer les valeurs par défaut VERTUOSE S.P.R.L. ?')) {
+                setForm(DEFAULTS)
+              }
+            }}
+            style={{ padding: '8px 14px', background: '#fff7ed', color: '#9a3412', border: '1px solid #fed7aa', borderRadius: 9, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+            title="Pré-remplit avec les valeurs VERTUOSE S.P.R.L. — n'oubliez pas de cliquer Sauvegarder ensuite"
+          >
+            🏢 Restaurer VERTUOSE
+          </button>
+          <button
+            type="button"
+            onClick={() => setUnlocked(false)}
+            style={{ padding: '8px 14px', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: 9, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+          >
+            🔒 Verrouiller
+          </button>
+        </div>
       </div>
 
       <form onSubmit={handleSave}>

@@ -215,18 +215,39 @@ export function drawFooter(
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers communs
 // ─────────────────────────────────────────────────────────────────────────────
+/**
+ * Formate un montant en format belge (4 300,00 €).
+ *
+ * IMPORTANT : jsPDF en encoding WinAnsi (helvetica) ne supporte pas les
+ * caractères Unicode spéciaux comme l'espace fine U+202F (que Intl.NumberFormat
+ * 'fr-BE' utilise par défaut entre les milliers). Le viewer PDF remplace alors
+ * ce caractère par un '/' → on voit "4/300,00 €" au lieu de "4 300,00 €".
+ *
+ * Solution : on post-traite la sortie d'Intl.NumberFormat pour remplacer
+ * U+202F, U+00A0 (nbsp) et tout whitespace Unicode par un espace ASCII simple
+ * (U+0020) que jsPDF WinAnsi supporte.
+ */
+function normalizeWhitespace(s: string): string {
+  return s
+    .replace(/[\u202F\u00A0\u2009\u2007\u2008]/g, ' ')  // fine spaces → espace normale
+    .replace(/\s+/g, ' ')                                // collapse multi-whitespace
+    .trim()
+}
+
 export function fmtMoney(n: number, currency = 'EUR'): string {
   if (!Number.isFinite(n)) return '—'
-  return new Intl.NumberFormat('fr-BE', {
+  const formatted = new Intl.NumberFormat('fr-BE', {
     style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2,
   }).format(n)
+  return normalizeWhitespace(formatted)
 }
 
 export function fmtNumber(n: number, decimals = 2): string {
   if (!Number.isFinite(n)) return '—'
-  return new Intl.NumberFormat('fr-BE', {
+  const formatted = new Intl.NumberFormat('fr-BE', {
     minimumFractionDigits: decimals, maximumFractionDigits: decimals,
   }).format(n)
+  return normalizeWhitespace(formatted)
 }
 
 export function fmtIban(iban: string): string {

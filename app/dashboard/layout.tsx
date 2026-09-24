@@ -60,7 +60,7 @@ const NAV = [
   },
   {
     href: '/dashboard/employees',
-    label: 'Ressources Humaines',
+    label: 'RH',
     icon: (
       <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
         <circle cx="12" cy="8" r="4"/>
@@ -73,7 +73,7 @@ const NAV = [
     label: 'Stock',
     icon: (
       <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0-3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
       </svg>
     ),
   },
@@ -110,6 +110,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [companyEmail, setCompanyEmail] = useState('');
   const [loading,     setLoading]     = useState(true);
   const [collapsed,   setCollapsed]   = useState(false);
+  const [mobileOpen,  setMobileOpen]  = useState(false);
+  const [isMobile,    setIsMobile]    = useState(false);
+
+  // Détection mobile via media query (max-width: 768px = standard breakpoint mobile)
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)')
+    const onChange = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches)
+    onChange(mq)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+
+  // Ferme le drawer mobile automatiquement quand on change de page
+  useEffect(() => { setMobileOpen(false) }, [pathname])
 
   useEffect(() => {
     const sb = getSupabase();
@@ -179,12 +193,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const displayName  = companyName  || user?.email || '';
   const displaySub   = companyName  ? (companyEmail || user?.email || '') : 'Paramètres';
   const initiale     = companyName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U';
-  const sideW        = collapsed ? 68 : 240;
+  // Sur desktop : sidebar collapsible (240 ou 68px). Sur mobile : drawer 280px
+  // (caché par défaut, translateX(-100%)).
+  const sideW        = isMobile ? 280 : (collapsed ? 68 : 240);
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#f1f5f9' }}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg) } }
+        @keyframes slideInLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .nav-link {
           display: flex; align-items: center; gap: 12px;
           padding: 10px 16px; border-radius: 10px;
@@ -195,13 +213,42 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         .nav-link:hover  { background: rgba(255,255,255,0.08); color: #e2e8f0; }
         .nav-link.active { background: rgba(99,102,241,0.20); color: #a5b4fc; }
         .nav-link .icon  { flex-shrink: 0; }
-        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar { width: 4px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+
+        /* === Responsive mobile === */
+        /* Cache la sidebar sur mobile sauf quand drawer ouvert */
+        @media (max-width: 768px) {
+          .sidebar-desktop { display: none !important; }
+          .sidebar-mobile  { display: flex !important; }
+          .topbar-date     { display: none !important; }
+          .profile-name    { display: none !important; }
+          .profile-sub     { display: none !important; }
+          .main-padding    { padding: 14px !important; }
+          /* Boutons et inputs pleine largeur par défaut sur mobile */
+          .form-grid-2     { grid-template-columns: 1fr !important; }
+          .form-grid-3     { grid-template-columns: 1fr !important; }
+          .table-wrapper   { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+          .stat-grid       { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+          .stat-grid-4     { grid-template-columns: 1fr 1fr !important; }
+          .filter-bar      { flex-wrap: wrap !important; }
+          .filter-bar > * { flex: 1 1 calc(50% - 8px) !important; min-width: 140px !important; }
+          .modal-content   { max-width: 100% !important; border-radius: 14px 14px 0 0 !important; max-height: 88vh !important; }
+          .btn-primary-mobile { width: 100% !important; }
+          /* Hide sidebar trigger icon when not on mobile */
+          .desktop-only-trigger { display: none !important; }
+          /* Tables : transforme en cards (caché par défaut) — approche simple : scroll */
+        }
+        @media (min-width: 769px) {
+          .sidebar-desktop { display: flex !important; }
+          .sidebar-mobile  { display: none !important; }
+          .desktop-only-trigger { display: flex !important; }
+        }
       `}</style>
 
-      {/* ── Sidebar ── */}
-      <aside style={{
+      {/* ── Sidebar DESKTOP (collapsible, toujours visible) ── */}
+      <aside className="sidebar-desktop" style={{
         width: sideW, minWidth: sideW, height: '100vh',
         background: 'linear-gradient(180deg,#0f172a 0%,#1e293b 100%)',
         display: 'flex', flexDirection: 'column',
@@ -225,7 +272,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <div style={{ color: '#64748b', fontSize: 11, marginTop: 2 }}>ERP SaaS PRO</div>
             </div>
           )}
-          <button onClick={() => setCollapsed(!collapsed)} style={{
+          <button onClick={() => setCollapsed(!collapsed)} className="desktop-only-trigger" style={{
             background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: 8,
             padding: 7, cursor: 'pointer', color: '#94a3b8',
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
@@ -238,7 +285,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
         </div>
 
-        {/* Nav */}
+        {/* Nav desktop */}
         <nav style={{ flex: 1, padding: '12px 10px', overflowY: 'auto', overflowX: 'hidden' }}>
           {NAV.map(item => {
             const isActive = item.href === '/dashboard'
@@ -256,18 +303,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           })}
         </nav>
 
-        {/* User + Logout */}
+        {/* User + Logout (desktop) */}
         <div style={{ padding: '12px 10px', borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
           {!collapsed && (
             <div style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 10, marginBottom: 8 }}>
               <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, fontWeight: 700, marginBottom: 7, flexShrink: 0 }}>
                 {initiale}
               </div>
-              {/* Nom société en gras */}
               <p style={{ color: '#e2e8f0', fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 2 }}>
                 {companyName || 'Mon compte'}
               </p>
-              {/* Email en sous-titre discret */}
               <p style={{ color: '#475569', fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {user?.email || ''}
               </p>
@@ -294,6 +339,98 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
+      {/* ── Sidebar MOBILE (drawer, caché par défaut) ── */}
+      {isMobile && (
+        <>
+          {/* Backdrop sombre */}
+          {mobileOpen && (
+            <div onClick={() => setMobileOpen(false)} style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+              zIndex: 40, animation: 'fadeIn 0.2s ease',
+            }} />
+          )}
+          <aside className="sidebar-mobile" style={{
+            position: 'fixed', top: 0, left: 0, bottom: 0,
+            width: 280, maxWidth: '85vw',
+            background: 'linear-gradient(180deg,#0f172a 0%,#1e293b 100%)',
+            display: 'flex', flexDirection: 'column',
+            transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
+            transition: 'transform 0.25s ease',
+            boxShadow: '4px 0 24px rgba(0,0,0,0.3)', zIndex: 50,
+          }}>
+            {/* Logo + close */}
+            <div style={{
+              padding: '20px 16px 16px',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0,
+            }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ color: '#fff', fontWeight: 800, fontSize: 15, letterSpacing: '-0.3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {companyName || 'Next-ERP'}
+                </div>
+                <div style={{ color: '#64748b', fontSize: 11, marginTop: 2 }}>ERP SaaS PRO</div>
+              </div>
+              <button onClick={() => setMobileOpen(false)} style={{
+                background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: 8,
+                padding: 7, cursor: 'pointer', color: '#94a3b8',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }} aria-label="Fermer le menu">
+                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <line x1="18" y1="6"  x2="6"  y2="18"/>
+                  <line x1="6"  y1="6"  x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+
+            {/* Nav */}
+            <nav style={{ flex: 1, padding: '12px 10px', overflowY: 'auto', overflowX: 'hidden' }}>
+              {NAV.map(item => {
+                const isActive = item.href === '/dashboard'
+                  ? pathname === '/dashboard'
+                  : pathname.startsWith(item.href);
+                return (
+                  <Link key={item.href} href={item.href}
+                    className={`nav-link${isActive ? ' active' : ''}`}
+                    style={{ padding: '12px 16px', marginBottom: 2 }}>
+                    <span className="icon">{item.icon}</span>
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+
+            {/* User + Logout (mobile) */}
+            <div style={{ padding: '12px 10px', borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+              <div style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 10, marginBottom: 8 }}>
+                <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, fontWeight: 700, marginBottom: 7, flexShrink: 0 }}>
+                  {initiale}
+                </div>
+                <p style={{ color: '#e2e8f0', fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 2 }}>
+                  {companyName || 'Mon compte'}
+                </p>
+                <p style={{ color: '#475569', fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {user?.email || ''}
+                </p>
+              </div>
+              <button onClick={handleLogout} style={{
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'flex-start',
+                gap: 10, padding: '10px 12px',
+                background: 'transparent', border: 'none', borderRadius: 10,
+                color: '#64748b', fontSize: 13, fontWeight: 500,
+                cursor: 'pointer',
+              }}>
+                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+                Déconnexion
+              </button>
+            </div>
+          </aside>
+        </>
+      )}
+
       {/* ── Main ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
 
@@ -301,12 +438,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <header style={{
           height: 60, background: '#fff', borderBottom: '1px solid #e2e8f0',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '0 24px', flexShrink: 0,
+          padding: isMobile ? '0 14px' : '0 24px', flexShrink: 0,
           boxShadow: '0 1px 3px rgba(0,0,0,0.06)', zIndex: 20,
         }}>
-          <p style={{ color: '#94a3b8', fontSize: 13 }}>
-            {new Date().toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* Bouton hamburger MOBILE uniquement */}
+            {isMobile && (
+              <button onClick={() => setMobileOpen(true)} aria-label="Ouvrir le menu" style={{
+                background: 'transparent', border: 'none', cursor: 'pointer',
+                padding: 8, borderRadius: 8, color: '#475569',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <line x1="3" y1="6"  x2="21" y2="6"/>
+                  <line x1="3" y1="12" x2="21" y2="12"/>
+                  <line x1="3" y1="18" x2="21" y2="18"/>
+                </svg>
+              </button>
+            )}
+            <p className="topbar-date" style={{ color: '#94a3b8', fontSize: 13, margin: 0 }}>
+              {new Date().toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            </p>
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {/* Cloche notification */}
             <button style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8, color: '#94a3b8', display: 'flex', alignItems: 'center' }}>
@@ -318,7 +471,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             {/* Profil navbar — affiche nom société */}
             <Link href="/dashboard/settings" style={{ textDecoration: 'none' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 12px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.15s' }}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: isMobile ? '6px' : '6px 12px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.15s' }}
                 onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = '#f1f5f9'}
                 onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = '#f8fafc'}>
                 <div style={{ width: 30, height: 30, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
@@ -326,11 +479,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </div>
                 <div style={{ minWidth: 0 }}>
                   {/* Nom société en titre */}
-                  <p style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
+                  <p className="profile-name" style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160, margin: 0 }}>
                     {companyName || user?.email || 'Mon compte'}
                   </p>
-                  {/* Email ou "Paramètres" en sous-titre */}
-                  <p style={{ fontSize: 11, color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
+                  {/* Email ou "Paramètres" en sous-titre discret */}
+                  <p className="profile-sub" style={{ fontSize: 11, color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160, margin: 0 }}>
                     {displaySub}
                   </p>
                 </div>
@@ -340,7 +493,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* Page content */}
-        <main style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+        <main className="main-padding" style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', padding: isMobile ? 14 : 24 }}>
           {children}
         </main>
       </div>

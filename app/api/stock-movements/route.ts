@@ -33,14 +33,18 @@ function stockMovementDelta(type: string, qty: number): number {
 
 export const GET = withAuth(async ({ req, supabase }) => {
   const { searchParams } = new URL(req.url)
-  const product_id = searchParams.get('product_id')  // query param inchangé pour le front
+  const product_id = searchParams.get('product_id')  // query param conservé
   const type       = searchParams.get('type')
 
+  // Avant : on utilisait la vue stock_movements_view (alias product_id).
+  // PostgREST ne résout pas les relations FK via les vues -> 400 sur l'embed
+  // stock_items(name). On utilise maintenant directement la table stock_movements
+  // (FK réelle vers stock_items) + l'embed via stock_item_id (FK déclarée).
   let q = supabase
-    .from('stock_movements_view')   // vue qui expose stock_item_id AS product_id
+    .from('stock_movements')
     .select('*, stock_items(name)')
     .order('date', { ascending: false })
-  if (product_id) q = q.eq('product_id', product_id)
+  if (product_id) q = q.eq('stock_item_id', product_id)  // FK réelle maintenant
   if (type)       q = q.eq('type', type)
 
   const { data, error } = await q

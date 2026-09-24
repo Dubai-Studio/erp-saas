@@ -12,7 +12,13 @@ import { z } from 'zod'
 const optionalString = z.string().trim().max(2000).nullish()
 const optionalUuid   = z.string().uuid().nullish()
 const nonNegativeNum = z.number().nonnegative().finite()
-const isoDate        = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date YYYY-MM-DD')
+// isoDate : accepte aussi '' (chaîne vide venant des formulaires HTML) en la
+// convertissant en undefined. Ça évite les 400 "date YYYY-MM-DD" quand le
+// user n'a pas rempli un champ date optionnel.
+const isoDate        = z.preprocess(
+  (v) => (v === '' ? undefined : v),
+  z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date YYYY-MM-DD').nullish(),
+)
 const isoDateTime    = z.string().datetime({ offset: true }).nullish()
 const positiveAmount = z.number().positive().finite()
 const vatRate        = z.number().min(0).max(100)

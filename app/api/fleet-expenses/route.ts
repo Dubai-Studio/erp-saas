@@ -36,10 +36,5 @@ export const POST = withAuth(async ({ supabase, body }) => {
   return created(data)
 }, FleetExpenseCreate)
 
-export const DELETE = withAuth(async ({ req, supabase }) => {
-  const id = new URL(req.url).searchParams.get('id')
-  if (!id) return badRequest('id requis')
-  const { error } = await supabase.from('fleet_expenses').delete().eq('id', id)
-  if (error) return badRequest(error.message)
-  return ok({ deleted: true })
-})
+// PATCH et DELETE sont gérés par /api/fleet-expenses/[id] (cohérence avec les autres modules)
+// L'ancien DELETE ?id= sur cette route a été retiré pour éviter la confusion.

@@ -1498,9 +1498,9 @@ export default function EmployeesPage() {
     for (const te of monthTE) {
       const h = Number(te.hours_worked || 0)
       if (te.entry_type === 'normal')    hoursWorked += h
-      if (te.entry_type === 'overtime') { overtimeHours += h; overtimeRate = Number(te.rate_applied || te.hourly_rate || 0) }
-      if (te.entry_type === 'night')    { nightHours    += h; nightRate    = Number(te.rate_applied || te.hourly_rate || 0) }
-      if (te.entry_type === 'weekend')  { weekendHours  += h; weekendRate  = Number(te.rate_applied || te.hourly_rate || 0) }
+      if (te.entry_type === 'overtime') { overtimeHours += h; overtimeRate = Number(te.rate_applied || 0) }
+      if (te.entry_type === 'night')    { nightHours    += h; nightRate    = Number(te.rate_applied || 0) }
+      if (te.entry_type === 'weekend')  { weekendHours  += h; weekendRate  = Number(te.rate_applied || 0) }
     }
 
     const doc = generatePayslipPdf({
@@ -1529,7 +1529,9 @@ export default function EmployeesPage() {
         bonus,
         advance,
         other_deductions:  otherDeduct,
-        seniority_years:   seniority(employee.hire_date),
+        seniority_years:   employee.hire_date
+          ? Math.floor((Date.now() - new Date(employee.hire_date).getTime()) / (365.25 * 86400000))
+          : undefined,
       },
       period: {
         month:        month,

@@ -165,7 +165,7 @@ export function drawHeader(
 export function drawFooter(
   doc: jsPDF,
   company: Partial<CompanySettings>,
-  opts: { kind: DocKind; legal?: string[] },
+  opts: { kind: DocKind; legal?: (string | null | undefined)[] },
 ): void {
   const margin = 15
   const pageWidth = doc.internal.pageSize.getWidth()
@@ -188,7 +188,7 @@ export function drawFooter(
     company.email ? `Contact : ${company.email}` : null,
     company.phone ? `Tél : ${company.phone}` : null,
     'Document généré par Next.ERP-Pro',
-  ]).filter(Boolean) as string[]
+  ]).filter((line): line is string => Boolean(line) && line !== null && line !== undefined) as string[]
 
   let y = footerY
   const contentWidth = pageWidth - 2 * margin - 50  // laisse 50mm à droite pour "Page X/Y"
@@ -200,7 +200,11 @@ export function drawFooter(
   }
 
   // ── Pagination + label doc (droite) ──
-  const pageStr = `Page ${doc.getNumberOfPages ? '' : ''}${doc.internal.getCurrentPageInfo().pageStr ?? doc.getCurrentPageInfo?.() ?? ''}`.replace(/\s+/g, ' ').trim() || `Page ${doc.getCurrentPageInfo().pageNumber}`
+  // @ts-ignore — jsPDF n'expose pas ces méthodes dans ses types publics
+  const currentPage = doc.internal.getCurrentPageInfo?.()?.pageNumber ?? doc.getNumberOfPages?.() ?? 1
+  // @ts-ignore
+  const totalPages = doc.internal.getNumberOfPages?.() ?? doc.getNumberOfPages?.() ?? 1
+  const pageStr = `Page ${currentPage} / ${totalPages}`
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8)
   doc.setTextColor(...COLORS.muted)

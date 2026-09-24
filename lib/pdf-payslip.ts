@@ -337,7 +337,6 @@ export function generatePayslipPdf(input: PayslipInput): jsPDF {
         data.cell.styles.fontStyle = 'bold'
       }
     },
-    margin: { left: margin, right: margin, bottom: 35 },
   })
   // @ts-ignore
   y = (doc.lastAutoTable?.finalY ?? y + 60) + 6
@@ -393,7 +392,6 @@ export function generatePayslipPdf(input: PayslipInput): jsPDF {
         data.cell.styles.fillColor = COLORS.light
       }
     },
-    margin: { left: margin, right: margin, bottom: 35 },
   })
   // @ts-ignore
   y = (doc.lastAutoTable?.finalY ?? y + 50) + 8

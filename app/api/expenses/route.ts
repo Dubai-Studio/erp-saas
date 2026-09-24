@@ -31,7 +31,7 @@ export const POST = withAuth(async ({ supabase, body }) => {
   const parsed = ExpenseCreate.parse(body)
   const { data, error } = await supabase.from('expenses').insert({
     ...parsed,
-    month: parsed.month || monthFromDate(parsed.date),
+    month: parsed.month || (parsed.date ? monthFromDate(parsed.date) : null),
   }).select().single()
   if (error) return badRequest(error.message)
   return created(data)

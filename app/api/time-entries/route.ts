@@ -27,7 +27,7 @@ export const POST = withAuth(async ({ supabase, body }) => {
     ...parsed,
     hours_worked: hours,
     amount,
-    month: parsed.month || monthFromDate(parsed.date),
+    month: parsed.month || (parsed.date ? monthFromDate(parsed.date) : null),
   }).select().single()
 
   if (error) return badRequest(error.message)

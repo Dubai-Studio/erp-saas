@@ -849,11 +849,23 @@ export default function StockPage() {
     // /api/stock/[id] n'exporte que PATCH (pas PUT) — utiliser PATCH pour la mise à jour
     const method = data.id ? 'PATCH' : 'POST'
     const url    = data.id ? `/api/stock/${data.id}` : '/api/stock'
+
+    // Sanitize : convertit les chaînes vides ('') en null pour tous les champs
+    // optionnels (texte, date). Évite que Zod les rejette côté API. Le name
+    // reste obligatoire : on l'envoie tel quel, l'API renverra 400 si vide.
+    const STRING_FIELDS = ['reference', 'sku', 'supplier_ref', 'category', 'unit',
+                           'supplier', 'location', 'description', 'notes',
+                           'last_restock', 'expiry_date'] as const
+    const payload: Record<string, unknown> = { ...data }
+    for (const k of STRING_FIELDS) {
+      if (payload[k] === '') payload[k] = null
+    }
+
     const res    = await fetch(url, {
       method,
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     })
     if (!res.ok) {
       const j = await res.json().catch(() => ({}))
@@ -875,7 +887,8 @@ const saveMovement = async (data: Omit<StockMovement, 'id' | 'created_at'>) => {
       type:       data.type,
       quantity:   data.quantity,
       unit_price: data.unit_price,
-      reason:     data.reason,
+      reason:     data.reason || null,
+      reference:  (data as any).reference || null,
       date:       data.date || new Date().toISOString().split('T')[0],
     }
     const res = await fetch('/api/stock-movements', {

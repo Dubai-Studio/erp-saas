@@ -1471,10 +1471,15 @@ export default function EmployeesPage() {
     const [yr] = month.split('-')
     const year = parseInt(yr)
 
-    const companyData: CompanySettings = company ?? {
-      company_name: 'Mon Entreprise', address: '—', vat_number: '—',
-      email: '—', phone: '—', iban: '—',
-    } as CompanySettings
+    // IMPORTANT : si company_settings n'est pas encore chargé en memoire,
+    // on force des "—" partout (sauf le nom) plutot que d'inventer un
+    // "Mon Entreprise" trompeur. L'utilisateur doit remplir company_settings
+    // (/dashboard/settings) pour que le PDF ait les vraies coordonnees.
+    const companyData = (company ?? {
+      company_name: '—', address: null, city: null, zip_code: null, country: 'Belgique',
+      vat_number: null, email: null, phone: null, iban: null, bic: null,
+      default_vat: 21, default_currency: 'EUR',
+    }) as unknown as CompanySettings
 
     // Agrège les ajustements en bonus / avance / retenues
     let bonus = 0, advance = 0, otherDeduct = 0

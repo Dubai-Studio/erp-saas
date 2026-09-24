@@ -296,23 +296,33 @@ export function generatePayslipPdf(input: PayslipInput): jsPDF {
   ])
 
   // Couleurs de dégradé bleu : primary (header), accent (rows retenues alternées)
+  // Largeurs de colonnes : on laisse l'auto-fill sur la description,
+  // on elargit BASE/TAUX/MONTANT pour eviter tout overflow de chiffre.
+  // Marges reduites dans les cellules pour gagner de la place.
   autoTable(doc, {
     startY: y,
     margin: { left: margin, right: margin },
-    head: [['DESCRIPTION', 'BASE', 'TAUX / MAJORATION', 'MONTANT']],
+    head: [['DESCRIPTION', 'BASE', 'TAUX / MAJORATION', 'MONTANT (€)']],
     body: rows,
     theme: 'grid',
+    styles: {
+      // Police normale (helvetica regular), taille de base 8.5pt
+      font: 'helvetica', fontStyle: 'normal', fontSize: 8.5,
+      cellPadding: { top: 2.5, bottom: 2.5, left: 4, right: 4 },
+      overflow: 'linebreak',    // wrap au lieu de pousser
+      lineColor: [220, 226, 235],
+      lineWidth: 0.2,
+    },
     headStyles: {
       fillColor: COLORS.primary, textColor: COLORS.white,
-      fontStyle: 'bold', fontSize: 9.5,
+      fontStyle: 'bold', fontSize: 9, cellPadding: { top: 3, bottom: 3 },
     },
-    bodyStyles: { fontSize: 9, textColor: COLORS.text },
     alternateRowStyles: { fillColor: [240, 246, 255] }, // bleu très clair
     columnStyles: {
-      0: { cellWidth: 'auto' },
-      1: { cellWidth: 26, halign: 'right' },
-      2: { cellWidth: 30, halign: 'right' },
-      3: { cellWidth: 38, halign: 'right', fontStyle: 'bold' },
+      0: { cellWidth: 70, halign: 'left' },
+      1: { cellWidth: 28, halign: 'right' },
+      2: { cellWidth: 32, halign: 'right' },
+      3: { cellWidth: 50, halign: 'right', fontStyle: 'bold' },
     },
     didParseCell: (data) => {
       if (data.section !== 'body') return
@@ -323,7 +333,7 @@ export function generatePayslipPdf(input: PayslipInput): jsPDF {
         data.cell.styles.fillColor = COLORS.primary
         data.cell.styles.textColor = COLORS.white
         data.cell.styles.fontStyle = 'bold'
-        data.cell.styles.fontSize = 12
+        data.cell.styles.fontSize = 11
         return
       }
       const desc = String(rows[idx]?.[0] ?? '')
@@ -333,7 +343,6 @@ export function generatePayslipPdf(input: PayslipInput): jsPDF {
         data.cell.styles.fillColor = COLORS.light
         data.cell.styles.fontStyle = 'bold'
       } else if (isRetenue && idx % 2 === 0) {
-        // retenues impaires : fond bleu très clair pour différencier
         data.cell.styles.fillColor = [244, 247, 254]
       }
     },

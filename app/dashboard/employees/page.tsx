@@ -1481,86 +1481,97 @@ export default function EmployeesPage() {
     const [yr] = month.split('-')
     const year = parseInt(yr)
 
-    // IMPORTANT : si company_settings n'est pas encore chargé en memoire,
-    // on force des "—" partout (sauf le nom) plutot que d'inventer un
-    // "Mon Entreprise" trompeur. L'utilisateur doit remplir company_settings
-    // (/dashboard/settings) pour que le PDF ait les vraies coordonnees.
-    const companyData = (company ?? {
+    // IMPORTANT : si company_settings n'est pas chargé en memoire (state null),
+    // on tente un fetch synchrone rapide avant d'utiliser le fallback. Sinon
+    // le fallback affiche '—' partout, ce qui n'aide pas l'utilisateur.
+    let companyData: CompanySettings = company ?? {
       company_name: '—', address: null, city: null, zip_code: null, country: 'Belgique',
       vat_number: null, email: null, phone: null, iban: null, bic: null,
       default_vat: 21, default_currency: 'EUR',
-    }) as unknown as CompanySettings
+    } as unknown as CompanySettings
 
-    // Agrège les ajustements en bonus / avance / retenues
-    let bonus = 0, advance = 0, otherDeduct = 0
-    for (const a of myAdj) {
-      const t = ADJ_TYPES[a.type] ?? { sign: 1 }
-      const amt = t.sign * a.amount
-      if (a.type === 'prime' || (a.type !== 'avance' && a.type !== 'retenue' && amt > 0)) bonus += Math.abs(amt)
-      else if (a.type === 'avance' || (amt < 0 && a.type !== 'retenue')) advance += Math.abs(amt)
-      else if (a.type === 'retenue') otherDeduct += Math.abs(amt)
-    }
-    // Net sans précompte = (salaire + ajustements) — pour l'aperçu UI
-    // Le précompte professionnel est saisi via le payload fiscal de l'API POST.
-    // Ici, en preview côté UI, on prend 0 par défaut (l'utilisateur lance ensuite
-    // la génération officielle via POST /api/payslips/:id/pdf pour ajouter le précompte).
-    const withholding = 0
-
-    // Agrège les heures du mois depuis les time_entries chargées
-    const monthTE = (timeEntries ?? []).filter(te => te.employee_id === employee.id && te.month === month)
-    let hoursWorked = 0, overtimeHours = 0, overtimeRate = 0
-    let nightHours = 0, nightRate = 0, weekendHours = 0, weekendRate = 0
-    for (const te of monthTE) {
-      const h = Number(te.hours_worked || 0)
-      if (te.entry_type === 'normal')    hoursWorked += h
-      if (te.entry_type === 'overtime') { overtimeHours += h; overtimeRate = Number(te.rate_applied || 0) }
-      if (te.entry_type === 'night')    { nightHours    += h; nightRate    = Number(te.rate_applied || 0) }
-      if (te.entry_type === 'weekend')  { weekendHours  += h; weekendRate  = Number(te.rate_applied || 0) }
+    // Fetch synchrone best-effort (await avant generatePayslipPdf) pour
+    // charger les vraies données si pas encore en state.
+    if (!company || !company.company_name) {
+      fetch('/api/settings', { credentials: 'include' })
+        .then(r => r.ok ? r.json() : null)
+        .then(json => {
+          const d = (json as any)?.data ?? json
+          if (d && typeof d === 'object' && d.company_name) {
+            companyData = d as CompanySettings
+          }
+          launchPdf()
+        })
+        .catch(() => launchPdf())
+    } else {
+      launchPdf()
     }
 
-    const doc = generatePayslipPdf({
-      employee: {
-        first_name:        employee.first_name,
-        last_name:         employee.last_name,
-        national_id:       employee.national_id,
-        position:          employee.position,
-        department:        employee.department,
-        contract_type:     employee.contract_type,
-        worker_type:       employee.worker_type,
-        hire_date:         employee.hire_date,
-        iban:              employee.iban,
-        bic:               null,
-        payment_method:    employee.payment_method,
-        payment_day:       employee.payment_day,
-        base_salary:       Number(employee.salary) || 0,
-        hourly_rate:       employee.hourly_rate ?? undefined,
-        hours_worked:      hoursWorked,
-        overtime_hours:    overtimeHours,
-        overtime_rate:     overtimeRate,
-        night_hours:       nightHours,
-        night_rate:        nightRate,
-        weekend_hours:     weekendHours,
-        weekend_rate:      weekendRate,
-        bonus,
-        advance,
-        other_deductions:  otherDeduct,
-        seniority_years:   employee.hire_date
-          ? Math.floor((Date.now() - new Date(employee.hire_date).getTime()) / (365.25 * 86400000))
-          : undefined,
-      },
-      period: {
-        month:        month,
-        year:         year,
-        // Pour la preview UI on prend la fin du mois
-        payment_date: `${month}-${new Date(year, parseInt(month.split('-')[1]), 0).getDate()}`,
-        worked_days:  Math.max(0, 22 - Math.round(Math.abs(totalAdj < 0 ? totalAdj / 100 : 0))),
-        absence_days: 0,
-      },
-      social_security: { employee_rate: 13.07, employer_rate: 25.27, special_employee_rate: 7.5 },
-      fiscal: { withholding_tax: withholding },
-      company: companyData,
-    })
-    doc.save(`Fiche-Salaire-${employee.last_name}-${month}.pdf`)
+    function launchPdf() {
+      // Agrège les ajustements en bonus / avance / retenues
+      let bonus = 0, advance = 0, otherDeduct = 0
+      for (const a of myAdj) {
+        const t = ADJ_TYPES[a.type] ?? { sign: 1 }
+        const amt = t.sign * a.amount
+        if (a.type === 'prime' || (a.type !== 'avance' && a.type !== 'retenue' && amt > 0)) bonus += Math.abs(amt)
+        else if (a.type === 'avance' || (amt < 0 && a.type !== 'retenue')) advance += Math.abs(amt)
+        else if (a.type === 'retenue') otherDeduct += Math.abs(amt)
+      }
+      const withholding = 0
+      // Agrège les heures du mois depuis les time_entries chargées
+      const monthTE = (timeEntries ?? []).filter(te => te.employee_id === employee.id && te.month === month)
+      let hoursWorked = 0, overtimeHours = 0, overtimeRate = 0
+      let nightHours = 0, nightRate = 0, weekendHours = 0, weekendRate = 0
+      for (const te of monthTE) {
+        const h = Number(te.hours_worked || 0)
+        if (te.entry_type === 'normal')    hoursWorked += h
+        if (te.entry_type === 'overtime') { overtimeHours += h; overtimeRate = Number(te.rate_applied || 0) }
+        if (te.entry_type === 'night')    { nightHours    += h; nightRate    = Number(te.rate_applied || 0) }
+        if (te.entry_type === 'weekend')  { weekendHours  += h; weekendRate  = Number(te.rate_applied || 0) }
+      }
+      const doc = generatePayslipPdf({
+        employee: {
+          first_name:        employee.first_name,
+          last_name:         employee.last_name,
+          national_id:       employee.national_id,
+          position:          employee.position,
+          department:        employee.department,
+          contract_type:     employee.contract_type,
+          worker_type:       employee.worker_type,
+          hire_date:         employee.hire_date,
+          iban:              employee.iban,
+          bic:               null,
+          payment_method:    employee.payment_method,
+          payment_day:       employee.payment_day,
+          base_salary:       Number(employee.salary) || 0,
+          hourly_rate:       employee.hourly_rate ?? undefined,
+          hours_worked:      hoursWorked,
+          overtime_hours:    overtimeHours,
+          overtime_rate:     overtimeRate,
+          night_hours:       nightHours,
+          night_rate:        nightRate,
+          weekend_hours:     weekendHours,
+          weekend_rate:      weekendRate,
+          bonus,
+          advance,
+          other_deductions:  otherDeduct,
+          seniority_years:   employee.hire_date
+            ? Math.floor((Date.now() - new Date(employee.hire_date).getTime()) / (365.25 * 86400000))
+            : undefined,
+        },
+        period: {
+          month:        month,
+          year:         year,
+          payment_date: `${month}-${new Date(year, parseInt(month.split('-')[1]), 0).getDate()}`,
+          worked_days:  Math.max(0, 22 - Math.round(Math.abs(totalAdj < 0 ? totalAdj / 100 : 0))),
+          absence_days: 0,
+        },
+        social_security: { employee_rate: 13.07, employer_rate: 25.27, special_employee_rate: 7.5 },
+        fiscal: { withholding_tax: withholding },
+        company: companyData,
+      })
+      doc.save(`Fiche-Salaire-${employee.last_name}-${month}.pdf`)
+    }
   }
 
   function exportCSV() {

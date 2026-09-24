@@ -307,22 +307,22 @@ export function generatePayslipPdf(input: PayslipInput): jsPDF {
     theme: 'grid',
     styles: {
       // Police normale (helvetica regular), taille de base 8.5pt
-      font: 'helvetica', fontStyle: 'normal', fontSize: 8.5,
-      cellPadding: { top: 2.5, bottom: 2.5, left: 4, right: 4 },
+      font: 'helvetica', fontStyle: 'normal', fontSize: 8,
+      cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 },
       overflow: 'linebreak',    // wrap au lieu de pousser
       lineColor: [220, 226, 235],
       lineWidth: 0.2,
     },
     headStyles: {
       fillColor: COLORS.primary, textColor: COLORS.white,
-      fontStyle: 'bold', fontSize: 9, cellPadding: { top: 3, bottom: 3 },
+      fontStyle: 'bold', fontSize: 8.5, cellPadding: { top: 3, bottom: 3 },
     },
     alternateRowStyles: { fillColor: [240, 246, 255] }, // bleu très clair
     columnStyles: {
-      0: { cellWidth: 70, halign: 'left' },
-      1: { cellWidth: 28, halign: 'right' },
-      2: { cellWidth: 32, halign: 'right' },
-      3: { cellWidth: 50, halign: 'right', fontStyle: 'bold' },
+      0: { cellWidth: 'auto', minCellWidth: 55 },
+      1: { cellWidth: 22, halign: 'right' },
+      2: { cellWidth: 25, halign: 'right' },
+      3: { cellWidth: 60, halign: 'right' },
     },
     didParseCell: (data) => {
       if (data.section !== 'body') return
@@ -333,7 +333,7 @@ export function generatePayslipPdf(input: PayslipInput): jsPDF {
         data.cell.styles.fillColor = COLORS.primary
         data.cell.styles.textColor = COLORS.white
         data.cell.styles.fontStyle = 'bold'
-        data.cell.styles.fontSize = 11
+        data.cell.styles.fontSize = 10.5
         return
       }
       const desc = String(rows[idx]?.[0] ?? '')

@@ -358,7 +358,7 @@ export function generatePayslipPdf(input: PayslipInput): jsPDF {
     didDrawCell: (data) => {
       const { doc, cell, row, column, table, section } = data
       const leftX  = table.settings.margin.left
-      const rightX = leftX + table.settings.table.width
+      const rightX = leftX + (table as any).width   // largeur totale du tableau
       const HR_COLOR: [number, number, number] = [220, 226, 235]
       const HEADER_COLOR: [number, number, number] = COLORS.primary
 

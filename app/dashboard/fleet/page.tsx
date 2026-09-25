@@ -340,7 +340,7 @@ function ExpenseDetailModal({ expense, onClose, onDelete }: {
   const ttc = (expense.amount || 0) * (1 + (expense.vat_rate || 21) / 100)
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 1300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 460, boxShadow: '0 25px 60px rgba(0,0,0,.22)' }}>
+      <div className="modal-content" style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 460, boxShadow: '0 25px 60px rgba(0,0,0,.22)' }}>
         <div style={{ padding: '18px 22px', background: `linear-gradient(135deg,${et.color}22,${et.bg})`, borderRadius: '16px 16px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0' }}>
           <div>
             <span style={{ background: et.bg, color: et.color, borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 700, border: `1px solid ${et.color}30` }}>{et.label}</span>
@@ -419,7 +419,7 @@ function VehicleModal({ vehicle, onSave, onClose }: {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 680, maxHeight: '93vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 60px rgba(0,0,0,.22)' }}>
+      <div className="modal-content" style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 680, maxHeight: '93vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 60px rgba(0,0,0,.22)' }}>
         <div style={{ padding: '20px 24px', background: 'linear-gradient(135deg,#2563eb,#1d4ed8)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ color: '#fff' }}>{I.car}</span>
@@ -626,7 +626,7 @@ function ExpenseModal({ vehicles, onSave, onClose }: {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 520, boxShadow: '0 25px 60px rgba(0,0,0,.22)' }}>
+      <div className="modal-content" style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 520, boxShadow: '0 25px 60px rgba(0,0,0,.22)' }}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', borderRadius: '16px 16px 0 0' }}>
           <div style={{ fontWeight: 700, fontSize: 15, color: '#fff', display: 'flex', alignItems: 'center', gap: 8 }}>{I.euro} Enregistrer une dépense</div>
           <button onClick={onClose} style={{ background: 'rgba(255,255,255,.15)', border: 'none', borderRadius: 8, padding: 6, cursor: 'pointer', color: '#fff', display: 'flex' }}>{I.x}</button>
@@ -1013,8 +1013,8 @@ export default function FleetPage() {
             <button onClick={load}                                          style={btnGh}>{I.refresh} Actualiser</button>
             <button onClick={() => exportCSV(filteredV)}                   style={btnGh}>{I.export} CSV</button>
             <button onClick={() => generateFleetPDF(filteredV, filteredE, kpi)} style={btnGh}>{I.pdf} Rapport PDF</button>
-            <button onClick={() => setShowExpModal(true)}                  style={btn('#7c3aed')}>{I.euro} Dépense</button>
-            <button onClick={openCreate}                                   style={btn()}>{I.plus} Nouveau véhicule</button>
+            <button className="btn-primary-mobile" onClick={() => setShowExpModal(true)}                  style={btn('#7c3aed')}>{I.euro} Dépense</button>
+            <button className="btn-primary-mobile" onClick={openCreate}                                   style={btn()}>{I.plus} Nouveau véhicule</button>
           </div>
         </div>
 
@@ -1053,7 +1053,7 @@ export default function FleetPage() {
 
         {/* Toolbar */}
         <div style={{ ...card, marginBottom: 20, padding: '14px 18px' }}>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div className="filter-bar" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
             <div style={{ position: 'relative', flex: '1 1 220px' }}>
               <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }}>{I.search}</span>
               <input style={{ ...inp, paddingLeft: 34 }} value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher plaque, marque, conducteur…" />
@@ -1111,7 +1111,7 @@ export default function FleetPage() {
         {/* Vehicles List */}
         {!loading && tab === 'vehicles' && view === 'list' && (
           <div style={{ ...card, overflow: 'hidden', padding: 0 }}>
-            <div style={{ overflowX: 'auto' }}>
+            <div className="table-wrapper" style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: '#f8fafc' }}>
@@ -1240,7 +1240,7 @@ export default function FleetPage() {
         {/* ── Expenses Tab — avec boutons Voir + Supprimer ── */}
         {!loading && tab === 'expenses' && (
           <div style={{ ...card, overflow: 'hidden', padding: 0 }}>
-            <div style={{ overflowX: 'auto' }}>
+            <div className="table-wrapper" style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: '#f8fafc' }}>
@@ -1318,7 +1318,7 @@ export default function FleetPage() {
       {/* Delete Expense Confirm */}
       {delExpTarget && !viewExpense && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#fff', borderRadius: 16, padding: 32, maxWidth: 380, width: '100%', textAlign: 'center', boxShadow: '0 25px 60px rgba(0,0,0,.2)' }}>
+          <div className="modal-content" style={{ background: '#fff', borderRadius: 16, padding: 32, maxWidth: 380, width: '100%', textAlign: 'center', boxShadow: '0 25px 60px rgba(0,0,0,.2)' }}>
             <div style={{ width: 52, height: 52, background: '#fef2f2', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#ef4444' }}>{I.trash}</div>
             <div style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>Supprimer cette dépense ?</div>
             <div style={{ fontSize: 13, color: '#64748b', marginBottom: 24 }}>Cette action est irréversible.</div>
@@ -1333,7 +1333,7 @@ export default function FleetPage() {
       {/* Delete Vehicle Confirm */}
       {delTarget && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#fff', borderRadius: 16, padding: 32, maxWidth: 400, width: '100%', textAlign: 'center', boxShadow: '0 25px 60px rgba(0,0,0,.2)' }}>
+          <div className="modal-content" style={{ background: '#fff', borderRadius: 16, padding: 32, maxWidth: 400, width: '100%', textAlign: 'center', boxShadow: '0 25px 60px rgba(0,0,0,.2)' }}>
             <div style={{ width: 56, height: 56, background: '#fef2f2', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#ef4444' }}>{I.trash}</div>
             <div style={{ fontSize: 17, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>Supprimer le véhicule ?</div>
             <div style={{ fontSize: 14, color: '#64748b', marginBottom: 24 }}>

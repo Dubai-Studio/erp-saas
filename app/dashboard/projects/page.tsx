@@ -219,7 +219,7 @@ function ProjectModal({ open, onClose, onSave, initial, clients }:{
   return (
     <div style={{position:'fixed',inset:0,zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
       <div style={{position:'absolute',inset:0,background:'rgba(15,23,42,0.55)',backdropFilter:'blur(6px)'}} onClick={onClose}/>
-      <div style={{...card,position:'relative',width:'100%',maxWidth:700,maxHeight:'93vh',overflowY:'auto',zIndex:1,display:'flex',flexDirection:'column'}}>
+      <div className="modal-content" style={{...card,position:'relative',width:'100%',maxWidth:700,maxHeight:'93vh',overflowY:'auto',zIndex:1,display:'flex',flexDirection:'column'}}>
         <div style={{background:'linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%)',padding:'22px 24px 0',borderRadius:'16px 16px 0 0',flexShrink:0}}>
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
             <div>
@@ -784,6 +784,7 @@ export default function ProjectsPage() {
         </div>
       ) : view==='list' ? (
         <div style={{...card,overflow:'hidden'}}>
+          <div className="table-wrapper" style={{width:'100%'}}>
           <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
             <thead>
               <tr style={{background:'#f8fafc',borderBottom:'2px solid #f1f5f9'}}>
@@ -849,6 +850,7 @@ export default function ProjectsPage() {
               })}
             </tbody>
           </table>
+          </div>
           <div style={{padding:'9px 16px',borderTop:'1px solid #f8fafc',display:'flex',justifyContent:'space-between',background:'#fafafa',fontSize:12,color:'#94a3b8'}}>
             <span>{filtered.length} résultat(s) sur {projects.length}</span>
             <span>Budget filtré : <strong style={{color:'#7c3aed'}}>{fmt(filtered.reduce((s,p)=>s+(p.budget||0),0))}</strong></span>
@@ -933,7 +935,7 @@ export default function ProjectsPage() {
       {deleteId&&(
         <div style={{position:'fixed',inset:0,zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
           <div style={{position:'absolute',inset:0,background:'rgba(15,23,42,0.5)',backdropFilter:'blur(6px)'}} onClick={()=>setDeleteId(null)}/>
-          <div style={{...card,position:'relative',width:'100%',maxWidth:380,padding:28,textAlign:'center',zIndex:1}}>
+          <div className="modal-content" style={{...card,position:'relative',width:'100%',maxWidth:380,padding:28,textAlign:'center',zIndex:1}}>
             <div style={{width:52,height:52,background:'#fef2f2',border:'2px solid #fecaca',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px',color:'#ef4444'}}>{I.trash}</div>
             <h3 style={{fontSize:16,fontWeight:700,color:'#0f172a',marginBottom:8}}>Supprimer ce projet ?</h3>
             <p style={{fontSize:13,color:'#94a3b8',marginBottom:22,lineHeight:1.6}}>Cette action est irréversible.</p>

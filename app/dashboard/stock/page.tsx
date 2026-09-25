@@ -952,8 +952,8 @@ const saveMovement = async (data: Omit<StockMovement, 'id' | 'created_at'>) => {
             <button onClick={() => exportCSV(filtered)}             style={btnGh}>{I.export}  CSV</button>
             <button onClick={() => generateStockPDF(filtered, valuation, company)} style={btnGh}>{I.pdf} Rapport PDF</button>
             <button onClick={() => generateMovementPDF(movements, company)}  style={btnGh}>{I.move}    Journal PDF</button>
-            <button onClick={() => setShowMovModal(true)}           style={btn('#7c3aed')}>{I.move} Mouvement</button>
-            <button onClick={openCreate}                            style={btn()}>{I.plus}     Nouvel article</button>
+            <button className="btn-primary-mobile" onClick={() => setShowMovModal(true)}           style={btn('#7c3aed')}>{I.move} Mouvement</button>
+            <button className="btn-primary-mobile" onClick={openCreate}                            style={btn()}>{I.plus}     Nouvel article</button>
           </div>
         </div>
 
@@ -980,7 +980,7 @@ const saveMovement = async (data: Omit<StockMovement, 'id' | 'created_at'>) => {
 
         {/* Toolbar */}
         <div style={{ ...card, marginBottom:20, padding:'16px 20px' }}>
-          <div style={{ display:'flex', gap:10, flexWrap:'wrap', alignItems:'center' }}>
+          <div className="filter-bar" style={{ display:'flex', gap:10, flexWrap:'wrap', alignItems:'center' }}>
             <div style={{ position:'relative', flex:'1 1 220px' }}>
               <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'#94a3b8', pointerEvents:'none' }}>{I.search}</span>
               <input style={{ ...inp, paddingLeft:34 }} value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher article, réf., fournisseur..." />
@@ -1024,7 +1024,7 @@ const saveMovement = async (data: Omit<StockMovement, 'id' | 'created_at'>) => {
         {/* List View */}
         {!loading && view === 'list' && (
           <div style={{ ...card, overflow:'hidden', padding:0 }}>
-            <div style={{ overflowX:'auto' }}>
+            <div className="table-wrapper" style={{ overflowX:'auto' }}>
               <table style={{ width:'100%', borderCollapse:'collapse' }}>
                 <thead>
                   <tr style={{ background:'#f8fafc' }}>

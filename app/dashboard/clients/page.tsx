@@ -175,7 +175,7 @@ function Modal({ open, onClose, onSave, initial }: {
   return (
     <div style={{ position:'fixed', inset:0, zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
       <div style={{ position:'absolute', inset:0, background:'rgba(15,23,42,0.5)', backdropFilter:'blur(6px)' }} onClick={onClose}/>
-      <div style={{
+      <div className="modal-content" style={{
         ...card, position:'relative', width:'100%', maxWidth:560,
         maxHeight:'92vh', overflowY:'auto', zIndex:1,
         animation:'slideUp 0.2s ease',
@@ -716,6 +716,7 @@ export default function ClientsPage() {
       ) : view === 'list' ? (
         /* ════ LIST VIEW ════ */
         <div style={{ ...card, overflow:'hidden' }}>
+          <div className="table-wrapper" style={{ width: '100%' }}>
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
             <thead>
               <tr style={{ background:'#f8fafc', borderBottom:'2px solid #f1f5f9' }}>
@@ -820,6 +821,7 @@ export default function ClientsPage() {
               })}
             </tbody>
           </table>
+          </div>
 
           {/* Footer table */}
           <div style={{ padding:'10px 18px', borderTop:'1px solid #f8fafc', display:'flex', alignItems:'center', justifyContent:'space-between', background:'#fafafa', fontSize:12, color:'#94a3b8' }}>
@@ -899,7 +901,7 @@ export default function ClientsPage() {
       {deleteId && (
         <div style={{ position:'fixed', inset:0, zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div style={{ position:'absolute', inset:0, background:'rgba(15,23,42,0.5)', backdropFilter:'blur(6px)' }} onClick={() => setDeleteId(null)}/>
-          <div style={{ ...card, position:'relative', width:'100%', maxWidth:380, padding:28, textAlign:'center', zIndex:1, animation:'slideUp 0.2s ease' }}>
+          <div className="modal-content" style={{ ...card, position:'relative', width:'100%', maxWidth:380, padding:28, textAlign:'center', zIndex:1, animation:'slideUp 0.2s ease' }}>
             <div style={{ width:52, height:52, background:'#fef2f2', border:'2px solid #fecaca', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px', color:'#ef4444' }}>{I.trash}</div>
             <h3 style={{ fontSize:16, fontWeight:700, color:'#0f172a', marginBottom:8 }}>Supprimer ce client ?</h3>
             <p style={{ fontSize:13, color:'#94a3b8', marginBottom:24, lineHeight:1.6 }}>Cette action est irréversible. Toutes les données associées à ce client seront perdues.</p>

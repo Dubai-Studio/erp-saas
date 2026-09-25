@@ -1823,10 +1823,10 @@ export default function InvoicesPage() {
           <button onClick={exportCSV} style={{display:'flex',alignItems:'center',gap:7,padding:'9px 14px',borderRadius:10,border:`1.5px solid ${C.border}`,background:'#fff',fontSize:13,fontWeight:600,color:C.slate,cursor:'pointer'}}>
             {Ic.export} Export CSV
           </button>
-          <button onClick={()=>{setEditInv(null);setOutModal(true)}} style={{display:'flex',alignItems:'center',gap:7,padding:'9px 16px',borderRadius:10,border:'none',background:`linear-gradient(135deg,${C.primary},${C.blue})`,fontSize:13,fontWeight:700,color:'#fff',cursor:'pointer',boxShadow:`0 4px 14px rgba(30,58,95,0.30)`}}>
+          <button onClick={()=>{setEditInv(null);setOutModal(true)}} className="btn-primary-mobile" style={{display:'flex',alignItems:'center',gap:7,padding:'9px 16px',borderRadius:10,border:'none',background:`linear-gradient(135deg,${C.primary},${C.blue})`,fontSize:13,fontWeight:700,color:'#fff',cursor:'pointer',boxShadow:`0 4px 14px rgba(30,58,95,0.30)`}}>
             {Ic.fileOut} Nouvelle facture
           </button>
-          <button onClick={()=>setImpModal(true)} style={{display:'flex',alignItems:'center',gap:7,padding:'9px 16px',borderRadius:10,border:'none',background:`linear-gradient(135deg,#1e3a5f,#334155)`,fontSize:13,fontWeight:700,color:'#fff',cursor:'pointer',boxShadow:`0 4px 14px rgba(30,58,95,0.20)`}}>
+          <button onClick={()=>setImpModal(true)} className="btn-primary-mobile" style={{display:'flex',alignItems:'center',gap:7,padding:'9px 16px',borderRadius:10,border:'none',background:`linear-gradient(135deg,#1e3a5f,#334155)`,fontSize:13,fontWeight:700,color:'#fff',cursor:'pointer',boxShadow:`0 4px 14px rgba(30,58,95,0.20)`}}>
             {Ic.fileIn} Importer facture
           </button>
         </div>
@@ -1889,7 +1889,7 @@ export default function InvoicesPage() {
 
       {/* ── Filtres ── */}
       <div style={{...card,padding:'14px 16px',marginBottom:16}}>
-        <div style={{display:'flex',gap:10,flexWrap:'wrap',alignItems:'center',marginBottom:10}}>
+        <div className="filter-bar" style={{display:'flex',gap:10,flexWrap:'wrap',alignItems:'center',marginBottom:10}}>
           <div style={{flex:1,minWidth:200,position:'relative'}}>
             <span style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',color:'#94a3b8',pointerEvents:'none'}}>{Ic.search}</span>
             <input value={search} onChange={e=>setSearch(e.target.value)}
@@ -1966,6 +1966,7 @@ export default function InvoicesPage() {
           </div>
         ) : view==='list' ? (
           <div style={{...card,overflow:'hidden'}}>
+            <div className="table-wrapper" style={{ width: '100%' }}>
             <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
               <thead>
                 <tr style={{background:C.bg,borderBottom:`2px solid ${C.border}`}}>
@@ -2010,6 +2011,7 @@ export default function InvoicesPage() {
                 ))}
               </tbody>
             </table>
+            </div>
             <div style={{padding:'9px 16px',borderTop:`1px solid #f8fafc`,display:'flex',justifyContent:'space-between',background:'#fafafa',fontSize:12,color:'#94a3b8'}}>
               <span>{filteredOut.length} résultat(s) sur {invoices.length}</span>
               <span>Total TTC filtré : <strong style={{color:'#10b981'}}>{fmt(filteredOut.reduce((s,i)=>s+(i.total_amount||0),0))}</strong></span>
@@ -2061,6 +2063,7 @@ export default function InvoicesPage() {
           </div>
         ) : view==='list' ? (
           <div style={{...card,overflow:'hidden'}}>
+            <div className="table-wrapper" style={{ width: '100%' }}>
             <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
               <thead>
                 <tr style={{background:C.bg,borderBottom:`2px solid ${C.border}`}}>
@@ -2121,6 +2124,7 @@ export default function InvoicesPage() {
                 })}
               </tbody>
             </table>
+            </div>
             <div style={{padding:'9px 16px',borderTop:`1px solid #f8fafc`,display:'flex',justifyContent:'space-between',background:'#fafafa',fontSize:12,color:'#94a3b8'}}>
               <span>{filteredIn.length} résultat(s) sur {extInvs.length}</span>
               <span>Total TTC filtré : <strong style={{color:C.primary}}>{fmt(filteredIn.reduce((s,i)=>s+(i.total_amount||0),0))}</strong></span>

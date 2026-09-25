@@ -1615,7 +1615,7 @@ export default function EmployeesPage() {
         <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
           <button onClick={exportCSV} style={{ display:'flex', alignItems:'center', gap:7, padding:'9px 14px', borderRadius:10, border:'1.5px solid #e2e8f0', background:'#fff', fontSize:13, fontWeight:600, color:'#64748b', cursor:'pointer' }}>{I.export} Export CSV</button>
           <button onClick={() => load()} style={{ display:'flex', alignItems:'center', gap:7, padding:'9px 12px', borderRadius:10, border:'1.5px solid #e2e8f0', background:'#fff', fontSize:13, color:'#64748b', cursor:'pointer' }}>{I.refresh}</button>
-          <button onClick={() => { setEditE(null); setEmpModal(true); }} style={{ display:'flex', alignItems:'center', gap:7, padding:'9px 18px', borderRadius:10, border:'none', background:'linear-gradient(135deg,#d97706,#f59e0b)', fontSize:13, fontWeight:700, color:'#fff', cursor:'pointer', boxShadow:'0 4px 14px rgba(245,158,11,0.35)' }}>
+          <button className="btn-primary-mobile" onClick={() => { setEditE(null); setEmpModal(true); }} style={{ display:'flex', alignItems:'center', gap:7, padding:'9px 18px', borderRadius:10, border:'none', background:'linear-gradient(135deg,#d97706,#f59e0b)', fontSize:13, fontWeight:700, color:'#fff', cursor:'pointer', boxShadow:'0 4px 14px rgba(245,158,11,0.35)' }}>
             {I.plus} Nouvel employe
           </button>
         </div>
@@ -1644,7 +1644,7 @@ export default function EmployeesPage() {
 
       {/* Toolbar */}
       <div style={{ ...card, padding:'12px 14px', marginBottom:16 }}>
-        <div style={{ display:'flex', gap:10, flexWrap:'wrap', alignItems:'center', marginBottom:10 }}>
+        <div className="filter-bar" style={{ display:'flex', gap:10, flexWrap:'wrap', alignItems:'center', marginBottom:10 }}>
           <div style={{ flex:1, minWidth:200, position:'relative' }}>
             <span style={{ position:'absolute', left:11, top:'50%', transform:'translateY(-50%)', color:'#94a3b8', pointerEvents:'none' }}>{I.search}</span>
             <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Nom, email, poste…" style={{ ...inp, paddingLeft:34 }} />
@@ -1703,7 +1703,8 @@ export default function EmployeesPage() {
         </div>
       ) : view==='list' ? (
         <div style={{ ...card, overflow:'hidden' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+          <div className="table-wrapper" style={{ width: '100%' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
             <thead>
               <tr style={{ background:'#f8fafc', borderBottom:'2px solid #f1f5f9' }}>
                 {['Employe','Contact','Poste / Dept','Contrat','Remuneration','Anciennete','Statut','Actions'].map((h,i)=>(
@@ -1780,6 +1781,7 @@ export default function EmployeesPage() {
               })}
             </tbody>
           </table>
+          </div>
           <div style={{ padding:'9px 16px', borderTop:'1px solid #f8fafc', display:'flex', justifyContent:'space-between', background:'#fafafa', fontSize:12, color:'#94a3b8' }}>
             <span>{filtered.length} resultat(s) sur {employees.length}</span>
             <span>Masse filtree : <strong style={{ color:'#f59e0b' }}>{fmt(filtered.reduce((s,e)=>s+(e.salary||0),0))}/mois</strong></span>

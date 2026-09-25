@@ -381,7 +381,7 @@ function StockModal({ item, onSave, onClose }: {
 
   return (
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
-      <div style={{ background:'#fff', borderRadius:16, width:'100%', maxWidth:640, maxHeight:'92vh', overflow:'hidden', display:'flex', flexDirection:'column', boxShadow:'0 25px 60px rgba(0,0,0,.2)' }}>
+      <div className="modal-content" style={{ background:'#fff', borderRadius:16, width:'100%', maxWidth:640, maxHeight:'92vh', overflow:'hidden', display:'flex', flexDirection:'column', boxShadow:'0 25px 60px rgba(0,0,0,.2)' }}>
 
         {/* Header */}
         <div style={{ padding:'20px 24px', borderBottom:'1px solid #e2e8f0', display:'flex', alignItems:'center', justifyContent:'space-between', background:'linear-gradient(135deg,#2563eb,#1d4ed8)' }}>
@@ -580,7 +580,7 @@ function MovementModal({ items, onSave, onClose }: {
 
   return (
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:1100, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
-      <div style={{ background:'#fff', borderRadius:16, width:'100%', maxWidth:500, boxShadow:'0 25px 60px rgba(0,0,0,.2)' }}>
+      <div className="modal-content" style={{ background:'#fff', borderRadius:16, width:'100%', maxWidth:500, boxShadow:'0 25px 60px rgba(0,0,0,.2)' }}>
         <div style={{ padding:'20px 24px', borderBottom:'1px solid #e2e8f0', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <div style={{ fontWeight:700, fontSize:15, display:'flex', alignItems:'center', gap:8 }}>{I.move} Enregistrer un mouvement</div>
           <button onClick={onClose} style={{ ...btnGh, padding:6 }}>{I.x}</button>
@@ -1181,7 +1181,7 @@ const saveMovement = async (data: Omit<StockMovement, 'id' | 'created_at'>) => {
       {/* Delete Confirm */}
       {delTarget && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:1200, display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <div style={{ background:'#fff', borderRadius:16, padding:32, maxWidth:400, width:'100%', textAlign:'center', boxShadow:'0 25px 60px rgba(0,0,0,.2)' }}>
+          <div className="modal-content" style={{ background:'#fff', borderRadius:16, padding:32, maxWidth:400, width:'100%', textAlign:'center', boxShadow:'0 25px 60px rgba(0,0,0,.2)' }}>
             <div style={{ width:56, height:56, background:'#fef2f2', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px', color:'#ef4444' }}>{I.trash}</div>
             <div style={{ fontSize:17, fontWeight:700, color:'#1e293b', marginBottom:8 }}>Supprimer l&apos;article ?</div>
             <div style={{ fontSize:14, color:'#64748b', marginBottom:24 }}>

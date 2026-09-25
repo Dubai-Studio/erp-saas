@@ -477,7 +477,7 @@ function TimeEntryModal({ open, onClose, onSave, employee, initial, projects }: 
   return (
     <div style={{ position:'fixed', inset:0, zIndex:210, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
       <div style={{ position:'absolute', inset:0, background:'rgba(15,23,42,0.55)', backdropFilter:'blur(6px)' }} onClick={onClose} />
-      <div style={{ ...card, position:'relative', width:'100%', maxWidth:580, maxHeight:'95vh', overflowY:'auto', zIndex:1 }}>
+      <div className="modal-content" style={{ ...card, position:'relative', width:'100%', maxWidth:580, maxHeight:'95vh', overflowY:'auto', zIndex:1 }}>
         <div style={{ background:'linear-gradient(135deg,#0891b2,#06b6d4)', padding:'20px 22px 18px', borderRadius:'16px 16px 0 0' }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
             <div>
@@ -689,7 +689,7 @@ function EmployeeModal({ open, onClose, onSave, initial }: {
   return (
     <div style={{ position:'fixed', inset:0, zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
       <div style={{ position:'absolute', inset:0, background:'rgba(15,23,42,0.55)', backdropFilter:'blur(6px)' }} onClick={onClose} />
-      <div style={{ ...card, position:'relative', width:'100%', maxWidth:700, maxHeight:'93vh', overflowY:'auto', zIndex:1, display:'flex', flexDirection:'column' }}>
+      <div className="modal-content" style={{ ...card, position:'relative', width:'100%', maxWidth:700, maxHeight:'93vh', overflowY:'auto', zIndex:1, display:'flex', flexDirection:'column' }}>
         <div style={{ background:'linear-gradient(135deg,#d97706 0%,#f59e0b 100%)', padding:'22px 24px 0', borderRadius:'16px 16px 0 0', flexShrink:0 }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
             <div>
@@ -892,7 +892,7 @@ function AdjustmentModal({ open, onClose, onSave, employee, defaultType, project
   return (
     <div style={{ position:'fixed', inset:0, zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
       <div style={{ position:'absolute', inset:0, background:'rgba(15,23,42,0.55)', backdropFilter:'blur(6px)' }} onClick={onClose} />
-      <div style={{ ...card, position:'relative', width:'100%', maxWidth:500, zIndex:1 }}>
+      <div className="modal-content" style={{ ...card, position:'relative', width:'100%', maxWidth:500, zIndex:1 }}>
         <div style={{ background:isSalaire?'linear-gradient(135deg,#0f172a,#1e293b)':'linear-gradient(135deg,#4f46e5,#7c3aed)', padding:'20px 22px 18px', borderRadius:'16px 16px 0 0' }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
             <div>
@@ -1898,7 +1898,7 @@ export default function EmployeesPage() {
       {deleteId && (
         <div style={{ position:'fixed', inset:0, zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div style={{ position:'absolute', inset:0, background:'rgba(15,23,42,0.5)', backdropFilter:'blur(6px)' }} onClick={()=>setDeleteId(null)} />
-          <div style={{ ...card, position:'relative', width:'100%', maxWidth:380, padding:28, textAlign:'center', zIndex:1 }}>
+          <div className="modal-content" style={{ ...card, position:'relative', width:'100%', maxWidth:380, padding:28, textAlign:'center', zIndex:1 }}>
             <div style={{ width:52, height:52, background:'#fef2f2', border:'2px solid #fecaca', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px', color:'#ef4444' }}>{I.trash}</div>
             <h3 style={{ fontSize:16, fontWeight:700, color:'#0f172a', marginBottom:8 }}>Supprimer cet employe ?</h3>
             <p style={{ fontSize:13, color:'#94a3b8', marginBottom:22, lineHeight:1.6 }}>Cette action est irreversible et supprimera egalement ses ajustements et pointages.</p>

@@ -500,7 +500,7 @@ function OutgoingModal({ open, onClose, onSave, initial, clients, projects }:{
   return (
     <div style={{position:'fixed',inset:0,zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
       <div style={{position:'absolute',inset:0,background:'rgba(15,23,42,0.55)',backdropFilter:'blur(6px)'}} onClick={onClose}/>
-      <div style={{...card,position:'relative',width:'100%',maxWidth:840,maxHeight:'94vh',overflowY:'auto',zIndex:1,display:'flex',flexDirection:'column'}}>
+      <div className="modal-content" style={{...card,position:'relative',width:'100%',maxWidth:840,maxHeight:'94vh',overflowY:'auto',zIndex:1,display:'flex',flexDirection:'column'}}>
 
         <div style={{background:hdrBg,padding:'22px 24px 0',borderRadius:'14px 14px 0 0',flexShrink:0}}>
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
@@ -999,7 +999,7 @@ function ImportModal({ open, onClose, onSave, clients, projects, initial }:{
   return (
     <div style={{position:'fixed',inset:0,zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
       <div style={{position:'absolute',inset:0,background:'rgba(15,23,42,0.55)',backdropFilter:'blur(6px)'}} onClick={onClose}/>
-      <div style={{...card,position:'relative',width:'100%',maxWidth:660,maxHeight:'94vh',overflowY:'auto',zIndex:1}}>
+      <div className="modal-content" style={{...card,position:'relative',width:'100%',maxWidth:660,maxHeight:'94vh',overflowY:'auto',zIndex:1}}>
 
         {/* Header */}
         <div style={{background:hdrBg,padding:'20px 22px 18px',borderRadius:'14px 14px 0 0',flexShrink:0}}>
@@ -2175,7 +2175,7 @@ export default function InvoicesPage() {
       {deleteId&&(
         <div style={{position:'fixed',inset:0,zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
           <div style={{position:'absolute',inset:0,background:'rgba(15,23,42,0.5)',backdropFilter:'blur(6px)'}} onClick={()=>setDeleteId(null)}/>
-          <div style={{...card,position:'relative',width:'100%',maxWidth:380,padding:28,textAlign:'center',zIndex:1}}>
+          <div className="modal-content" style={{...card,position:'relative',width:'100%',maxWidth:380,padding:28,textAlign:'center',zIndex:1}}>
             <div style={{width:52,height:52,background:'#fef2f2',border:'2px solid #fecaca',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px',color:'#ef4444'}}>{Ic.trash}</div>
             <h3 style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:8}}>Supprimer cette facture ?</h3>
             <p style={{fontSize:13,color:'#94a3b8',marginBottom:22,lineHeight:1.6}}>Cette action est définitive et irréversible.</p>

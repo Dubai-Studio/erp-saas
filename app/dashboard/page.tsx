@@ -88,7 +88,7 @@ export default function DashboardPage () {
   if (!kpi)         return loadingSkeleton
 
   return (
-    <div style={{ padding: '20px 24px 40px', maxWidth: 1500, margin: '0 auto' }}>
+    <div className="dash-card" style={{ padding: '20px 24px 40px', maxWidth: 1500, margin: '0 auto' }}>
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
@@ -154,7 +154,7 @@ export default function DashboardPage () {
       </KpiRow>
 
       {/* ── Charts row 1 : Revenus vs dépenses + Cashflow ──────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginTop: 16 }}>
+      <div className="stat-grid-2" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginTop: 16 }}>
         <ChartCard title="Revenus vs Dépenses" subtitle="Évolution mensuelle (HT)">
           <ResponsiveContainer width="100%" height={280}>
             <AreaChart data={kpi.chart_revenue_vs_expenses}>
@@ -194,7 +194,7 @@ export default function DashboardPage () {
       </div>
 
       {/* ── Charts row 2 : Acquisition + Aging + Top clients ───────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginTop: 16 }}>
+      <div className="stat-grid-3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginTop: 16 }}>
         <ChartCard title="Acquisition clients">
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={kpi.chart_clients_acquisition}>
@@ -242,7 +242,7 @@ export default function DashboardPage () {
       </div>
 
       {/* ── Top clients + Top expenses ─────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
+      <div className="stat-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
         <ChartCard title="Top clients (CA payé)">
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
@@ -311,7 +311,7 @@ function KpiCard ({ label, value, sub, subColor = '#64748b', accent = PRIMARY }:
   label: string; value: string; sub?: string; subColor?: string; accent?: string
 }) {
   return (
-    <div style={{
+    <div className="dash-card" style={{
       background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12,
       padding: '14px 16px', borderLeft: `4px solid ${accent}`,
     }}>
@@ -324,7 +324,7 @@ function KpiCard ({ label, value, sub, subColor = '#64748b', accent = PRIMARY }:
 
 function ChartCard ({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
-    <div style={{
+    <div className="dash-card" style={{
       background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 16,
     }}>
       <div style={{ marginBottom: 10 }}>

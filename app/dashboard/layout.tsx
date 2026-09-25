@@ -230,12 +230,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           .form-grid-2     { grid-template-columns: 1fr !important; }
           .form-grid-3     { grid-template-columns: 1fr !important; }
           .table-wrapper   { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
-          .stat-grid       { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
-          .stat-grid-4     { grid-template-columns: 1fr 1fr !important; }
+          /* Sur mobile : TOUTES les grilles de stats passent en 1 colonne (stack vertical)
+             pour eviter que les KPIs soient condenses en 1/4 ou 1/3 de largeur. */
+          .stat-grid,
+          .stat-grid-2,
+          .stat-grid-3,
+          .stat-grid-4   { grid-template-columns: 1fr !important; gap: 10px !important; }
+          .stat-grid > *,
+          .stat-grid-2 > *,
+          .stat-grid-3 > *,
+          .stat-grid-4 > * { min-width: 0 !important; }
           .filter-bar      { flex-wrap: wrap !important; }
           .filter-bar > * { flex: 1 1 calc(50% - 8px) !important; min-width: 140px !important; }
           .modal-content   { max-width: 100% !important; border-radius: 14px 14px 0 0 !important; max-height: 88vh !important; }
           .btn-primary-mobile { width: 100% !important; }
+          /* Charts recharts : forcer une largeur minimale au conteneur parent */
+          .chart-mobile    { width: 100% !important; min-width: 0 !important; }
+          /* Cards de tableau de bord : padding reduit sur mobile */
+          .dash-card       { padding: 12px !important; }
           /* Hide sidebar trigger icon when not on mobile */
           .desktop-only-trigger { display: none !important; }
           /* Tables : transforme en cards (caché par défaut) — approche simple : scroll */
